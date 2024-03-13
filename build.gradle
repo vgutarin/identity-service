@@ -14,7 +14,7 @@ allprojects {
         sourceCompatibility = '17'
     }
 
-    group = 'vg.template'
+    group = 'vg.identity'
 }
 
 subprojects {
