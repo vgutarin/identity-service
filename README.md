@@ -1,4 +1,4 @@
-# java-service-template
+# identity-service
 
 ## identity-api
 - defines interfaces
@@ -24,3 +24,4 @@ library can be used instead of "embedded" `identity-logic` implementation.
 ## TODO
 
 - rework User to User { uniqueId, details } 
+- use email as unique username

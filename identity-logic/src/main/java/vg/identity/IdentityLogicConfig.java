@@ -5,12 +5,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
-
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.provisioning.UserDetailsManager;
 import vg.identity.model.User;
-import vg.unique.id.service.UniqueIdService;
+import vg.identity.service.UserService;
 
 @Configuration
 @ComponentScan
@@ -18,33 +16,28 @@ import vg.unique.id.service.UniqueIdService;
 @EntityScan
 public class IdentityLogicConfig {
 
-
     @Bean
-    public User anonymous(UniqueIdService uniqueIdService) {
-        return
-                User.builder()
-                        .uniqueId(uniqueIdService.getNext())
-                        .username("anonymous")
-                        .password("{noop}anonymous")
-                        .build();
+    public User anonymous(UserService userService) {
+        return createUser(userService, "anonymous", "{noop}anonymous");
     }
-
 
     //TODO implement UserDetailsManager
     @Bean
-    public UserDetailsManager userDetailsService(UniqueIdService uniqueIdService) {
-        UserDetails admin =
+    public UserDetailsManager userDetailsService(UserService userService, User anonymous) {
+        return new InMemoryUserDetailsManager(
+                anonymous,
+                createUser(userService, "g","{noop}g"),
+                createUser(userService, "a","{noop}a")
+        );
+    }
+
+    //TODO rework storage
+    private User createUser(UserService userService, String username, String psw) {
+        return userService.create(
                 User.builder()
-                        .uniqueId(uniqueIdService.getNext())
-                        .username("golubov")
-                        .password("{noop}golubov")
-                        .build();
-        UserDetails user =
-                User.builder()
-                        .uniqueId(uniqueIdService.getNext())
-                        .username("alex")
-                        .password("{noop}alex")
-                        .build();
-        return new InMemoryUserDetailsManager(admin, user);
+                    .username(username)
+                    .password(psw)
+                    .build()
+        );
     }
 }

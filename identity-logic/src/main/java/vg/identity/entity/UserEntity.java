@@ -1,6 +1,7 @@
 package vg.identity.entity;
 
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Version;
@@ -26,6 +27,7 @@ public class UserEntity implements UniqueIdEntity {
     @Version
     private int version;
 
+    @Column(unique = true, nullable = false)
     private String username;
     private String password;
 
