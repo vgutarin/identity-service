@@ -9,6 +9,7 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.provisioning.UserDetailsManager;
 import vg.identity.model.User;
 import vg.identity.service.UserService;
+import vg.identity.service.UserServiceImpl;
 
 @Configuration
 @ComponentScan
@@ -17,13 +18,13 @@ import vg.identity.service.UserService;
 public class IdentityLogicConfig {
 
     @Bean
-    public User anonymous(UserService userService) {
+    public User anonymous(UserServiceImpl userService) {
         return createUser(userService, "anonymous", "{noop}anonymous");
     }
 
     //TODO implement UserDetailsManager
     @Bean
-    public UserDetailsManager userDetailsService(UserService userService, User anonymous) {
+    public UserDetailsManager userDetailsService(UserServiceImpl userService, User anonymous) {
         return new InMemoryUserDetailsManager(
                 anonymous,
                 createUser(userService, "g","{noop}g"),

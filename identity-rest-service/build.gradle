@@ -16,10 +16,11 @@ publishing {
 
 dependencies {
 
+    implementation project(":identity-logic")
+
     implementation "org.springframework.boot:spring-boot-starter-web"
     implementation "org.springframework.boot:spring-boot-starter-data-jpa"
 
-    implementation "vg.identity:identity-logic:0.0.1-SNAPSHOT"
     runtimeOnly "com.h2database:h2"
 
     compileOnly "org.projectlombok:lombok"
