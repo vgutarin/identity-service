@@ -11,7 +11,7 @@ allprojects {
     }
 
     java {
-        sourceCompatibility = '17'
+        sourceCompatibility = '21'
     }
 
     group = 'vg.identity'

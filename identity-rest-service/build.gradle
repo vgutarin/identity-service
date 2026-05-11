@@ -32,7 +32,7 @@ dependencies {
     testImplementation "org.assertj:assertj-core"
 
     testImplementation "vg.lib:test:0.0.1-SNAPSHOT"
-    testImplementation "vg.identity:identity-rest-client:0.0.1-SNAPSHOT"
+    testImplementation project(":identity-rest-client")
 
     testRuntimeOnly "com.h2database:h2"
     testRuntimeOnly "vg.unique-id:unique-id-logic:0.0.1-SNAPSHOT"
