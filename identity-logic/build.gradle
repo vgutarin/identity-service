@@ -22,6 +22,7 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-data-jpa"
 
     implementation "vg.unique-id:unique-id-jpa-lib:0.0.1-SNAPSHOT"
+    implementation "org.liquibase:liquibase-core"
 
     compileOnly "org.projectlombok:lombok"
     annotationProcessor "org.projectlombok:lombok"
@@ -33,8 +34,12 @@ dependencies {
 
     testImplementation "vg.lib:test:0.0.1-SNAPSHOT"
 
-    testRuntimeOnly "com.h2database:h2"
-    testRuntimeOnly "vg.unique-id:unique-id-logic:0.0.1-SNAPSHOT"
+    testImplementation "org.springframework.boot:spring-boot-starter-liquibase"
+    // MySQL
+    testImplementation "org.springframework.boot:spring-boot-starter-jdbc:${spring_boot_version}"
+    testRuntimeOnly "com.mysql:mysql-connector-j:${mysql_connector_version}"
+
+    testImplementation "vg.unique-id:unique-id-logic:0.0.1-SNAPSHOT"
 
 }
 

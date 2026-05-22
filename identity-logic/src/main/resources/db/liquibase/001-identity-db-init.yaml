@@ -1,0 +1,110 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-1
+      author: vg
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createTable:
+            columns:
+              - column:
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_identity_user
+                  name: unique_id
+                  type: BIGINT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: INT
+              - column:
+                  name: username_hash
+                  type: BINARY(32)
+                  constraints:
+                    unique: true
+                    uniqueConstraintName: uk_identity_user_username_hash
+              - column:
+                  constraints:
+                    nullable: false
+                  name: username
+                  type: BLOB
+              - column:
+                  name: password
+                  type: BLOB
+              - column:
+                  name: consent_to_keep_personal_data_at
+                  type: DATETIME
+              - column:
+                  name: data
+                  type: MEDIUMBLOB
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_at
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: updated_at
+                  type: DATETIME
+            tableName: identity_user
+  - changeSet:
+      id: 001-2
+      author: vg
+      changes:
+        - createTable:
+            tableName: identity_user_communication_channel
+            columns:
+              - column:
+                  name: unique_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_identity_communication_channel
+              - column:
+                  name: version
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: identity_user_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_identity_channel_to_identity_user
+                    referencedTableName: identity_user
+                    referencedColumnNames: unique_id
+              - column:
+                  name: channel_type
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: channel_user_id
+                  type: BLOB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: channel_user_id_hash
+                  type: BINARY(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data
+                  type: MEDIUMBLOB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: identity_user_communication_channel
+            columnNames: channel_type, channel_user_id_hash
+            constraintName: unq_identity_user_communication_channel_user_id

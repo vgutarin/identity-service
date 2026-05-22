@@ -6,14 +6,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import vg.identity.entity.UserEntity;
-import vg.identity.mapper.UserMapper;
-import vg.identity.model.User;
-import vg.identity.repository.UserRepository;
+import vg.identity.entity.IdentityUserEntity;
+import vg.identity.mapper.IdentityUserMapper;
+import vg.identity.model.IdentityUser;
+import vg.identity.repository.IdentityUserCommunicationChannelRepository;
+import vg.identity.repository.IdentityUserRepository;
 import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,20 +29,22 @@ class UserServiceImplTest {
     @Mock
     UniqueIdService uniqueIdService;
     @Mock
-    UserRepository repository;
+    IdentityUserRepository repository;
     @Mock
-    UserMapper mapper;
+    IdentityUserCommunicationChannelRepository communicationChannelRepository;
+    @Mock
+    IdentityUserMapper mapper;
 
     @InjectMocks
-    UserServiceImpl service;
+    IdentityUserServiceImpl service;
 
     @Test
     void create() {
 
-        var modelToSave = User.builder().build();
+        var modelToSave = IdentityUser.builder().build();
         var modelSaved = model(1L);
 
-        var entityToSave = UserEntity.builder().uniqueId(null).build();
+        var entityToSave = IdentityUserEntity.builder().uniqueId(null).build();
         var entitySaved = entity(1L);
 
         when(mapper.toEntity(modelToSave)).thenReturn(entityToSave);
@@ -62,11 +64,11 @@ class UserServiceImplTest {
         var userId = nextUniqueId();
         var updatedName = nextString();
 
-        var user = User.builder().uniqueId(userId).username(updatedName).build();
+        var user = IdentityUser.builder().uniqueId(userId).username(updatedName).build();
 
         var entityId = userId.value();
-        var entity = UserEntity.builder().uniqueId(entityId).build();
-        var entitySaved = UserEntity.builder()
+        var entity = IdentityUserEntity.builder().uniqueId(entityId).build();
+        var entitySaved = IdentityUserEntity.builder()
                 .uniqueId(entityId)
                 .username(updatedName)
                 .password(nextString())
@@ -97,35 +99,11 @@ class UserServiceImplTest {
         ).isInstanceOf(EntityNotFoundException.class);
     }
 
-    @Test
-    void getAll() {
-
-        var entity1 = entity(1);
-        var entity2 = entity(2);
-        var entity3 = entity(3);
-
-        var model1 = model(1);
-        var model2 = model(2);
-        var model3 = model(3);
-
-        when(repository.findAll()).thenReturn(List.of(entity1, entity2, entity3));
-
-        when(mapper.toModel(entity1)).thenReturn(model1);
-        when(mapper.toModel(entity2)).thenReturn(model2);
-        when(mapper.toModel(entity3)).thenReturn(model3);
-
-        assertThat(
-                service.getAll()
-        ).isEqualTo(
-                List.of(model1, model2, model3)
-        );
+    private static IdentityUser model(long id) {
+        return IdentityUser.builder().uniqueId(new UniqueId(id)).build();
     }
 
-    private static User model(long id) {
-        return User.builder().uniqueId(new UniqueId(id)).build();
-    }
-
-    private static UserEntity entity(long id) {
-        return UserEntity.builder().uniqueId(id).build();
+    private static IdentityUserEntity entity(long id) {
+        return IdentityUserEntity.builder().uniqueId(id).build();
     }
 }

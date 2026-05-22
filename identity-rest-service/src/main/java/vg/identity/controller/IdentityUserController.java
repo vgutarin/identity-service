@@ -1,40 +1,31 @@
 package vg.identity.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import vg.identity.model.User;
-import vg.identity.service.UserService;
-import vg.identity.service.UserServiceImpl;
-
-import java.util.Collection;
+import vg.identity.model.IdentityUser;
+import vg.identity.service.IdentityUserService;
+import vg.identity.service.IdentityUserServiceImpl;
 
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("user")
-public class UserController implements UserService {
+public class IdentityUserController implements IdentityUserService {
 
-    private final UserServiceImpl logic;
+    private final IdentityUserServiceImpl logic;
 
     @Override
     @PostMapping("create")
-    public User create(@RequestBody User user) {
+    public IdentityUser create(@RequestBody IdentityUser user) {
         return logic.create(user);
     }
 
     @Override
     @PutMapping("update")
-    public User update(@RequestBody User user) {
+    public IdentityUser update(@RequestBody IdentityUser user) {
         return logic.update(user);
-    }
-
-    @GetMapping("all")
-    @Override
-    public Collection<User> getAll() {
-        return logic.getAll();
     }
 }

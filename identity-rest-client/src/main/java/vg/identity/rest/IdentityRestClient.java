@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import vg.lib.rest.RestClientFactory;
-import vg.identity.rest.v1.UserServiceApiRestClient;
+import vg.identity.rest.v1.IdentityUserServiceApiRestClient;
 
 @ComponentScan
 @Configuration
@@ -16,7 +16,7 @@ public class IdentityRestClient {
     private final RestClientFactory restClientFactory = new RestClientFactory();
 
     @Bean
-    UserServiceApiRestClient userServiceApiRestClient(@Value("${vg.identity.rest.service.base-url:http://localhost:8080}") String serviceBaseUrl) {
-        return restClientFactory.createClient(serviceBaseUrl, UserServiceApiRestClient.class);
+    IdentityUserServiceApiRestClient userServiceApiRestClient(@Value("${vg.identity.rest.service.base-url:http://localhost:8080}") String serviceBaseUrl) {
+        return restClientFactory.createClient(serviceBaseUrl, IdentityUserServiceApiRestClient.class);
     }
 }

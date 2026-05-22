@@ -22,14 +22,14 @@ import java.util.List;
 @AllArgsConstructor
 @Data
 @Builder
-public class User implements Identifiable, UserDetails {
+public class IdentityUser implements Identifiable, UserDetails {
 
     private UniqueId uniqueId;
 
     private String username;
     private String password;
 
-    private Instant createdAtTime;
+    private Instant createdAt;
     private int version;
 
 

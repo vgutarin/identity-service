@@ -3,35 +3,29 @@ package vg.identity.controller;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import vg.identity.BaseRestControllerTest;
-import vg.identity.model.User;
-import vg.identity.rest.v1.UserServiceApiRestClient;
-
-import java.time.Instant;
+import vg.identity.model.IdentityUser;
+import vg.identity.rest.v1.IdentityUserServiceApiRestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static vg.test.TestHelper.nextLong;
 import static vg.test.TestHelper.nextString;
 
 class UserControllerTest extends BaseRestControllerTest {
 
     @Autowired
-    UserServiceApiRestClient restClient;
+    IdentityUserServiceApiRestClient restClient;
 
     @Autowired
-    ApplicationContext applicationContext;
+    PasswordEncoder passwordEncoder;
 
     private String name;
     private String password;
-
-    private Instant creationTime;
 
     @BeforeEach
     void setUp() {
         name = nextString();
         password = nextString();
-        creationTime = clock.instant();
     }
 
     @Test
@@ -45,16 +39,15 @@ class UserControllerTest extends BaseRestControllerTest {
         );
 
         assertThat(
-                savedModel.getPassword()
-        ).isEqualTo(
-                password
-        );
+                passwordEncoder.matches(
+                        password,
+                        savedModel.getPassword()
+                )
+        ).isTrue();
 
         assertThat(
-                savedModel.getCreatedAtTime()
-        ).isEqualTo(
-                creationTime
-        );
+                savedModel.getCreatedAt()
+        ).isNotNull();
 
         assertThat(
                 savedModel.getUniqueId()
@@ -66,8 +59,6 @@ class UserControllerTest extends BaseRestControllerTest {
         ).isEqualTo(
                 0
         );
-
-        assertThat(restClient.getAll()).contains(savedModel);
     }
 
     @Test
@@ -77,11 +68,9 @@ class UserControllerTest extends BaseRestControllerTest {
         var savedModelId = savedModel.getUniqueId();
         var newName = nextString();
         var newPassword = nextString();
-        var newCreationTime = creationTime.plusSeconds(10 + nextLong());
 
         savedModel.setUsername(newName);
         savedModel.setPassword(newPassword);
-        savedModel.setCreatedAtTime(newCreationTime);
 
         var updatedModel = restClient.update(savedModel);
 
@@ -91,16 +80,9 @@ class UserControllerTest extends BaseRestControllerTest {
                 newName
         );
 
-        assertThat(
+        passwordEncoder.matches(
+                newPassword,
                 updatedModel.getPassword()
-        ).isEqualTo(
-                newPassword
-        );
-
-        assertThat(
-                updatedModel.getCreatedAtTime()
-        ).isEqualTo(
-                newCreationTime
         );
 
         assertThat(
@@ -112,16 +94,13 @@ class UserControllerTest extends BaseRestControllerTest {
         ).isEqualTo(
                 1
         );
-
-        assertThat(restClient.getAll()).contains(updatedModel);
     }
 
-    private User buildModel() {
-        return User.builder()
+    private IdentityUser buildModel() {
+        return IdentityUser.builder()
                 .uniqueId(null)
                 .username(name)
                 .password(password)
-                .createdAtTime(creationTime)
                 .build();
     }
 

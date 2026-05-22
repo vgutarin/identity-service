@@ -1,27 +1,20 @@
 package vg.identity.rest.v1;
 
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.service.annotation.GetExchange;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
 import org.springframework.web.service.annotation.PutExchange;
-import vg.identity.model.User;
-import vg.identity.service.UserService;
-
-import java.util.Collection;
+import vg.identity.model.IdentityUser;
+import vg.identity.service.IdentityUserService;
 
 @HttpExchange("user")
-public interface UserServiceApiRestClient extends UserService {
+public interface IdentityUserServiceApiRestClient extends IdentityUserService {
 
     @Override
     @PostExchange("create")
-    User create(@RequestBody User user);
+    IdentityUser create(@RequestBody IdentityUser user);
 
     @Override
     @PutExchange("update")
-    User update(@RequestBody User user);
-
-    @Override
-    @GetExchange("all")
-    Collection<User> getAll();
+    IdentityUser update(@RequestBody IdentityUser user);
 }
