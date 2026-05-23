@@ -5,13 +5,13 @@ import org.springframework.stereotype.Component;
 import vg.identity.EncryptionProperties;
 
 import javax.crypto.Cipher;
+import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Arrays;
 
@@ -21,16 +21,23 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 @Component
 public class EncryptionService {
 
-    private static final String ALGORITHM = "AES/GCM/NoPadding";
+    private static final String ENCRYPTION_ALGORITHM = "AES/GCM/NoPadding";
     private static final int IV_LENGTH = 12;
     private static final int GCM_TAG_BITS = 128;
     private static final int PBKDF2_ITERATIONS = 65536;
     private static final int KEY_LENGTH_BITS = 256;
 
-    private final SecretKey secretKey;
+    private static final String HASH_ALGORITHM = "HmacSHA256";
+
+    private final SecretKey secretKeyToEncrypt;
+    private final SecretKey secretKeyToHash;
 
     public EncryptionService(EncryptionProperties properties) {
-        this.secretKey = deriveKey(properties.getSecret(), properties.getSalt());
+        if (properties.getSalt() == null || properties.getSalt().isBlank()) {
+            throw new IllegalStateException("BLIND_INDEX_SALT is not configured!");
+        }
+        this.secretKeyToEncrypt = deriveKey(properties.getSecret(), properties.getSalt());
+        this.secretKeyToHash = new SecretKeySpec(properties.getSalt().getBytes(StandardCharsets.UTF_8), HASH_ALGORITHM);
     }
 
     public byte[] encode(String src) {
@@ -41,8 +48,8 @@ public class EncryptionService {
             var iv = new byte[IV_LENGTH];
             new SecureRandom().nextBytes(iv);
 
-            var cipher = Cipher.getInstance(ALGORITHM);
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey, new GCMParameterSpec(GCM_TAG_BITS, iv));
+            var cipher = Cipher.getInstance(ENCRYPTION_ALGORITHM);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKeyToEncrypt, new GCMParameterSpec(GCM_TAG_BITS, iv));
             var encrypted = cipher.doFinal(src.getBytes(UTF_8));
 
             var result = new byte[IV_LENGTH + encrypted.length];
@@ -63,8 +70,8 @@ public class EncryptionService {
             var iv = Arrays.copyOfRange(encoded, 0, IV_LENGTH);
             var ciphertext = Arrays.copyOfRange(encoded, IV_LENGTH, encoded.length);
 
-            var cipher = Cipher.getInstance(ALGORITHM);
-            cipher.init(Cipher.DECRYPT_MODE, secretKey, new GCMParameterSpec(GCM_TAG_BITS, iv));
+            var cipher = Cipher.getInstance(ENCRYPTION_ALGORITHM);
+            cipher.init(Cipher.DECRYPT_MODE, secretKeyToEncrypt, new GCMParameterSpec(GCM_TAG_BITS, iv));
 
             return new String(cipher.doFinal(ciphertext), UTF_8);
         } catch (Exception e) {
@@ -72,15 +79,17 @@ public class EncryptionService {
         }
     }
 
-    public byte[] sha256(String input) {
+    public byte[] hash(String input) {
         if (input == null) {
             return null;
         }
+
         try {
-            var digest = MessageDigest.getInstance("SHA-256");
-            return digest.digest(input.getBytes(UTF_8));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 algorithm not found", e);
+            var mac = Mac.getInstance(HASH_ALGORITHM);
+            mac.init(secretKeyToHash);
+            return mac.doFinal(input.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            throw new RuntimeException("Error during hash generating", e);
         }
     }
 
@@ -88,14 +97,14 @@ public class EncryptionService {
         if (input == null) {
             return null;
         }
-        return sha256(input.toLowerCase().trim());
+        return hash(input.toLowerCase().trim());
     }
 
     public byte[] hashCaseSensitive(String input) {
         if (input == null) {
             return null;
         }
-        return sha256(input);
+        return hash(input);
     }
 
     private static SecretKey deriveKey(String secret, String salt) {

@@ -91,10 +91,10 @@ class EncryptionServiceTest {
     }
 
     @Test
-    void sha256_worksCorrectly() {
+    void hash_worksCorrectly() {
         var input = "test-input";
-        var hash1 = encryptionService.sha256(input);
-        var hash2 = encryptionService.sha256(input);
+        var hash1 = encryptionService.hash(input);
+        var hash2 = encryptionService.hash(input);
 
         assertThat(hash1).isNotNull();
         assertThat(hash1).isEqualTo(hash2);
@@ -102,8 +102,23 @@ class EncryptionServiceTest {
     }
 
     @Test
-    void sha256_withNullInput_returnsNull() {
-        assertThat(encryptionService.sha256(null)).isNull();
+    void hash_withNullInput_returnsNull() {
+        assertThat(encryptionService.hash(null)).isNull();
+    }
+
+    @Test
+    void hash_usesSalt() {
+        var input = "test-input";
+        var hash1 = encryptionService.hash(input);
+
+        var otherProperties = new EncryptionProperties();
+        otherProperties.setSecret("test-secret-key-1234567890123456");
+        otherProperties.setSalt("different-salt");
+        var otherService = new EncryptionService(otherProperties);
+        var hash2 = otherService.hash(input);
+
+        // This is expected to FAIL before the fix, and PASS after the fix
+        assertThat(hash1).isNotEqualTo(hash2);
     }
 
     @Test
