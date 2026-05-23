@@ -11,6 +11,7 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -52,11 +53,10 @@ public class EncryptionService {
             cipher.init(Cipher.ENCRYPT_MODE, secretKeyToEncrypt, new GCMParameterSpec(GCM_TAG_BITS, iv));
             var encrypted = cipher.doFinal(src.getBytes(UTF_8));
 
-            var result = new byte[IV_LENGTH + encrypted.length];
-            System.arraycopy(iv, 0, result, 0, IV_LENGTH);
-            System.arraycopy(encrypted, 0, result, IV_LENGTH, encrypted.length);
-
-            return result;
+            return ByteBuffer.allocate(iv.length + encrypted.length)
+                    .put(iv)
+                    .put(encrypted)
+                    .array();
         } catch (Exception e) {
             throw new IllegalStateException("Failed to encrypt field value", e);
         }
