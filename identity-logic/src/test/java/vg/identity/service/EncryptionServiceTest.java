@@ -15,7 +15,7 @@ class EncryptionServiceTest {
 
     @BeforeEach
     void setUp() {
-        EncryptionProperties properties = new EncryptionProperties();
+        var properties = new EncryptionProperties();
         properties.setSecret("test-secret-key-1234567890123456");
         properties.setSalt("test-salt");
         encryptionService = new EncryptionService(properties);
@@ -28,8 +28,8 @@ class EncryptionServiceTest {
 
     @Test
     void encode_withEmptyString_works() {
-        String plaintext = "";
-        byte[] encoded = encryptionService.encode(plaintext);
+        var plaintext = "";
+        var encoded = encryptionService.encode(plaintext);
         assertThat(encoded).isNotNull();
         assertThat(encryptionService.decode(encoded)).isEqualTo("");
     }
@@ -41,21 +41,21 @@ class EncryptionServiceTest {
 
     @Test
     void encodeAndDecode_returnsOriginalString() {
-        String plaintext = "Hello, World! " + UUID.randomUUID();
-        byte[] encoded = encryptionService.encode(plaintext);
+        var plaintext = "Hello, World! " + UUID.randomUUID();
+        var encoded = encryptionService.encode(plaintext);
 
         assertThat(encoded).isNotNull();
         assertThat(new String(encoded)).isNotEqualTo(plaintext);
 
-        String decoded = encryptionService.decode(encoded);
+        var decoded = encryptionService.decode(encoded);
         assertThat(decoded).isEqualTo(plaintext);
     }
 
     @Test
     void encode_producesDifferentResultsForSameInput() {
-        String plaintext = "same-input";
-        byte[] encoded1 = encryptionService.encode(plaintext);
-        byte[] encoded2 = encryptionService.encode(plaintext);
+        var plaintext = "same-input";
+        var encoded1 = encryptionService.encode(plaintext);
+        var encoded2 = encryptionService.encode(plaintext);
 
         assertThat(encoded1).isNotEqualTo(encoded2);
         assertThat(encryptionService.decode(encoded1)).isEqualTo(plaintext);
@@ -77,16 +77,54 @@ class EncryptionServiceTest {
 
     @Test
     void decode_withDifferentSecret_fails() {
-        String plaintext = "secret-data";
-        byte[] encoded = encryptionService.encode(plaintext);
+        var plaintext = "secret-data";
+        var encoded = encryptionService.encode(plaintext);
 
-        EncryptionProperties otherProperties = new EncryptionProperties();
+        var otherProperties = new EncryptionProperties();
         otherProperties.setSecret("different-secret-key");
         otherProperties.setSalt("test-salt");
-        EncryptionService otherService = new EncryptionService(otherProperties);
+        var otherService = new EncryptionService(otherProperties);
 
         assertThatThrownBy(() -> otherService.decode(encoded))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed to decrypt field value");
+    }
+
+    @Test
+    void sha256_worksCorrectly() {
+        var input = "test-input";
+        var hash1 = encryptionService.sha256(input);
+        var hash2 = encryptionService.sha256(input);
+
+        assertThat(hash1).isNotNull();
+        assertThat(hash1).isEqualTo(hash2);
+        assertThat(hash1.length).isEqualTo(32); // SHA-256 is 256 bits = 32 bytes
+    }
+
+    @Test
+    void sha256_withNullInput_returnsNull() {
+        assertThat(encryptionService.sha256(null)).isNull();
+    }
+
+    @Test
+    void canonicalizeAndHash_isCaseInsensitiveAndTrimmed() {
+        var input1 = "  UserInput  ";
+        var input2 = "userinput";
+
+        var hash1 = encryptionService.canonicalizeAndHash(input1);
+        var hash2 = encryptionService.canonicalizeAndHash(input2);
+
+        assertThat(hash1).isEqualTo(hash2);
+    }
+
+    @Test
+    void hashCaseSensitive_isCaseSensitive() {
+        var input1 = "UserInput";
+        var input2 = "userinput";
+
+        var hash1 = encryptionService.hashCaseSensitive(input1);
+        var hash2 = encryptionService.hashCaseSensitive(input2);
+
+        assertThat(hash1).isNotEqualTo(hash2);
     }
 }

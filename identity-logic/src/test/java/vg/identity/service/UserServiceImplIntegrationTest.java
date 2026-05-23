@@ -11,7 +11,6 @@ import vg.identity.model.CommunicationChannelType;
 import vg.identity.model.IdentityUser;
 import vg.identity.repository.IdentityUserCommunicationChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
-import vg.identity.utils.HashUtils;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -33,6 +32,9 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     PasswordEncoder passwordEncoder;
+
+    @Autowired
+    EncryptionService encryptionService;
 
     private String name;
     private String password;
@@ -173,7 +175,7 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
 
         // Check if channel was created
         var channel = channelRepository.findByChannelTypeAndChannelUserIdHash(
-                channelType, HashUtils.hashCaseSensitive(channelUserId)
+                channelType, encryptionService.hashCaseSensitive(channelUserId)
         ).orElse(null);
         assertThat(channel).isNotNull();
         assertThat(channel.getIdentityUser().getUniqueId()).isEqualTo(user.getUniqueId().value());

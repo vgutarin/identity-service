@@ -10,6 +10,8 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 
@@ -68,6 +70,32 @@ public class EncryptionService {
         } catch (Exception e) {
             throw new IllegalStateException("Failed to decrypt field value", e);
         }
+    }
+
+    public byte[] sha256(String input) {
+        if (input == null) {
+            return null;
+        }
+        try {
+            var digest = MessageDigest.getInstance("SHA-256");
+            return digest.digest(input.getBytes(UTF_8));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 algorithm not found", e);
+        }
+    }
+
+    public byte[] canonicalizeAndHash(String input) {
+        if (input == null) {
+            return null;
+        }
+        return sha256(input.toLowerCase().trim());
+    }
+
+    public byte[] hashCaseSensitive(String input) {
+        if (input == null) {
+            return null;
+        }
+        return sha256(input);
     }
 
     private static SecretKey deriveKey(String secret, String salt) {

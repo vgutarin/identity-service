@@ -13,7 +13,6 @@ import vg.identity.model.CommunicationChannelType;
 import vg.identity.model.IdentityUser;
 import vg.identity.repository.IdentityUserCommunicationChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
-import vg.identity.utils.HashUtils;
 import vg.unique.id.service.UniqueIdService;
 
 import java.util.UUID;
@@ -29,11 +28,12 @@ public class IdentityUserServiceImpl implements IdentityUserService {
     private final IdentityUserCommunicationChannelRepository communicationChannelRepository;
     private final IdentityUserMapper mapper;
     private final PasswordEncoder passwordEncoder;
+    private final EncryptionService encryptionService;
 
     private IdentityUser guest;
 
     public IdentityUser findByUsername(String username) {
-        return repository.findByUsernameHash(HashUtils.canonicalizeAndHash(username))
+        return repository.findByUsernameHash(encryptionService.canonicalizeAndHash(username))
                 .map(mapper::toModel)
                 .orElse(null);
     }
@@ -77,7 +77,7 @@ public class IdentityUserServiceImpl implements IdentityUserService {
         }
 
         mapper.updateEntity(entity, user);
-        entity.setUsernameHash(HashUtils.canonicalizeAndHash(user.getUsername()));
+        entity.setUsernameHash(encryptionService.canonicalizeAndHash(user.getUsername()));
         entity = repository.save(entity);
         repository.flush();
         mapper.updateModel(user, entity);
@@ -86,7 +86,7 @@ public class IdentityUserServiceImpl implements IdentityUserService {
 
     @Transactional
     public IdentityUser get(CommunicationChannelType channelType, String channelUserId) {
-        var channelUserIdHash = HashUtils.hashCaseSensitive(channelUserId);
+        var channelUserIdHash = encryptionService.hashCaseSensitive(channelUserId);
         var channelEntity = communicationChannelRepository.findByChannelTypeAndChannelUserIdHash(channelType, channelUserIdHash)
                 .orElse(null);
 
@@ -114,7 +114,7 @@ public class IdentityUserServiceImpl implements IdentityUserService {
 
     private IdentityUserEntity newEntity(IdentityUser user) {
         var userEntity = mapper.toEntity(user);
-        userEntity.setUsernameHash(HashUtils.canonicalizeAndHash(user.getUsername()));
+        userEntity.setUsernameHash(encryptionService.canonicalizeAndHash(user.getUsername()));
         return repository.saveWithNewUniqueId(userEntity, uniqueIdService);
     }
 }
