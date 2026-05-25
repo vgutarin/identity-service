@@ -8,12 +8,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import vg.identity.entity.IdentityUserCommunicationChannelEntity;
+import vg.identity.entity.IdentityUserChannelEntity;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.mapper.IdentityUserMapper;
-import vg.identity.model.CommunicationChannelType;
+import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityUser;
-import vg.identity.repository.IdentityUserCommunicationChannelRepository;
+import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
 import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
@@ -37,7 +37,7 @@ class UserServiceImplTest {
     @Mock
     IdentityUserRepository repository;
     @Mock
-    IdentityUserCommunicationChannelRepository communicationChannelRepository;
+    IdentityUserChannelRepository communicationChannelRepository;
     @Mock
     IdentityUserMapper mapper;
     @Mock
@@ -150,11 +150,11 @@ class UserServiceImplTest {
 
     @Test
     void get_existingUser() {
-        var channelType = CommunicationChannelType.TELEGRAM;
+        var channelType = IdentityChannelType.TELEGRAM;
         var channelUserId = nextString();
         var hash = new byte[]{4, 5, 6};
         var userEntity = entity(1L);
-        var channelEntity = IdentityUserCommunicationChannelEntity.builder()
+        var channelEntity = IdentityUserChannelEntity.builder()
                 .identityUser(userEntity)
                 .build();
         var model = model(1L);
@@ -169,7 +169,7 @@ class UserServiceImplTest {
 
     @Test
     void get_newUser() {
-        var channelType = CommunicationChannelType.TELEGRAM;
+        var channelType = IdentityChannelType.TELEGRAM;
         var channelUserId = nextString();
         var channelUserIdHash = new byte[]{1};
         var usernameHash = new byte[]{2};
@@ -186,7 +186,7 @@ class UserServiceImplTest {
         when(repository.saveWithNewUniqueId(eq(userEntity), eq(uniqueIdService))).thenReturn(userEntity);
         when(mapper.toModel(userEntity)).thenReturn(userModel);
 
-        var channelEntityCaptor = ArgumentCaptor.forClass(IdentityUserCommunicationChannelEntity.class);
+        var channelEntityCaptor = ArgumentCaptor.forClass(IdentityUserChannelEntity.class);
 
         var result = service.get(channelType, channelUserId);
 

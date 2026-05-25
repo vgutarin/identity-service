@@ -6,12 +6,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import vg.identity.entity.IdentityUserCommunicationChannelEntity;
+import vg.identity.entity.IdentityUserChannelEntity;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.mapper.IdentityUserMapper;
-import vg.identity.model.CommunicationChannelType;
+import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityUser;
-import vg.identity.repository.IdentityUserCommunicationChannelRepository;
+import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
 import vg.unique.id.service.UniqueIdService;
 
@@ -25,7 +25,7 @@ public class IdentityUserServiceImpl implements IdentityUserService {
 
     private final UniqueIdService uniqueIdService;
     private final IdentityUserRepository repository;
-    private final IdentityUserCommunicationChannelRepository communicationChannelRepository;
+    private final IdentityUserChannelRepository identityChannelRepository;
     private final IdentityUserMapper mapper;
     private final PasswordEncoder passwordEncoder;
     private final EncryptionService encryptionService;
@@ -85,16 +85,16 @@ public class IdentityUserServiceImpl implements IdentityUserService {
     }
 
     @Transactional
-    public IdentityUser get(CommunicationChannelType channelType, String channelUserId) {
+    public IdentityUser get(IdentityChannelType channelType, String channelUserId) {
         var channelUserIdHash = encryptionService.hashCaseSensitive(channelUserId);
-        var channelEntity = communicationChannelRepository.findByChannelTypeAndChannelUserIdHash(channelType, channelUserIdHash)
+        var channelEntity = identityChannelRepository.findByChannelTypeAndChannelUserIdHash(channelType, channelUserIdHash)
                 .orElse(null);
 
         if (channelEntity != null) {
             return mapper.toModel(channelEntity.getIdentityUser());
         }
 
-        var newChannelEntity = IdentityUserCommunicationChannelEntity.builder()
+        var newChannelEntity = IdentityUserChannelEntity.builder()
                 .identityUser(
                         newEntity(
                                 IdentityUser.builder()
@@ -108,7 +108,7 @@ public class IdentityUserServiceImpl implements IdentityUserService {
                 .data("{}")
                 .build();
 
-        communicationChannelRepository.saveWithNewUniqueId(newChannelEntity, uniqueIdService);
+        identityChannelRepository.saveWithNewUniqueId(newChannelEntity, uniqueIdService);
         return mapper.toModel(newChannelEntity.getIdentityUser());
     }
 

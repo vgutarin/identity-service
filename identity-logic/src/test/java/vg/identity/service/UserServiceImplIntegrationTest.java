@@ -7,9 +7,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import vg.identity.BaseIntegrationTest;
-import vg.identity.model.CommunicationChannelType;
+import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityUser;
-import vg.identity.repository.IdentityUserCommunicationChannelRepository;
+import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
 
 import java.time.Instant;
@@ -25,7 +25,7 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
     IdentityUserRepository repository;
 
     @Autowired
-    IdentityUserCommunicationChannelRepository channelRepository;
+    IdentityUserChannelRepository channelRepository;
 
     @Autowired
     IdentityUserServiceImpl service;
@@ -164,7 +164,7 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getByChannel_createsNewUser() {
-        var channelType = CommunicationChannelType.TELEGRAM;
+        var channelType = IdentityChannelType.TELEGRAM;
         var channelUserId = nextString();
 
         var user = service.get(channelType, channelUserId);
@@ -183,7 +183,7 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getByChannel_returnsExistingUser() {
-        var channelType = CommunicationChannelType.TELEGRAM;
+        var channelType = IdentityChannelType.TELEGRAM;
         var channelUserId = nextString();
 
         var firstUser = service.get(channelType, channelUserId);
@@ -195,7 +195,7 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getByChannel_isCaseSensitive() {
-        var channelType = CommunicationChannelType.TELEGRAM;
+        var channelType = IdentityChannelType.TELEGRAM;
         var channelUserId = "SomeUser";
 
         var firstUser = service.get(channelType, channelUserId);

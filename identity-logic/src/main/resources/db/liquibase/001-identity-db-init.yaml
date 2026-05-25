@@ -53,7 +53,7 @@ databaseChangeLog:
       author: vg
       changes:
         - createTable:
-            tableName: identity_user_communication_channel
+            tableName: identity_user_channel
             columns:
               - column:
                   name: unique_id
@@ -105,6 +105,6 @@ databaseChangeLog:
                   constraints:
                     nullable: false
         - addUniqueConstraint:
-            tableName: identity_user_communication_channel
+            tableName: identity_user_channel
             columnNames: channel_type, channel_user_id_hash
-            constraintName: unq_identity_user_communication_channel_user_id
+            constraintName: unq_identity_user_channel_user_id

@@ -22,7 +22,7 @@ import lombok.ToString;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import vg.identity.model.CommunicationChannelType;
+import vg.identity.model.IdentityChannelType;
 import vg.unique.id.jpa.UniqueIdEntity;
 
 import java.time.Instant;
@@ -37,15 +37,15 @@ import static vg.utils.HibernateHelper.effectiveClass;
 @ToString
 @Builder
 @Table(
-        name = "identity_user_communication_channel",
+        name = "identity_user_channel",
         uniqueConstraints = @UniqueConstraint(
-                name = "unq_identity_user_communication_channel_user_id",
+                name = "unq_identity_user_channel_user_id",
                 columnNames = {"channel_type", "channel_user_id_hash"}
         )
 )
 @Entity
 @EntityListeners(AuditingEntityListener.class)
-public class IdentityUserCommunicationChannelEntity implements UniqueIdEntity {
+public class IdentityUserChannelEntity implements UniqueIdEntity {
 
     @Id
     private Long uniqueId;
@@ -59,7 +59,7 @@ public class IdentityUserCommunicationChannelEntity implements UniqueIdEntity {
 
     @Column(nullable = false)
     @Enumerated(EnumType.ORDINAL)
-    private CommunicationChannelType channelType;
+    private IdentityChannelType channelType;
 
     @Convert(converter = StringEncryptionConverter.class)
     @Column(columnDefinition = "BLOB", nullable = false, updatable = false)
@@ -85,7 +85,7 @@ public class IdentityUserCommunicationChannelEntity implements UniqueIdEntity {
         if (this == o) return true;
         if (o == null) return false;
         if (effectiveClass(this) != effectiveClass(o)) return false;
-        var that = (IdentityUserCommunicationChannelEntity) o;
+        var that = (IdentityUserChannelEntity) o;
         return getUniqueId() != null && Objects.equals(getUniqueId(), that.getUniqueId());
     }
 
