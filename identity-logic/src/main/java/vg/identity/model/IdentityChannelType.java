@@ -2,7 +2,8 @@ package vg.identity.model;
 
 public enum IdentityChannelType {
     GENERIC,
-    TELEGRAM,
+    TELEGRAM_USER,
+    TELEGRAM_BOT,
     EMAIL,
     PHONE
 }

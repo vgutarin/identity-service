@@ -6,4 +6,5 @@ import vg.unique.id.model.UniqueId;
 public interface CurrentUserService {
     UserDetails getCurrentUserDetails();
     UniqueId getCurrentUserUniqueId();
+    boolean hasRole(String role);
 }

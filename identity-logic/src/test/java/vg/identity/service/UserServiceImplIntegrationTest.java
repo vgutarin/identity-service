@@ -11,11 +11,13 @@ import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityUser;
 import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
+import vg.identity.repository.IdentityUserSystemRoleRepository;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static vg.test.TestHelper.nextString;
 
 
@@ -36,6 +38,9 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
     @Autowired
     EncryptionService encryptionService;
 
+    @Autowired
+    IdentityUserSystemRoleRepository systemRoleRepository;
+
     private String name;
     private String password;
 
@@ -48,6 +53,7 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
 
     @AfterEach
     void cleanUp() {
+        systemRoleRepository.deleteAll();
         channelRepository.deleteAll();
         repository.deleteAll();
     }
@@ -157,14 +163,14 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
         duplicate.setUsername(name.toUpperCase());
 
         // Should throw due to DB unique constraint on usernameHash
-        org.junit.jupiter.api.Assertions.assertThrows(Exception.class, () -> {
-            service.create(duplicate);
-        });
+        assertThatThrownBy(
+                () -> service.create(duplicate)
+        ).isInstanceOf(Exception.class);
     }
 
     @Test
     void getByChannel_createsNewUser() {
-        var channelType = IdentityChannelType.TELEGRAM;
+        var channelType = IdentityChannelType.TELEGRAM_USER;
         var channelUserId = nextString();
 
         var user = service.get(channelType, channelUserId);
@@ -183,7 +189,7 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getByChannel_returnsExistingUser() {
-        var channelType = IdentityChannelType.TELEGRAM;
+        var channelType = IdentityChannelType.TELEGRAM_USER;
         var channelUserId = nextString();
 
         var firstUser = service.get(channelType, channelUserId);
@@ -195,7 +201,7 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getByChannel_isCaseSensitive() {
-        var channelType = IdentityChannelType.TELEGRAM;
+        var channelType = IdentityChannelType.TELEGRAM_USER;
         var channelUserId = "SomeUser";
 
         var firstUser = service.get(channelType, channelUserId);

@@ -11,7 +11,6 @@ import vg.unique.id.model.UniqueId;
 
 import java.time.Instant;
 import java.util.Collection;
-import java.util.List;
 
 /**
  * Represents user
@@ -28,15 +27,11 @@ public class IdentityUser implements Identifiable, UserDetails {
 
     private String username;
     private String password;
+    private Collection<? extends GrantedAuthority> authorities;
 
     private Instant createdAt;
     private int version;
 
-
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of();
-    }
 
     @Override
     public boolean isAccountNonExpired() {

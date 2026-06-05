@@ -18,7 +18,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.ToString;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -34,7 +33,6 @@ import static vg.utils.HibernateHelper.effectiveClass;
 @AllArgsConstructor
 @Getter
 @Setter
-@ToString
 @Builder
 @Table(
         name = "identity_user_channel",
@@ -53,7 +51,7 @@ public class IdentityUserChannelEntity implements UniqueIdEntity {
     @Version
     private int version;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = true)
     @JoinColumn(name = "identity_user_unique_id")
     private IdentityUserEntity identityUser;
 

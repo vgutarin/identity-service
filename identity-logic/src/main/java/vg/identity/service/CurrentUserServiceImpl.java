@@ -18,7 +18,6 @@ public class CurrentUserServiceImpl implements CurrentUserService {
 
     @Override
     public UserDetails getCurrentUserDetails() {
-
         return Optional.of(SecurityContextHolder.getContext())
                 .map(SecurityContext::getAuthentication)
                 .filter(Authentication::isAuthenticated)
@@ -35,5 +34,13 @@ public class CurrentUserServiceImpl implements CurrentUserService {
             return guest.getUniqueId();
         }
         return  userService.findByUsername(currentUserDetails.getUsername()).getUniqueId();
+    }
+
+    @Override
+    public boolean hasRole(String role) {
+        var currentUserDetails = getCurrentUserDetails();
+        var normalizedRole = IdentityUserAuthorityService.normalizeRoleName(role);
+        return currentUserDetails != null && currentUserDetails.getAuthorities().stream()
+                .anyMatch(grantedAuthority -> normalizedRole.equals(grantedAuthority.getAuthority()));
     }
 }

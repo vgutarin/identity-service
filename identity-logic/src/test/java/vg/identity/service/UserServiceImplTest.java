@@ -150,7 +150,7 @@ class UserServiceImplTest {
 
     @Test
     void get_existingUser() {
-        var channelType = IdentityChannelType.TELEGRAM;
+        var channelType = IdentityChannelType.TELEGRAM_USER;
         var channelUserId = nextString();
         var hash = new byte[]{4, 5, 6};
         var userEntity = entity(1L);
@@ -169,7 +169,7 @@ class UserServiceImplTest {
 
     @Test
     void get_newUser() {
-        var channelType = IdentityChannelType.TELEGRAM;
+        var channelType = IdentityChannelType.TELEGRAM_USER;
         var channelUserId = nextString();
         var channelUserIdHash = new byte[]{1};
         var usernameHash = new byte[]{2};

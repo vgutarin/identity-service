@@ -70,7 +70,7 @@ databaseChangeLog:
                   name: identity_user_unique_id
                   type: BIGINT
                   constraints:
-                    nullable: false
+                    nullable: true
                     foreignKeyName: fk_identity_channel_to_identity_user
                     referencedTableName: identity_user
                     referencedColumnNames: unique_id
@@ -108,3 +108,32 @@ databaseChangeLog:
             tableName: identity_user_channel
             columnNames: channel_type, channel_user_id_hash
             constraintName: unq_identity_user_channel_user_id
+  - changeSet:
+      id: 001-3
+      author: vg
+      changes:
+        - createTable:
+              columns:
+                - column:
+                    constraints:
+                      nullable: false
+                      primaryKey: true
+                      primaryKeyName: pk_identity_user_system_role
+                      foreignKeyName: fk_identity_user_system_role_to_identity_user
+                      referencedTableName: identity_user
+                      referencedColumnNames: unique_id
+                    name: identity_user_unique_id
+                    type: BIGINT
+                - column:
+                    constraints:
+                      nullable: false
+                      primaryKey: true
+                      primaryKeyName: pk_identity_user_system_role
+                    name: role
+                    type: SMALLINT
+                - column:
+                    constraints:
+                      nullable: false
+                    name: created_at
+                    type: DATETIME
+              tableName: identity_user_system_role

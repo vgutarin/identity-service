@@ -19,6 +19,7 @@ dependencies {
     api project(":identity-api")
 
     implementation "org.springframework.boot:spring-boot-starter"
+//    implementation "org.springframework.boot:spring-boot-starter-security"
     implementation "org.springframework.boot:spring-boot-starter-data-jpa"
 
     implementation "vg.unique-id:unique-id-jpa-lib:0.0.1-SNAPSHOT"
