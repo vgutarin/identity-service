@@ -21,12 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static vg.test.TestHelper.nextString;
 
-@WithMockUser(
-        username = "john",
-        roles = {
-                "IDENTITY_ADMIN"
-        }
-)
+@WithMockUser(username = "john", roles = "IDENTITY_ADMIN")
 class IdentityAccountServiceIntegrationTest extends BaseIntegrationTest {
     @Autowired
     IdentityAccountService service;

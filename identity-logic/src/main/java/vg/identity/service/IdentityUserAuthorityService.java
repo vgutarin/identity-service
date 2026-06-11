@@ -73,6 +73,6 @@ public class IdentityUserAuthorityService {
     }
 
     static String resourceAuthorityName(long uniqueId, String name) {
-        return normalizeAuthorityName(uniqueId + ":" + name);
+        return uniqueId + ":" + normalizeAuthorityName(name);
     }
 }
