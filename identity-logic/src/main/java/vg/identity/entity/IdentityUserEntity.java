@@ -13,7 +13,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.ToString;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -28,7 +27,6 @@ import static vg.utils.HibernateHelper.effectiveClass;
 @AllArgsConstructor
 @Getter
 @Setter
-@ToString
 @Builder
 @Table(name = "identity_user")
 @Entity
@@ -65,7 +63,6 @@ public class IdentityUserEntity implements UniqueIdEntity {
     @Column(nullable = false)
     @LastModifiedDate
     private Instant updatedAt;
-
 
     @Override
     public final boolean equals(Object o) {

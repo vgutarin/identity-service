@@ -1,3 +1,5 @@
 /.idea/
 /.gradle/
 */build/
+/identity-frontend-vaadin/node_modules/
+/identity-frontend-vaadin/frontend/
