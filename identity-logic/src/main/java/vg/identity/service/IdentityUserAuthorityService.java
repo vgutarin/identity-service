@@ -67,4 +67,12 @@ public class IdentityUserAuthorityService {
         }
         return "ROLE_" + roleName;
     }
+
+    static String normalizeAuthorityName(String authorityName) {
+        return authorityName.trim().toLowerCase();
+    }
+
+    static String resourceAuthorityName(long uniqueId, String name) {
+        return normalizeAuthorityName(uniqueId + ":" + name);
+    }
 }

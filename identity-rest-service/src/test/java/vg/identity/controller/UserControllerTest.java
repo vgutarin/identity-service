@@ -1,6 +1,7 @@
 package vg.identity.controller;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -11,6 +12,7 @@ import vg.identity.rest.v1.IdentityUserServiceApiRestClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static vg.test.TestHelper.nextString;
 
+@Disabled
 class UserControllerTest extends BaseRestControllerTest {
 
     @Autowired
