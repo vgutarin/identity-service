@@ -55,8 +55,7 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
         var layout = new HorizontalLayout();
 
         // Configure styling for the header
-        layout.setId("header");
-        layout.getThemeList().set("dark", true);
+        layout.addClassName("main-header");
         layout.setWidthFull();
         layout.setSpacing(false);
         layout.setAlignItems(FlexComponent.Alignment.CENTER);
@@ -67,7 +66,9 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
         // Placeholder for the title of the current view.
         // The title will be set after navigation.
         viewTitle = new H3();
+        viewTitle.addClassName("view-title");
         layout.add(viewTitle);
+        layout.expand(viewTitle);
 
         layout.add(createLocalePicker());
 
@@ -76,11 +77,20 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
                         .map(user -> {
                             var logout = new Button(localization.i18n("Logout"), click -> this.authContext.logout());
                             var loggedUser = new Span("Welcome " + user.getUsername());
-                            return new HorizontalLayout(loggedUser, logout);
+                            loggedUser.addClassName("logged-user");
+                            var userActions = new HorizontalLayout(loggedUser, logout);
+                            userActions.addClassName("user-actions");
+                            userActions.setAlignItems(FlexComponent.Alignment.CENTER);
+                            return userActions;
                         }).orElseGet(() ->
-                                new HorizontalLayout(
-                                        new Button(localization.i18n("Login"), click -> {/*TODO*/})
-                                )
+                                {
+                                    var userActions = new HorizontalLayout(
+                                            new Button(localization.i18n("Login"), click -> {/*TODO*/})
+                                    );
+                                    userActions.addClassName("user-actions");
+                                    userActions.setAlignItems(FlexComponent.Alignment.CENTER);
+                                    return userActions;
+                                }
                         )
         );
 
@@ -92,6 +102,7 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
 
     private Select<Locale> createLocalePicker() {
         var localePicker = new Select<Locale>();
+        localePicker.addClassName("locale-picker");
         localePicker.setLabel(localization.i18n("Language"));
         localePicker.setItems(localization.getProvidedLocales());
         localePicker.setItemLabelGenerator(this::localeName);
@@ -113,15 +124,15 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
         var layout = new VerticalLayout();
 
         // Configure styling for the drawer
+        layout.addClassName("drawer-content");
         layout.setSizeFull();
         layout.setPadding(false);
         layout.setSpacing(false);
-        layout.getThemeList().set("spacing-s", true);
         layout.setAlignItems(FlexComponent.Alignment.STRETCH);
 
         // Have a drawer header with an application logo
         var logoLayout = new HorizontalLayout();
-        logoLayout.setId("logo");
+        logoLayout.addClassName("drawer-logo");
         logoLayout.setAlignItems(FlexComponent.Alignment.CENTER);
         //logoLayout.add(new Image("images/logo.jpeg", "My Project logo"));
         logoLayout.add(new H1(localization.i18n("project.name")));

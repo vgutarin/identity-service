@@ -1,0 +1,79 @@
+html {
+  --aura-accent-color-light: var(--aura-blue);
+  --aura-accent-color-dark: var(--aura-blue);
+  --aura-base-radius: 6;
+  --aura-base-size: 20;
+  --aura-contrast-level: 2;
+  --aura-font-family: var(--aura-font-family-system);
+  --aura-surface-level: 0;
+}
+
+body {
+  background: var(--aura-background-color);
+  color: var(--vaadin-text-color);
+}
+
+.main-header {
+  background: var(--aura-surface-color);
+  border-bottom: 1px solid var(--vaadin-border-color-secondary);
+  box-sizing: border-box;
+  gap: var(--vaadin-gap-m);
+  min-height: var(--vaadin-size-xl);
+  padding: var(--vaadin-padding-s) var(--vaadin-padding-m);
+}
+
+.view-title {
+  color: var(--vaadin-text-color);
+  font-size: var(--aura-font-size-l);
+  font-weight: var(--aura-font-weight-semibold);
+  line-height: var(--aura-line-height-m);
+  margin: 0;
+}
+
+.locale-picker {
+  width: 10rem;
+}
+
+.user-actions {
+  gap: var(--vaadin-gap-s);
+  white-space: nowrap;
+}
+
+.logged-user {
+  color: var(--vaadin-text-color-secondary);
+  font-size: var(--aura-font-size-s);
+}
+
+.drawer-content {
+  background: var(--aura-surface-color);
+  border-right: 1px solid var(--vaadin-border-color-secondary);
+}
+
+.drawer-logo {
+  border-bottom: 1px solid var(--vaadin-border-color-secondary);
+  box-sizing: border-box;
+  min-height: var(--vaadin-size-xl);
+  padding: var(--vaadin-padding-m);
+}
+
+.drawer-logo h1 {
+  color: var(--aura-accent-text-color);
+  font-size: var(--aura-font-size-l);
+  font-weight: var(--aura-font-weight-semibold);
+  line-height: var(--aura-line-height-m);
+  margin: 0;
+}
+
+.login-view {
+  background: var(--aura-background-color);
+  color: var(--vaadin-text-color);
+  gap: var(--vaadin-gap-l);
+  padding: var(--vaadin-padding-l);
+}
+
+.login-view h1 {
+  color: var(--aura-accent-text-color);
+  font-size: var(--aura-font-size-xl);
+  font-weight: var(--aura-font-weight-semibold);
+  margin: 0;
+}
