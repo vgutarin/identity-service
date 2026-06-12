@@ -6,6 +6,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.entity.IdentityAccountEntity;
@@ -97,6 +98,33 @@ class IdentityAccountServiceIntegrationTest extends BaseIntegrationTest {
         assertThat(updated.getUniqueId()).isEqualTo(saved.getUniqueId());
         assertThat(updated.getName()).isEqualTo(newName);
         assertThat(updated.getVersion()).isEqualTo(1);
+    }
+
+    @Test
+    void updateThrows_WhenVersionIsStale() {
+        var saved = service.create(buildAccount());
+        var stale = IdentityAccountEntity.builder()
+                .uniqueId(saved.getUniqueId())
+                .version(saved.getVersion())
+                .name(nextString())
+                .build();
+        var currentName = nextString();
+
+        service.update(
+                IdentityAccountEntity.builder()
+                        .uniqueId(saved.getUniqueId())
+                        .version(saved.getVersion())
+                        .name(currentName)
+                        .build()
+        );
+
+        assertThatThrownBy(() -> service.update(stale))
+                .isInstanceOf(ObjectOptimisticLockingFailureException.class);
+        assertThat(accountRepository.findById(saved.getUniqueId()))
+                .hasValueSatisfying(account -> {
+                    assertThat(account.getName()).isEqualTo(currentName);
+                    assertThat(account.getVersion()).isEqualTo(1);
+                });
     }
 
     @Test

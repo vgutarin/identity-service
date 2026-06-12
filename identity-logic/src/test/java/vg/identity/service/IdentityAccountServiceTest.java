@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import vg.identity.entity.IdentityAccountEntity;
 import vg.identity.repository.IdentityAccountRepository;
 import vg.unique.id.service.UniqueIdService;
@@ -95,6 +96,26 @@ class IdentityAccountServiceTest {
 
         assertThatThrownBy(() -> service.update(model))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void updateThrows_WhenVersionIsStale() {
+        var accountId = nextLong();
+        var model = IdentityAccountEntity.builder()
+                .uniqueId(accountId)
+                .version(1)
+                .name(nextString())
+                .build();
+        var existing = IdentityAccountEntity.builder()
+                .uniqueId(accountId)
+                .version(2)
+                .name(nextString())
+                .build();
+
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> service.update(model))
+                .isInstanceOf(ObjectOptimisticLockingFailureException.class);
     }
 
     @Test

@@ -11,14 +11,14 @@ dependencyManagement {
 }
 
 dependencies {
-	implementation project(":identity-api")
+	implementation project(":identity-logic")
 
 	implementation "com.vaadin:vaadin-spring-boot-starter"
 	implementation "com.vaadin:vaadin-dev-server"
 	implementation "org.springframework.boot:spring-boot-starter-data-jpa"
 	implementation "org.springframework.boot:spring-boot-starter-security"
+	implementation "vg.unique-id:unique-id-jpa-lib:0.0.1-SNAPSHOT"
 
-	runtimeOnly project(":identity-logic")
 	runtimeOnly "com.h2database:h2"
 	runtimeOnly "vg.unique-id:unique-id-logic:0.0.1-SNAPSHOT"
 //	runtimeOnly "com.mysql:mysql-connector-j:8.3.0"

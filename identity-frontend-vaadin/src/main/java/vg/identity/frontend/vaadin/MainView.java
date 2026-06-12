@@ -21,14 +21,13 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.security.core.userdetails.UserDetails;
+import vg.identity.frontend.vaadin.admin.IdentityAccounts;
 import vg.identity.frontend.vaadin.admin.IdentityUsers;
 import vg.identity.frontend.vaadin.admin.IdentityUsersChannels;
 import vg.identity.frontend.vaadin.service.LocalizationService;
 
 import java.util.Locale;
 
-//@CssImport("./styles/views/main/main-view.css")
-//@JsModule("./styles/shared-styles.js")
 @PermitAll
 public class MainView extends AppLayout implements AfterNavigationObserver {
 
@@ -149,6 +148,7 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
             var adminGroup = new SideNavItem(localization.i18n("Admin"));
             adminGroup.setPrefixComponent(VaadinIcon.COG.create());
             adminGroup.addItem(
+                    sideNavItem(IdentityAccounts.class),
                     sideNavItem(IdentityUsers.class),
                     sideNavItem(IdentityUsersChannels.class)
             );

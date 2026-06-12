@@ -2,6 +2,7 @@ package vg.identity.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +43,10 @@ public class IdentityAccountService {
     public IdentityAccountEntity update(IdentityAccountEntity account) {
         var existing = accountRepository.findById(account.getUniqueId())
                 .orElseThrow(EntityNotFoundException::new);
+
+        if (existing.getVersion() != account.getVersion()) {
+            throw new ObjectOptimisticLockingFailureException(IdentityAccountEntity.class, account.getUniqueId());
+        }
 
         existing.setName(account.getName());
 
