@@ -4,6 +4,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vg.identity.entity.IdentityUserChannelEntity;
@@ -16,6 +17,7 @@ import vg.identity.repository.IdentityUserRepository;
 import vg.unique.id.service.UniqueIdService;
 
 import java.util.UUID;
+import java.util.List;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -36,6 +38,14 @@ public class IdentityUserServiceImpl implements IdentityUserService {
         return repository.findByUsernameHash(encryptionService.canonicalizeAndHash(username))
                 .map(mapper::toModel)
                 .orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('IDENTITY_ADMIN')")
+    public List<IdentityUser> findAll() {
+        return repository.findAll().stream()
+                .map(mapper::toModel)
+                .toList();
     }
 
     @Transactional

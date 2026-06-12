@@ -1,21 +1,35 @@
 package vg.identity.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vg.identity.entity.IdentityPermissionEntity;
+import vg.identity.entity.IdentityUserResourcePermissionEntity;
+import vg.identity.entity.IdentityUserResourcePermissionEntityId;
 import vg.identity.entity.IdentityUserSystemRoleEntity;
 import vg.identity.entity.IdentityUserSystemRoleEntityId;
+import vg.identity.model.IdentityResourceType;
 import vg.identity.model.IdentityUser;
+import vg.identity.model.IdentityUserResourcePermission;
 import vg.identity.model.IdentityUserSystemRole;
+import vg.identity.repository.IdentityPermissionRepository;
+import vg.identity.repository.IdentityUserResourcePermissionRepository;
 import vg.identity.repository.IdentityUserSystemRoleRepository;
+import vg.unique.id.jpa.UniqueIdEntity;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class IdentityUserAuthorityService {
     private final IdentityUserSystemRoleRepository systemRoleRepository;
+    private final IdentityPermissionRepository permissionRepository;
+    private final IdentityUserResourcePermissionRepository resourcePermissionRepository;
 
     public void loadAuthorities(IdentityUser user) {
         user.setAuthorities(
@@ -52,6 +66,81 @@ public class IdentityUserAuthorityService {
     public void assignAuthorityTmpInsecure(IdentityUser user, IdentityUserSystemRole role) {
         // is created to temporary bypass the security
         assignAuthority(user, role);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('IDENTITY_ADMIN')")
+    public void assignResourceAuthority(UniqueIdEntity resource, IdentityUser user, String permission) {
+        var permissionName = normalizeAuthorityName(permission);
+        var permissionId = permissionRepository.findByName(permissionName)
+                .orElseGet(() -> permissionRepository.save(
+                        IdentityPermissionEntity.builder()
+                                .name(permissionName)
+                                .build()
+                ))
+                .getId();
+
+        var id = IdentityUserResourcePermissionEntityId.builder()
+                .userUniqueId(user.getUniqueId().value())
+                .resourceUniqueId(resource.getUniqueId())
+                .permissionId(permissionId)
+                .build();
+        if (!resourcePermissionRepository.existsById(id)) {
+            resourcePermissionRepository.save(
+                    IdentityUserResourcePermissionEntity.builder()
+                            .userUniqueId(id.getUserUniqueId())
+                            .resourceUniqueId(id.getResourceUniqueId())
+                            .permissionId(id.getPermissionId())
+                            .build()
+            );
+        }
+
+        log.info(
+                "Assigned resource authority: userUniqueId={}, resourceUniqueId={}, permission={}",
+                id.getUserUniqueId(),
+                id.getResourceUniqueId(),
+                permissionName
+        );
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('IDENTITY_ADMIN')")
+    public void revokeResourceAuthority(UniqueIdEntity resource, IdentityUser user, String permission) {
+        var permissionName = normalizeAuthorityName(permission);
+        var permissionEntity = permissionRepository.findByName(permissionName);
+        if (permissionEntity.isEmpty()) {
+            log.warn(
+                    "Cannot revoke resource authority because permission does not exist: userUniqueId={}, resourceUniqueId={}, permission={}",
+                    user.getUniqueId().value(),
+                    resource.getUniqueId(),
+                    permissionName
+            );
+            return;
+        }
+
+        var id = IdentityUserResourcePermissionEntityId.builder()
+                .userUniqueId(user.getUniqueId().value())
+                .resourceUniqueId(resource.getUniqueId())
+                .permissionId(permissionEntity.get().getId())
+                .build();
+        if (resourcePermissionRepository.existsById(id)) {
+            resourcePermissionRepository.deleteById(id);
+        }
+
+        log.info(
+                "Revoked resource authority: userUniqueId={}, resourceUniqueId={}, permission={}",
+                id.getUserUniqueId(),
+                id.getResourceUniqueId(),
+                permissionName
+        );
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('IDENTITY_ADMIN')")
+    public List<IdentityUserResourcePermission> findByUserAndResourceType(IdentityUser user, IdentityResourceType resourceType) {
+        return switch (resourceType) {
+            case ACCOUNT -> resourcePermissionRepository.findAccountPermissionsByUserUniqueId(user.getUniqueId().value());
+        };
     }
 
     private GrantedAuthority toRoleAuthority(String roleName) {

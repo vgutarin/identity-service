@@ -168,3 +168,68 @@ databaseChangeLog:
               - column:
                   name: name
                   type: BLOB
+  - changeSet:
+      id: 001-5
+      author: vg
+      changes:
+        - createTable:
+            tableName: identity_permission
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_identity_permission
+              - column:
+                  name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_identity_permission_name
+  - changeSet:
+      id: 001-6
+      author: vg
+      changes:
+        - createTable:
+            tableName: identity_user_resource_permission
+            columns:
+              - column:
+                  name: user_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_user_resource_permission
+                    foreignKeyName: fk_identity_user_resource_permission_to_user
+                    referencedTableName: identity_user
+                    referencedColumnNames: unique_id
+              - column:
+                  name: resource_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_user_resource_permission
+              - column:
+                  name: permission_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_user_resource_permission
+                    foreignKeyName: fk_identity_user_resource_permission_to_permission
+                    referencedTableName: identity_permission
+                    referencedColumnNames: id
+              - column:
+                  name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
