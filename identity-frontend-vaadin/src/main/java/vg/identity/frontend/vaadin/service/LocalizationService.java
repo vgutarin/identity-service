@@ -1,12 +1,18 @@
 package vg.identity.frontend.vaadin.service;
 
 import com.vaadin.flow.component.datetimepicker.DateTimePicker;
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.i18n.I18NProvider;
+import com.vaadin.flow.server.VaadinSession;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -17,11 +23,23 @@ import java.util.Locale;
  */
 @Service
 @Slf4j
-public class LocalizationService {
+public class LocalizationService implements I18NProvider {
+
+    private static final Locale DEFAULT_LOCALE = Locale.forLanguageTag("uk-UA");
+    private static final List<Locale> PROVIDED_LOCALES = List.of(
+            DEFAULT_LOCALE,
+            Locale.ENGLISH
+    );
+
+    private final MessageSource messageSource;
+
+    public LocalizationService(MessageSource messageSource) {
+        this.messageSource = messageSource;
+    }
 
     public DateTimePicker newDateTimePicker(String label) {
         var dateTimePicker = new DateTimePicker(i18n(label));
-        dateTimePicker.setLocale(Locale.forLanguageTag("uk-UA"));
+        dateTimePicker.setLocale(currentLocale());
         return dateTimePicker;
     }
 
@@ -53,41 +71,60 @@ public class LocalizationService {
     }
 
     public String i18n(String key) {
+        return getTranslation(key, currentLocale());
+    }
 
+    public Locale getCurrentLocale() {
+        return currentLocale();
+    }
+
+    public void setCurrentLocale(Locale locale) {
+        var normalizedLocale = normalizeLocale(locale);
+        var session = VaadinSession.getCurrent();
+        if (null != session) {
+            session.setAttribute(Locale.class, normalizedLocale);
+        }
+
+        var ui = UI.getCurrent();
+        if (null != ui) {
+            ui.setLocale(normalizedLocale);
+        }
+    }
+
+    @Override
+    public List<Locale> getProvidedLocales() {
+        return PROVIDED_LOCALES;
+    }
+
+    @Override
+    public String getTranslation(String key, Locale locale, Object... params) {
         if (null == key) {
             return null;
         }
+        return messageSource.getMessage(key, params, key, normalizeLocale(locale));
+    }
 
-        return switch (key) {
-            case "About" -> "Про нас";
-            case "Add" -> "Додати";
-            case "Apply" -> "Застосувати";
-            case "Edit" -> "Редагувати";
-            case "Editing" -> "Редагування";
-            case "End" -> "Завершення";
-            case "Cancel" -> "Відминити";
-            case "Create" -> "Створити";
-            case "Save" -> "Зберегти";
-            case "Start" -> "Початок";
-            case "Login" -> "Увійти";
-            case "Logout" -> "Вийти";
-            case "Groups" -> "Групи";
+    private Locale currentLocale() {
+        var session = VaadinSession.getCurrent();
+        if (null != session) {
+            var sessionLocale = session.getAttribute(Locale.class);
+            if (null != sessionLocale) {
+                return sessionLocale;
+            }
+        }
 
-            case "project.name" -> "Сервіс ідентіфікаціі";
+        var ui = UI.getCurrent();
+        if (null != ui && null != ui.getLocale()) {
+            return ui.getLocale();
+        }
+        return normalizeLocale(LocaleContextHolder.getLocale());
+    }
 
-            case "about.description" -> """
-                        Безпека даних це є головна мета цього сервісу.
-                    """;
-
-            case "exception.unknown" -> "Не відома помилка";
-            case "exception.ObjectOptimisticLockingFailureException" -> "Не можливо зберегти зміни. Оновить сторінку.";
-
-            case "Admin" -> "Адміністрування";
-            case "Identity service" -> "Сервіс ідентифікації";
-            case "Users" -> "Користувачі";
-            case "Users channels" -> "Зарееєтровані користувачі";
-            default -> key;
-        };
+    private Locale normalizeLocale(Locale locale) {
+        if (null == locale) {
+            return DEFAULT_LOCALE;
+        }
+        return locale;
     }
 
 

@@ -1,6 +1,7 @@
 package vg.identity.frontend.vaadin;
 
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.button.Button;
@@ -11,6 +12,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.sidenav.SideNav;
 import com.vaadin.flow.component.sidenav.SideNavItem;
 import com.vaadin.flow.router.AfterNavigationEvent;
@@ -22,6 +24,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import vg.identity.frontend.vaadin.admin.IdentityUsers;
 import vg.identity.frontend.vaadin.admin.IdentityUsersChannels;
 import vg.identity.frontend.vaadin.service.LocalizationService;
+
+import java.util.Locale;
 
 //@CssImport("./styles/views/main/main-view.css")
 //@JsModule("./styles/shared-styles.js")
@@ -65,6 +69,8 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
         viewTitle = new H3();
         layout.add(viewTitle);
 
+        layout.add(createLocalePicker());
+
         layout.add(
                 authContext.getAuthenticatedUser(UserDetails.class)
                         .map(user -> {
@@ -82,6 +88,25 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
         //layout.add(new Image("images/user.svg", "Avatar"));
 
         return layout;
+    }
+
+    private Select<Locale> createLocalePicker() {
+        var localePicker = new Select<Locale>();
+        localePicker.setLabel(localization.i18n("Language"));
+        localePicker.setItems(localization.getProvidedLocales());
+        localePicker.setItemLabelGenerator(this::localeName);
+        localePicker.setValue(localization.getCurrentLocale());
+        localePicker.addValueChangeListener(event -> {
+            if (event.isFromClient() && null != event.getValue()) {
+                localization.setCurrentLocale(event.getValue());
+                UI.getCurrent().getPage().reload();
+            }
+        });
+        return localePicker;
+    }
+
+    private String localeName(Locale locale) {
+        return localization.i18n("locale." + locale.toLanguageTag());
     }
 
     private Component createDrawerContent(SideNav menu) {
