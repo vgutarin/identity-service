@@ -19,13 +19,13 @@ import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
-import vg.identity.entity.IdentityAccountEntity;
+import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.frontend.vaadin.MainView;
 import vg.identity.frontend.vaadin.Role;
 import vg.identity.frontend.vaadin.service.LocalizationService;
 import vg.identity.model.IdentityResourceType;
 import vg.identity.model.IdentityUser;
-import vg.identity.service.IdentityAccountService;
+import vg.identity.service.IdentityWorkspaceService;
 import vg.identity.service.IdentityUserAuthorityService;
 import vg.identity.service.IdentityUserServiceImpl;
 import vg.unique.id.jpa.UniqueIdEntity;
@@ -46,7 +46,7 @@ import java.util.Set;
 public class IdentityUserPermissions extends VerticalLayout {
 
     private final IdentityUserServiceImpl userService;
-    private final IdentityAccountService accountService;
+    private final IdentityWorkspaceService workspaceService;
     private final IdentityUserAuthorityService authorityService;
     private final LocalizationService localization;
     private final Grid<IdentityUser> usersGrid = new Grid<>(IdentityUser.class, false);
@@ -54,12 +54,12 @@ public class IdentityUserPermissions extends VerticalLayout {
 
     public IdentityUserPermissions(
             IdentityUserServiceImpl userService,
-            IdentityAccountService accountService,
+            IdentityWorkspaceService workspaceService,
             IdentityUserAuthorityService authorityService,
             LocalizationService localization
     ) {
         this.userService = userService;
-        this.accountService = accountService;
+        this.workspaceService = workspaceService;
         this.authorityService = authorityService;
         this.localization = localization;
         this.dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
@@ -111,8 +111,8 @@ public class IdentityUserPermissions extends VerticalLayout {
         resourceType.setItemLabelGenerator(type -> localization.i18n(type.name()));
         resourceType.setWidthFull();
 
-        var resource = new ComboBox<IdentityAccountEntity>(localization.i18n("Resource"));
-        resource.setItemLabelGenerator(IdentityAccountEntity::getName);
+        var resource = new ComboBox<IdentityWorkspaceEntity>(localization.i18n("Resource"));
+        resource.setItemLabelGenerator(IdentityWorkspaceEntity::getName);
         resource.setWidthFull();
         resource.setRequiredIndicatorVisible(true);
         resource.setEnabled(false);
@@ -131,8 +131,8 @@ public class IdentityUserPermissions extends VerticalLayout {
             permissions.setItems();
             resource.setEnabled(event.getValue() != null);
 
-            if (event.getValue() == IdentityResourceType.ACCOUNT) {
-                resource.setItems(accountService.findAll());
+            if (event.getValue() == IdentityResourceType.WORKSPACE) {
+                resource.setItems(workspaceService.findAll());
             }
             if (event.getValue() != null) {
                 permissions.setItems(event.getValue().getPermissions());
@@ -240,7 +240,7 @@ public class IdentityUserPermissions extends VerticalLayout {
     }
 
     private List<PermissionTreeItem> resources(IdentityUser user, IdentityResourceType type) {
-        if (type != IdentityResourceType.ACCOUNT) {
+        if (type != IdentityResourceType.WORKSPACE) {
             return List.of();
         }
 

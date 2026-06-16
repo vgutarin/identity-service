@@ -3,16 +3,12 @@ package vg.identity.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Component;
-import vg.identity.entity.IdentityAccountEntity;
+import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.model.IdentityUser;
 import vg.identity.model.IdentityUserSystemRole;
 
@@ -26,7 +22,7 @@ public class IdentityApplicationStartup {
     private final UserDetailsManager userDetailsManager;
     private final IdentityUserServiceImpl userService;
     private final IdentityUserAuthorityService authorityService;
-    private final IdentityAccountService accountService;
+    private final IdentityWorkspaceService workspaceService;
 
     @EventListener(ApplicationStartedEvent.class)
     public void onApplicationReady() {
@@ -47,9 +43,9 @@ public class IdentityApplicationStartup {
                         )
                 );
 
-        List.of("Acc1", "Acc2", "Acc3", "Acc4", "Acc5").forEach(accName ->
-                accountService.create(
-                        IdentityAccountEntity.builder().name(accName).build()
+        List.of("Workspace1", "Workspace2", "Workspace3", "Workspace4", "Workspace5").forEach(workspaceName ->
+                workspaceService.create(
+                        IdentityWorkspaceEntity.builder().name(workspaceName).build()
                 )
         );
 

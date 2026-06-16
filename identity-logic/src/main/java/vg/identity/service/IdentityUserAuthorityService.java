@@ -139,7 +139,7 @@ public class IdentityUserAuthorityService {
     @PreAuthorize("hasRole('IDENTITY_ADMIN')")
     public List<IdentityUserResourcePermission> findByUserAndResourceType(IdentityUser user, IdentityResourceType resourceType) {
         return switch (resourceType) {
-            case ACCOUNT -> resourcePermissionRepository.findAccountPermissionsByUserUniqueId(user.getUniqueId().value());
+            case WORKSPACE -> resourcePermissionRepository.findWorkspacePermissionsByUserUniqueId(user.getUniqueId().value());
         };
     }
 

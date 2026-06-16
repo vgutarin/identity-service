@@ -9,8 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
-import vg.identity.entity.IdentityAccountEntity;
-import vg.identity.repository.IdentityAccountRepository;
+import vg.identity.entity.IdentityWorkspaceEntity;
+import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
 import vg.identity.repository.IdentityUserSystemRoleRepository;
@@ -23,11 +23,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static vg.test.TestHelper.nextString;
 
 @WithMockUser(username = "john", roles = "IDENTITY_ADMIN")
-class IdentityAccountServiceIntegrationTest extends BaseIntegrationTest {
+class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     @Autowired
-    IdentityAccountService service;
+    IdentityWorkspaceService service;
     @Autowired
-    IdentityAccountRepository accountRepository;
+    IdentityWorkspaceRepository workspaceRepository;
     @Autowired
     IdentityUserRepository userRepository;
     @Autowired
@@ -44,7 +44,7 @@ class IdentityAccountServiceIntegrationTest extends BaseIntegrationTest {
 
     @AfterEach
     void cleanUp() {
-        accountRepository.deleteAll();
+        workspaceRepository.deleteAll();
         systemRoleRepository.deleteAll();
         channelRepository.deleteAll();
         userRepository.deleteAll();
@@ -52,7 +52,7 @@ class IdentityAccountServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void create() {
-        var saved = service.create(buildAccount());
+        var saved = service.create(buildWorkspace());
 
         assertThat(saved.getUniqueId()).isNotNull();
         assertThat(saved.getName()).isEqualTo(name);
@@ -65,7 +65,7 @@ class IdentityAccountServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void get() {
-        var saved = service.create(buildAccount());
+        var saved = service.create(buildWorkspace());
 
         var found = service.get(saved.getUniqueId());
 
@@ -75,21 +75,21 @@ class IdentityAccountServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void findAll() {
-        var first = service.create(buildAccount());
-        var second = service.create(IdentityAccountEntity.builder().name(nextString()).build());
+        var first = service.create(buildWorkspace());
+        var second = service.create(IdentityWorkspaceEntity.builder().name(nextString()).build());
 
         assertThat(service.findAll())
-                .extracting(IdentityAccountEntity::getUniqueId)
+                .extracting(IdentityWorkspaceEntity::getUniqueId)
                 .contains(first.getUniqueId(), second.getUniqueId());
     }
 
     @Test
     void update() {
-        var saved = service.create(buildAccount());
+        var saved = service.create(buildWorkspace());
         var newName = nextString();
 
         var updated = service.update(
-                IdentityAccountEntity.builder()
+                IdentityWorkspaceEntity.builder()
                         .uniqueId(saved.getUniqueId())
                         .name(newName)
                         .build()
@@ -102,8 +102,8 @@ class IdentityAccountServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void updateThrows_WhenVersionIsStale() {
-        var saved = service.create(buildAccount());
-        var stale = IdentityAccountEntity.builder()
+        var saved = service.create(buildWorkspace());
+        var stale = IdentityWorkspaceEntity.builder()
                 .uniqueId(saved.getUniqueId())
                 .version(saved.getVersion())
                 .name(nextString())
@@ -111,7 +111,7 @@ class IdentityAccountServiceIntegrationTest extends BaseIntegrationTest {
         var currentName = nextString();
 
         service.update(
-                IdentityAccountEntity.builder()
+                IdentityWorkspaceEntity.builder()
                         .uniqueId(saved.getUniqueId())
                         .version(saved.getVersion())
                         .name(currentName)
@@ -120,20 +120,20 @@ class IdentityAccountServiceIntegrationTest extends BaseIntegrationTest {
 
         assertThatThrownBy(() -> service.update(stale))
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);
-        assertThat(accountRepository.findById(saved.getUniqueId()))
-                .hasValueSatisfying(account -> {
-                    assertThat(account.getName()).isEqualTo(currentName);
-                    assertThat(account.getVersion()).isEqualTo(1);
+        assertThat(workspaceRepository.findById(saved.getUniqueId()))
+                .hasValueSatisfying(workspace -> {
+                    assertThat(workspace.getName()).isEqualTo(currentName);
+                    assertThat(workspace.getVersion()).isEqualTo(1);
                 });
     }
 
     @Test
     void delete() {
-        var saved = service.create(buildAccount());
+        var saved = service.create(buildWorkspace());
 
         service.delete(saved.getUniqueId());
 
-        assertThat(accountRepository.findById(saved.getUniqueId())).isEmpty();
+        assertThat(workspaceRepository.findById(saved.getUniqueId())).isEmpty();
     }
 
     @Test
@@ -142,8 +142,8 @@ class IdentityAccountServiceIntegrationTest extends BaseIntegrationTest {
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
-    private IdentityAccountEntity buildAccount() {
-        return IdentityAccountEntity.builder()
+    private IdentityWorkspaceEntity buildWorkspace() {
+        return IdentityWorkspaceEntity.builder()
                 .name(name)
                 .build();
     }

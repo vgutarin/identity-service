@@ -50,16 +50,16 @@ class IdentityUserAuthorityServiceTest {
     void normalizeAuthorityNameTrimsAndLowercases() {
         assertThat(IdentityUserAuthorityService.normalizeAuthorityName(" Read "))
                 .isEqualTo("read");
-        assertThat(IdentityUserAuthorityService.normalizeAuthorityName("ACCOUNT:WRITE"))
-                .isEqualTo("account:write");
+        assertThat(IdentityUserAuthorityService.normalizeAuthorityName("WORKSPACE:WRITE"))
+                .isEqualTo("workspace:write");
     }
 
     @Test
     void resourceAuthorityNameIncludesResourceIdAndNormalizedAuthorityName() {
         assertThat(IdentityUserAuthorityService.resourceAuthorityName(123L, " Read "))
                 .isEqualTo("123:read");
-        assertThat(IdentityUserAuthorityService.resourceAuthorityName(987L, "ACCOUNT:WRITE"))
-                .isEqualTo("987:account:write");
+        assertThat(IdentityUserAuthorityService.resourceAuthorityName(987L, "WORKSPACE:WRITE"))
+                .isEqualTo("987:workspace:write");
     }
 
     @Test
@@ -155,13 +155,13 @@ class IdentityUserAuthorityServiceTest {
     }
 
     @Test
-    void findByUserAndResourceType_whenAccountResourceType_usesAccountPermissionQuery() {
+    void findByUserAndResourceType_whenWorkspaceResourceType_usesWorkspacePermissionQuery() {
         var user = user(11L);
         List<IdentityUserResourcePermission> permissions = List.of();
 
-        when(resourcePermissionRepository.findAccountPermissionsByUserUniqueId(11L)).thenReturn(permissions);
+        when(resourcePermissionRepository.findWorkspacePermissionsByUserUniqueId(11L)).thenReturn(permissions);
 
-        assertThat(service.findByUserAndResourceType(user, IdentityResourceType.ACCOUNT)).isSameAs(permissions);
+        assertThat(service.findByUserAndResourceType(user, IdentityResourceType.WORKSPACE)).isSameAs(permissions);
     }
 
     private static IdentityUser user(Long uniqueId) {

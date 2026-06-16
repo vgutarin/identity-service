@@ -16,13 +16,13 @@ public interface IdentityUserResourcePermissionRepository extends JpaRepository<
                 relation.userUniqueId as userUniqueId,
                 relation.createdAt as createdAt,
                 permission.name as permissionName,
-                account.name as resourceName,
-                account as resource
+                workspace.name as resourceName,
+                workspace as resource
             from IdentityUserResourcePermissionEntity relation
                 join IdentityPermissionEntity permission on permission.id = relation.permissionId
-                join IdentityAccountEntity account on account.uniqueId = relation.resourceUniqueId
+                join IdentityWorkspaceEntity workspace on workspace.uniqueId = relation.resourceUniqueId
             where relation.userUniqueId = :userUniqueId
-            order by account.name, permission.name
+            order by workspace.name, permission.name
             """)
-    List<IdentityUserResourcePermission> findAccountPermissionsByUserUniqueId(Long userUniqueId);
+    List<IdentityUserResourcePermission> findWorkspacePermissionsByUserUniqueId(Long userUniqueId);
 }

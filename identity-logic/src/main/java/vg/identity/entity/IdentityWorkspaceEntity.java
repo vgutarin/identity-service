@@ -24,19 +24,19 @@ import java.util.Objects;
 import static vg.utils.HibernateHelper.effectiveClass;
 
 /**
- * Represents the account.
- * Withing the account there are multiple applications that can be registered.
- * Users can be assigned to multiple accounts.
+ * Represents the workspace.
+ * Withing the workspace there are multiple applications that can be registered.
+ * Users can be assigned to multiple workspaces.
  */
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
 @Builder
-@Table(name = "identity_account")
+@Table(name = "identity_workspace")
 @Entity
 @EntityListeners(AuditingEntityListener.class)
-public class IdentityAccountEntity implements UniqueIdEntity {
+public class IdentityWorkspaceEntity implements UniqueIdEntity {
 
     @Id
     private Long uniqueId;
@@ -61,7 +61,7 @@ public class IdentityAccountEntity implements UniqueIdEntity {
         if (this == o) return true;
         if (o == null) return false;
         if (effectiveClass(this) != effectiveClass(o)) return false;
-        var that = (IdentityAccountEntity) o;
+        var that = (IdentityWorkspaceEntity) o;
         return getUniqueId() != null && Objects.equals(getUniqueId(), that.getUniqueId());
     }
 

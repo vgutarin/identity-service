@@ -7,7 +7,7 @@ import static vg.identity.model.IdentityResourcePermission.READ;
 import static vg.identity.model.IdentityResourcePermission.WRITE;
 
 public enum IdentityResourceType {
-    ACCOUNT(
+    WORKSPACE(
             READ, WRITE, DELETE
     );
 

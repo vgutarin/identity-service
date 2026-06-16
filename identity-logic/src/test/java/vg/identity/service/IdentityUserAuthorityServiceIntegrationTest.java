@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
-import vg.identity.entity.IdentityAccountEntity;
+import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.model.IdentityResourceType;
 import vg.identity.model.IdentityUser;
 import vg.identity.repository.IdentityPermissionRepository;
@@ -24,7 +24,7 @@ class IdentityUserAuthorityServiceIntegrationTest extends BaseIntegrationTest {
     @Autowired
     IdentityUserServiceImpl userService;
     @Autowired
-    IdentityAccountService accountService;
+    IdentityWorkspaceService workspaceService;
     @Autowired
     IdentityUserResourcePermissionRepository resourcePermissionRepository;
     @Autowired
@@ -40,32 +40,32 @@ class IdentityUserAuthorityServiceIntegrationTest extends BaseIntegrationTest {
     void cleanUp() {
         resourcePermissionRepository.deleteAll();
         permissionRepository.deleteAll();
-        accountService.findAll().forEach(account -> accountService.delete(account.getUniqueId()));
+        workspaceService.findAll().forEach(workspace -> workspaceService.delete(workspace.getUniqueId()));
         systemRoleRepository.deleteAll();
         channelRepository.deleteAll();
         userRepository.deleteAll();
     }
 
     @Test
-    void findByUserAndResourceType_returnsAccountPermissionsWithResourceAndPermissionNames() {
+    void findByUserAndResourceType_returnsWorkspacePermissionsWithResourceAndPermissionNames() {
         var user = userService.create(IdentityUser.builder()
                 .username(nextString())
                 .password(nextString())
                 .build());
-        var accountName = nextString();
-        var account = accountService.create(IdentityAccountEntity.builder()
-                .name(accountName)
+        var workspaceName = nextString();
+        var workspace = workspaceService.create(IdentityWorkspaceEntity.builder()
+                .name(workspaceName)
                 .build());
 
-        authorityService.assignResourceAuthority(account, user, "read");
+        authorityService.assignResourceAuthority(workspace, user, "read");
 
-        assertThat(authorityService.findByUserAndResourceType(user, IdentityResourceType.ACCOUNT))
+        assertThat(authorityService.findByUserAndResourceType(user, IdentityResourceType.WORKSPACE))
                 .singleElement()
                 .satisfies(permission -> {
                     assertThat(permission.getUserUniqueId()).isEqualTo(user.getUniqueId().value());
-                    assertThat(permission.getResource().getUniqueId()).isEqualTo(account.getUniqueId());
+                    assertThat(permission.getResource().getUniqueId()).isEqualTo(workspace.getUniqueId());
                     assertThat(permission.getPermissionName()).isEqualTo("read");
-                    assertThat(permission.getResourceName()).isEqualTo(accountName);
+                    assertThat(permission.getResourceName()).isEqualTo(workspaceName);
                     assertThat(permission.getCreatedAt()).isNotNull();
                 });
     }

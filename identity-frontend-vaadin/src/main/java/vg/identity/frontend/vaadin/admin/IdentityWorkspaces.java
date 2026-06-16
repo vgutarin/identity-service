@@ -18,29 +18,29 @@ import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
-import vg.identity.entity.IdentityAccountEntity;
+import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.frontend.vaadin.MainView;
 import vg.identity.frontend.vaadin.Role;
 import vg.identity.frontend.vaadin.service.LocalizationService;
-import vg.identity.service.IdentityAccountService;
+import vg.identity.service.IdentityWorkspaceService;
 
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 
-@PageTitle("Accounts")
-@Route(value = "admin/accounts", layout = MainView.class)
+@PageTitle("Workspaces")
+@Route(value = "admin/workspaces", layout = MainView.class)
 @RolesAllowed(Role.IDENTITY_ADMIN)
-public class IdentityAccounts extends VerticalLayout {
+public class IdentityWorkspaces extends VerticalLayout {
 
-    private final transient IdentityAccountService accountService;
+    private final transient IdentityWorkspaceService workspaceService;
     private final LocalizationService localization;
-    private final Grid<IdentityAccountEntity> grid = new Grid<>(IdentityAccountEntity.class, false);
+    private final Grid<IdentityWorkspaceEntity> grid = new Grid<>(IdentityWorkspaceEntity.class, false);
     private final DateTimeFormatter dateTimeFormatter;
 
-    public IdentityAccounts(IdentityAccountService accountService, LocalizationService localization) {
-        this.accountService = accountService;
+    public IdentityWorkspaces(IdentityWorkspaceService workspaceService, LocalizationService localization) {
+        this.workspaceService = workspaceService;
         this.localization = localization;
         this.dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
                 .withLocale(localization.getCurrentLocale())
@@ -54,7 +54,7 @@ public class IdentityAccounts extends VerticalLayout {
 
         var create = new Button(localization.i18n("Create"), VaadinIcon.PLUS.create());
         create.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        create.addClickListener(event -> openForm(new IdentityAccountEntity()));
+        create.addClickListener(event -> openForm(new IdentityWorkspaceEntity()));
 
         var toolbar = new HorizontalLayout(create);
         toolbar.setWidthFull();
@@ -68,26 +68,26 @@ public class IdentityAccounts extends VerticalLayout {
 
     private void configureGrid() {
         grid.setSizeFull();
-        grid.setEmptyStateText(localization.i18n("No accounts found"));
+        grid.setEmptyStateText(localization.i18n("No workspaces found"));
 
-        grid.addColumn(IdentityAccountEntity::getUniqueId)
+        grid.addColumn(IdentityWorkspaceEntity::getUniqueId)
                 .setHeader(localization.i18n("ID"))
                 .setSortable(true)
                 .setAutoWidth(true)
                 .setFlexGrow(0);
-        grid.addColumn(IdentityAccountEntity::getName)
+        grid.addColumn(IdentityWorkspaceEntity::getName)
                 .setHeader(localization.i18n("Name"))
                 .setSortable(true)
                 .setAutoWidth(true);
-        grid.addColumn(account -> format(account.getCreatedAt()))
+        grid.addColumn(workspace -> format(workspace.getCreatedAt()))
                 .setHeader(localization.i18n("Created"))
                 .setSortable(true)
-                .setComparator(IdentityAccountEntity::getCreatedAt)
+                .setComparator(IdentityWorkspaceEntity::getCreatedAt)
                 .setAutoWidth(true);
-        grid.addColumn(account -> format(account.getUpdatedAt()))
+        grid.addColumn(workspace -> format(workspace.getUpdatedAt()))
                 .setHeader(localization.i18n("Updated"))
                 .setSortable(true)
-                .setComparator(IdentityAccountEntity::getUpdatedAt)
+                .setComparator(IdentityWorkspaceEntity::getUpdatedAt)
                 .setAutoWidth(true);
         grid.addComponentColumn(this::actions)
                 .setHeader(localization.i18n("Actions"))
@@ -95,14 +95,14 @@ public class IdentityAccounts extends VerticalLayout {
                 .setFlexGrow(0);
     }
 
-    private HorizontalLayout actions(IdentityAccountEntity account) {
+    private HorizontalLayout actions(IdentityWorkspaceEntity workspace) {
         var edit = new Button(localization.i18n("Edit"), VaadinIcon.EDIT.create());
         edit.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
-        edit.addClickListener(event -> openForm(account));
+        edit.addClickListener(event -> openForm(workspace));
 
         var delete = new Button(localization.i18n("Delete"), VaadinIcon.TRASH.create());
         delete.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
-        delete.addClickListener(event -> confirmDelete(account));
+        delete.addClickListener(event -> confirmDelete(workspace));
 
         var actions = new HorizontalLayout(edit, delete);
         actions.setPadding(false);
@@ -110,15 +110,15 @@ public class IdentityAccounts extends VerticalLayout {
         return actions;
     }
 
-    private void openForm(IdentityAccountEntity account) {
-        var editing = account.getUniqueId() != null;
-        var formAccount = editing ? copy(account) : account;
+    private void openForm(IdentityWorkspaceEntity workspace) {
+        var editing = workspace.getUniqueId() != null;
+        var formWorkspace = editing ? copy(workspace) : workspace;
 
         var dialog = new Dialog();
-        dialog.setHeaderTitle(localization.i18n(editing ? "Edit account" : "Create account"));
+        dialog.setHeaderTitle(localization.i18n(editing ? "Edit workspace" : "Create workspace"));
         dialog.setDraggable(true);
 
-        var binder = new Binder<>(IdentityAccountEntity.class);
+        var binder = new Binder<>(IdentityWorkspaceEntity.class);
         var name = new TextField(localization.i18n("Name"));
         name.setWidthFull();
         name.setRequiredIndicatorVisible(true);
@@ -126,13 +126,13 @@ public class IdentityAccounts extends VerticalLayout {
         binder.forField(name)
                 .asRequired(localization.i18n("Name is required"))
                 .withValidator(value -> !value.isBlank(), localization.i18n("Name is required"))
-                .bind(IdentityAccountEntity::getName, IdentityAccountEntity::setName);
-        binder.readBean(formAccount);
+                .bind(IdentityWorkspaceEntity::getName, IdentityWorkspaceEntity::setName);
+        binder.readBean(formWorkspace);
 
         var form = new FormLayout(name);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
 
-        var save = new Button(localization.i18n("Save"), event -> save(dialog, binder, formAccount));
+        var save = new Button(localization.i18n("Save"), event -> save(dialog, binder, formWorkspace));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         var cancel = new Button(localization.i18n("Cancel"), event -> dialog.close());
@@ -145,17 +145,17 @@ public class IdentityAccounts extends VerticalLayout {
         dialog.open();
     }
 
-    private void save(Dialog dialog, Binder<IdentityAccountEntity> binder, IdentityAccountEntity account) {
+    private void save(Dialog dialog, Binder<IdentityWorkspaceEntity> binder, IdentityWorkspaceEntity workspace) {
         try {
-            binder.writeBean(account);
-            if (account.getUniqueId() == null) {
-                accountService.create(account);
+            binder.writeBean(workspace);
+            if (workspace.getUniqueId() == null) {
+                workspaceService.create(workspace);
             } else {
-                accountService.update(account);
+                workspaceService.update(workspace);
             }
             dialog.close();
             refreshGrid();
-            notify(localization.i18n("Account saved"), NotificationVariant.LUMO_SUCCESS);
+            notify(localization.i18n("Workspace saved"), NotificationVariant.LUMO_SUCCESS);
         } catch (ValidationException ignored) {
             notify(localization.i18n("Fix validation errors"), NotificationVariant.LUMO_ERROR);
         } catch (Exception e) {
@@ -163,43 +163,43 @@ public class IdentityAccounts extends VerticalLayout {
         }
     }
 
-    private void confirmDelete(IdentityAccountEntity account) {
+    private void confirmDelete(IdentityWorkspaceEntity workspace) {
         var dialog = new ConfirmDialog();
-        dialog.setHeader(localization.i18n("Delete account"));
-        dialog.setText(localization.i18n("Delete account confirmation"));
+        dialog.setHeader(localization.i18n("Delete workspace"));
+        dialog.setText(localization.i18n("Delete workspace confirmation"));
         dialog.setCancelable(true);
         dialog.setCancelText(localization.i18n("Cancel"));
         dialog.setConfirmText(localization.i18n("Delete"));
         dialog.setConfirmButtonTheme("error primary");
-        dialog.addConfirmListener(event -> delete(account));
+        dialog.addConfirmListener(event -> delete(workspace));
         dialog.open();
     }
 
-    private void delete(IdentityAccountEntity account) {
+    private void delete(IdentityWorkspaceEntity workspace) {
         try {
-            accountService.delete(account.getUniqueId());
+            workspaceService.delete(workspace.getUniqueId());
             refreshGrid();
-            notify(localization.i18n("Account deleted"), NotificationVariant.LUMO_SUCCESS);
+            notify(localization.i18n("Workspace deleted"), NotificationVariant.LUMO_SUCCESS);
         } catch (Exception e) {
             notify(localization.i18n(e), NotificationVariant.LUMO_ERROR);
         }
     }
 
     private void refreshGrid() {
-        grid.setItems(accountService.findAll());
+        grid.setItems(workspaceService.findAll());
     }
 
     private String format(Instant instant) {
         return instant == null ? "" : dateTimeFormatter.format(instant);
     }
 
-    private IdentityAccountEntity copy(IdentityAccountEntity account) {
-        return IdentityAccountEntity.builder()
-                .uniqueId(account.getUniqueId())
-                .version(account.getVersion())
-                .createdAt(account.getCreatedAt())
-                .updatedAt(account.getUpdatedAt())
-                .name(account.getName())
+    private IdentityWorkspaceEntity copy(IdentityWorkspaceEntity workspace) {
+        return IdentityWorkspaceEntity.builder()
+                .uniqueId(workspace.getUniqueId())
+                .version(workspace.getVersion())
+                .createdAt(workspace.getCreatedAt())
+                .updatedAt(workspace.getUpdatedAt())
+                .name(workspace.getName())
                 .build();
     }
 
