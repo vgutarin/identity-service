@@ -8,11 +8,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import vg.identity.entity.IdentityPrincipalEntity;
 import vg.identity.entity.IdentityUserChannelEntity;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.mapper.IdentityUserMapper;
 import vg.identity.model.IdentityChannelType;
+import vg.identity.model.IdentityPrincipalStatus;
+import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.IdentityUser;
+import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
 import vg.unique.id.model.UniqueId;
@@ -34,6 +38,8 @@ import static vg.test.TestHelper.nextUniqueId;
 class UserServiceImplTest {
     @Mock
     UniqueIdService uniqueIdService;
+    @Mock
+    IdentityPrincipalRepository principalRepository;
     @Mock
     IdentityUserRepository repository;
     @Mock
@@ -60,11 +66,19 @@ class UserServiceImplTest {
 
         var entityToSave = IdentityUserEntity.builder().uniqueId(null).build();
         var entitySaved = entity(1L);
+        var principalSaved = IdentityPrincipalEntity.builder()
+                .uniqueId(1L)
+                .displayName(username)
+                .status(IdentityPrincipalStatus.ACTIVE)
+                .type(IdentityPrincipalType.USER)
+                .build();
 
         when(passwordEncoder.encode(password)).thenReturn(encodedPassword);
         when(encryptionService.canonicalizeAndHash(username)).thenReturn(usernameHash);
         when(mapper.toEntity(modelToSave)).thenReturn(entityToSave);
-        when(repository.saveWithNewUniqueId(entityToSave, uniqueIdService)).thenReturn(entitySaved);
+        when(principalRepository.saveWithNewUniqueId(any(IdentityPrincipalEntity.class), eq(uniqueIdService)))
+                .thenReturn(principalSaved);
+        when(repository.save(entityToSave)).thenReturn(entitySaved);
         when(mapper.toModel(entitySaved)).thenReturn(modelSaved);
 
         assertThat(
@@ -74,7 +88,13 @@ class UserServiceImplTest {
         );
 
         assertThat(modelToSave.getPassword()).isEqualTo(encodedPassword);
+        assertThat(entityToSave.getUniqueId()).isEqualTo(principalSaved.getUniqueId());
         assertThat(entityToSave.getUsernameHash()).isEqualTo(usernameHash);
+        var principalCaptor = ArgumentCaptor.forClass(IdentityPrincipalEntity.class);
+        verify(principalRepository).saveWithNewUniqueId(principalCaptor.capture(), eq(uniqueIdService));
+        assertThat(principalCaptor.getValue().getDisplayName()).isEqualTo(username);
+        assertThat(principalCaptor.getValue().getStatus()).isEqualTo(IdentityPrincipalStatus.ACTIVE);
+        assertThat(principalCaptor.getValue().getType()).isEqualTo(IdentityPrincipalType.USER);
         verify(repository).flush();
     }
 
@@ -180,10 +200,13 @@ class UserServiceImplTest {
 
         var userEntity = new IdentityUserEntity();
         var userModel = model(1L);
+        var principalSaved = IdentityPrincipalEntity.builder().uniqueId(1L).build();
 
         when(mapper.toEntity(any(IdentityUser.class))).thenReturn(userEntity);
         when(encryptionService.canonicalizeAndHash(any())).thenReturn(usernameHash);
-        when(repository.saveWithNewUniqueId(eq(userEntity), eq(uniqueIdService))).thenReturn(userEntity);
+        when(principalRepository.saveWithNewUniqueId(any(IdentityPrincipalEntity.class), eq(uniqueIdService)))
+                .thenReturn(principalSaved);
+        when(repository.save(userEntity)).thenReturn(userEntity);
         when(mapper.toModel(userEntity)).thenReturn(userModel);
 
         var channelEntityCaptor = ArgumentCaptor.forClass(IdentityUserChannelEntity.class);
@@ -199,6 +222,7 @@ class UserServiceImplTest {
         assertThat(savedChannel.getChannelUserId()).isEqualTo(channelUserId);
         assertThat(savedChannel.getChannelUserIdHash()).isEqualTo(channelUserIdHash);
         assertThat(savedChannel.getIdentityUser()).isSameAs(userEntity);
+        assertThat(userEntity.getUniqueId()).isEqualTo(principalSaved.getUniqueId());
         assertThat(userEntity.getUsernameHash()).isEqualTo(usernameHash);
     }
 

@@ -2,63 +2,74 @@ package vg.identity.entity;
 
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
-import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import vg.identity.model.IdentityPrincipalStatus;
+import vg.identity.model.IdentityPrincipalType;
+import vg.unique.id.jpa.UniqueIdEntity;
 
 import java.time.Instant;
 import java.util.Objects;
 
 import static vg.utils.HibernateHelper.effectiveClass;
 
-/**
- * Represents a principal's permission for a concrete resource.
- */
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
 @Builder
-@Table(name = "identity_user_resource_permission")
+@Table(name = "identity_principal")
 @Entity
-@IdClass(IdentityUserResourcePermissionEntityId.class)
 @EntityListeners(AuditingEntityListener.class)
-public class IdentityUserResourcePermissionEntity {
+public class IdentityPrincipalEntity implements UniqueIdEntity {
 
     @Id
-    @Column(name = "principal_unique_id", nullable = false)
-    private Long principalUniqueId;
+    private Long uniqueId;
 
-    @Id
-    @Column(nullable = false)
-    private Long resourceUniqueId;
-
-    @Id
-    @Column(nullable = false)
-    private Long permissionId;
+    @Version
+    private int version;
 
     @Column(nullable = false, updatable = false)
     @CreatedDate
     private Instant createdAt;
+
+    @Column(nullable = false)
+    @LastModifiedDate
+    private Instant updatedAt;
+
+    @Convert(converter = StringEncryptionConverter.class)
+    @Column(columnDefinition = "BLOB")
+    private String displayName;
+
+    @Enumerated(EnumType.ORDINAL)
+    @Column(nullable = false)
+    private IdentityPrincipalStatus status;
+
+    @Enumerated(EnumType.ORDINAL)
+    @Column(nullable = false)
+    private IdentityPrincipalType type;
 
     @Override
     public final boolean equals(Object o) {
         if (this == o) return true;
         if (o == null) return false;
         if (effectiveClass(this) != effectiveClass(o)) return false;
-        var that = (IdentityUserResourcePermissionEntity) o;
-        return principalUniqueId != null && Objects.equals(principalUniqueId, that.principalUniqueId)
-                && resourceUniqueId != null && Objects.equals(resourceUniqueId, that.resourceUniqueId)
-                && permissionId != null && Objects.equals(permissionId, that.permissionId);
+        var that = (IdentityPrincipalEntity) o;
+        return getUniqueId() != null && Objects.equals(getUniqueId(), that.getUniqueId());
     }
 
     @Override

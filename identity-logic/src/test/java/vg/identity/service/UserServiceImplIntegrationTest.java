@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityUser;
+import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
 import vg.identity.repository.IdentityUserSystemRoleRepository;
@@ -25,6 +26,9 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     IdentityUserRepository repository;
+
+    @Autowired
+    IdentityPrincipalRepository principalRepository;
 
     @Autowired
     IdentityUserChannelRepository channelRepository;
@@ -56,6 +60,7 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
         systemRoleRepository.deleteAll();
         channelRepository.deleteAll();
         repository.deleteAll();
+        principalRepository.deleteAll();
     }
 
     @Test
@@ -92,6 +97,8 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
         ).isEqualTo(
                 0
         );
+
+        assertThat(principalRepository.findById(savedModel.getUniqueId())).isPresent();
     }
 
     @Test

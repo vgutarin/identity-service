@@ -1,6 +1,13 @@
 package vg.identity.model;
 
 public enum IdentityUserSystemRole {
-    IDENTITY_ADMIN
-    //IDENTITY_ACCOUNT_MANGER
+    /**
+     * role have all possible permissions
+     */
+    IDENTITY_ADMIN//,
+//
+//    /**
+//     * role indicates user was verified
+//     */
+//    IDENTITY_VERIFIED_USER
 }

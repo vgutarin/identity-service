@@ -13,6 +13,6 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 public class IdentityUserSystemRoleEntityId implements Serializable {
-    private Long identityUserUniqueId;
+    private Long identityPrincipalUniqueId;
     private IdentityUserSystemRole role;
 }

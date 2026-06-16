@@ -33,7 +33,7 @@ public class IdentityUserAuthorityService {
 
     public void loadAuthorities(IdentityUser user) {
         user.setAuthorities(
-                systemRoleRepository.getAllByIdentityUserUniqueId(
+                systemRoleRepository.getAllByIdentityPrincipalUniqueId(
                                 user.getUniqueId().value()
                         ).stream()
                         .map(
@@ -47,7 +47,7 @@ public class IdentityUserAuthorityService {
     @PreAuthorize("hasRole('IDENTITY_ADMIN')")//TODO vg check it works
     public void assignAuthority(IdentityUser user, IdentityUserSystemRole role) {
         var id = IdentityUserSystemRoleEntityId.builder()
-                .identityUserUniqueId(user.getUniqueId().value())
+                .identityPrincipalUniqueId(user.getUniqueId().value())
                 .role(role)
                 .build();
         if (systemRoleRepository.existsById(id)) {
@@ -56,7 +56,7 @@ public class IdentityUserAuthorityService {
 
         systemRoleRepository.save(
                 IdentityUserSystemRoleEntity.builder()
-                        .identityUserUniqueId(id.getIdentityUserUniqueId())
+                        .identityPrincipalUniqueId(id.getIdentityPrincipalUniqueId())
                         .role(id.getRole())
                         .build()
         );
@@ -81,14 +81,14 @@ public class IdentityUserAuthorityService {
                 .getId();
 
         var id = IdentityUserResourcePermissionEntityId.builder()
-                .userUniqueId(user.getUniqueId().value())
+                .principalUniqueId(user.getUniqueId().value())
                 .resourceUniqueId(resource.getUniqueId())
                 .permissionId(permissionId)
                 .build();
         if (!resourcePermissionRepository.existsById(id)) {
             resourcePermissionRepository.save(
                     IdentityUserResourcePermissionEntity.builder()
-                            .userUniqueId(id.getUserUniqueId())
+                            .principalUniqueId(id.getPrincipalUniqueId())
                             .resourceUniqueId(id.getResourceUniqueId())
                             .permissionId(id.getPermissionId())
                             .build()
@@ -96,8 +96,8 @@ public class IdentityUserAuthorityService {
         }
 
         log.info(
-                "Assigned resource authority: userUniqueId={}, resourceUniqueId={}, permission={}",
-                id.getUserUniqueId(),
+                "Assigned resource authority: principalUniqueId={}, resourceUniqueId={}, permission={}",
+                id.getPrincipalUniqueId(),
                 id.getResourceUniqueId(),
                 permissionName
         );
@@ -110,7 +110,7 @@ public class IdentityUserAuthorityService {
         var permissionEntity = permissionRepository.findByName(permissionName);
         if (permissionEntity.isEmpty()) {
             log.warn(
-                    "Cannot revoke resource authority because permission does not exist: userUniqueId={}, resourceUniqueId={}, permission={}",
+                    "Cannot revoke resource authority because permission does not exist: principalUniqueId={}, resourceUniqueId={}, permission={}",
                     user.getUniqueId().value(),
                     resource.getUniqueId(),
                     permissionName
@@ -119,7 +119,7 @@ public class IdentityUserAuthorityService {
         }
 
         var id = IdentityUserResourcePermissionEntityId.builder()
-                .userUniqueId(user.getUniqueId().value())
+                .principalUniqueId(user.getUniqueId().value())
                 .resourceUniqueId(resource.getUniqueId())
                 .permissionId(permissionEntity.get().getId())
                 .build();
@@ -128,8 +128,8 @@ public class IdentityUserAuthorityService {
         }
 
         log.info(
-                "Revoked resource authority: userUniqueId={}, resourceUniqueId={}, permission={}",
-                id.getUserUniqueId(),
+                "Revoked resource authority: principalUniqueId={}, resourceUniqueId={}, permission={}",
+                id.getPrincipalUniqueId(),
                 id.getResourceUniqueId(),
                 permissionName
         );
@@ -139,7 +139,7 @@ public class IdentityUserAuthorityService {
     @PreAuthorize("hasRole('IDENTITY_ADMIN')")
     public List<IdentityUserResourcePermission> findByUserAndResourceType(IdentityUser user, IdentityResourceType resourceType) {
         return switch (resourceType) {
-            case WORKSPACE -> resourcePermissionRepository.findWorkspacePermissionsByUserUniqueId(user.getUniqueId().value());
+            case WORKSPACE -> resourcePermissionRepository.findWorkspacePermissionsByPrincipalUniqueId(user.getUniqueId().value());
         };
     }
 

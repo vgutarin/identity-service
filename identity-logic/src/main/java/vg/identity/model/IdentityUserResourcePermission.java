@@ -5,7 +5,7 @@ import vg.unique.id.jpa.UniqueIdEntity;
 import java.time.Instant;
 
 public interface IdentityUserResourcePermission {
-    Long getUserUniqueId();
+    Long getPrincipalUniqueId();
 
     Instant getCreatedAt();
 

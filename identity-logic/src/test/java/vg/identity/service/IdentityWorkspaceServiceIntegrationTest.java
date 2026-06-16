@@ -10,6 +10,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.entity.IdentityWorkspaceEntity;
+import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
@@ -34,6 +35,8 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     IdentityUserChannelRepository channelRepository;
     @Autowired
     IdentityUserSystemRoleRepository systemRoleRepository;
+    @Autowired
+    IdentityPrincipalRepository principalRepository;
 
     private String name;
 
@@ -48,6 +51,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
         systemRoleRepository.deleteAll();
         channelRepository.deleteAll();
         userRepository.deleteAll();
+        principalRepository.deleteAll();
     }
 
     @Test

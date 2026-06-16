@@ -6,6 +6,8 @@ import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
@@ -35,6 +37,10 @@ public class IdentityUserEntity implements UniqueIdEntity {
 
     @Id
     private Long uniqueId;
+
+    @OneToOne(optional = false)
+    @JoinColumn(name = "unique_id", insertable = false, updatable = false)
+    private IdentityPrincipalEntity principal;
 
     @Version
     private int version;

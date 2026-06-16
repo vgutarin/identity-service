@@ -35,8 +35,8 @@ import static vg.utils.HibernateHelper.effectiveClass;
 public class IdentityUserSystemRoleEntity {
 
     @Id
-    @Column(name = "identity_user_unique_id", nullable = false)
-    private Long identityUserUniqueId;
+    @Column(name = "identity_principal_unique_id", nullable = false)
+    private Long identityPrincipalUniqueId;
 
     @Id
     @Column(nullable = false)
@@ -53,7 +53,7 @@ public class IdentityUserSystemRoleEntity {
         if (o == null) return false;
         if (effectiveClass(this) != effectiveClass(o)) return false;
         var that = (IdentityUserSystemRoleEntity) o;
-        return identityUserUniqueId != null && Objects.equals(identityUserUniqueId, that.identityUserUniqueId)
+        return identityPrincipalUniqueId != null && Objects.equals(identityPrincipalUniqueId, that.identityPrincipalUniqueId)
                 && role != null && Objects.equals(role, that.role);
     }
 

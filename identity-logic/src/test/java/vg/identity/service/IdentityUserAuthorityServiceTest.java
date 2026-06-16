@@ -70,7 +70,7 @@ class IdentityUserAuthorityServiceTest {
                 .name("read")
                 .build();
         var expectedId = IdentityUserResourcePermissionEntityId.builder()
-                .userUniqueId(11L)
+                .principalUniqueId(11L)
                 .resourceUniqueId(21L)
                 .permissionId(31L)
                 .build();
@@ -90,7 +90,7 @@ class IdentityUserAuthorityServiceTest {
         verify(resourcePermissionRepository).save(relationCaptor.capture());
         assertThat(relationCaptor.getValue())
                 .extracting(
-                        IdentityUserResourcePermissionEntity::getUserUniqueId,
+                        IdentityUserResourcePermissionEntity::getPrincipalUniqueId,
                         IdentityUserResourcePermissionEntity::getResourceUniqueId,
                         IdentityUserResourcePermissionEntity::getPermissionId
                 )
@@ -105,7 +105,7 @@ class IdentityUserAuthorityServiceTest {
                 .name("read")
                 .build();
         var expectedId = IdentityUserResourcePermissionEntityId.builder()
-                .userUniqueId(11L)
+                .principalUniqueId(11L)
                 .resourceUniqueId(21L)
                 .permissionId(31L)
                 .build();
@@ -140,7 +140,7 @@ class IdentityUserAuthorityServiceTest {
                 .name("read")
                 .build();
         var expectedId = IdentityUserResourcePermissionEntityId.builder()
-                .userUniqueId(11L)
+                .principalUniqueId(11L)
                 .resourceUniqueId(21L)
                 .permissionId(31L)
                 .build();
@@ -159,7 +159,7 @@ class IdentityUserAuthorityServiceTest {
         var user = user(11L);
         List<IdentityUserResourcePermission> permissions = List.of();
 
-        when(resourcePermissionRepository.findWorkspacePermissionsByUserUniqueId(11L)).thenReturn(permissions);
+        when(resourcePermissionRepository.findWorkspacePermissionsByPrincipalUniqueId(11L)).thenReturn(permissions);
 
         assertThat(service.findByUserAndResourceType(user, IdentityResourceType.WORKSPACE)).isSameAs(permissions);
     }

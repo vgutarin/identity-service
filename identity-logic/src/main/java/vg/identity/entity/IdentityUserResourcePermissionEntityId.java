@@ -12,7 +12,7 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 public class IdentityUserResourcePermissionEntityId implements Serializable {
-    private Long userUniqueId;
+    private Long principalUniqueId;
     private Long resourceUniqueId;
     private Long permissionId;
 }

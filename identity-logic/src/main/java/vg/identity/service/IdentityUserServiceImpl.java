@@ -7,11 +7,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vg.identity.entity.IdentityPrincipalEntity;
 import vg.identity.entity.IdentityUserChannelEntity;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.mapper.IdentityUserMapper;
 import vg.identity.model.IdentityChannelType;
+import vg.identity.model.IdentityPrincipalStatus;
+import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.IdentityUser;
+import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
 import vg.unique.id.service.UniqueIdService;
@@ -26,6 +30,7 @@ public class IdentityUserServiceImpl implements IdentityUserService {
     private static final String GUEST = "guest";
 
     private final UniqueIdService uniqueIdService;
+    private final IdentityPrincipalRepository principalRepository;
     private final IdentityUserRepository repository;
     private final IdentityUserChannelRepository identityChannelRepository;
     private final IdentityUserMapper mapper;
@@ -123,8 +128,19 @@ public class IdentityUserServiceImpl implements IdentityUserService {
     }
 
     private IdentityUserEntity newEntity(IdentityUser user) {
+        var principal = createPrincipal(user);
         var userEntity = mapper.toEntity(user);
+        userEntity.setUniqueId(principal.getUniqueId());
         userEntity.setUsernameHash(encryptionService.canonicalizeAndHash(user.getUsername()));
-        return repository.saveWithNewUniqueId(userEntity, uniqueIdService);
+        return repository.save(userEntity);
+    }
+
+    private IdentityPrincipalEntity createPrincipal(IdentityUser user) {
+        var principal = IdentityPrincipalEntity.builder()
+                .displayName(user.getUsername())
+                .status(IdentityPrincipalStatus.ACTIVE)
+                .type(IdentityPrincipalType.USER)
+                .build();
+        return principalRepository.saveWithNewUniqueId(principal, uniqueIdService);
     }
 }

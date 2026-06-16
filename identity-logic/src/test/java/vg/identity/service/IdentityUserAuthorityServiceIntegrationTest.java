@@ -9,6 +9,7 @@ import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.model.IdentityResourceType;
 import vg.identity.model.IdentityUser;
 import vg.identity.repository.IdentityPermissionRepository;
+import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
 import vg.identity.repository.IdentityUserResourcePermissionRepository;
@@ -35,6 +36,8 @@ class IdentityUserAuthorityServiceIntegrationTest extends BaseIntegrationTest {
     IdentityUserChannelRepository channelRepository;
     @Autowired
     IdentityUserRepository userRepository;
+    @Autowired
+    IdentityPrincipalRepository principalRepository;
 
     @AfterEach
     void cleanUp() {
@@ -44,6 +47,7 @@ class IdentityUserAuthorityServiceIntegrationTest extends BaseIntegrationTest {
         systemRoleRepository.deleteAll();
         channelRepository.deleteAll();
         userRepository.deleteAll();
+        principalRepository.deleteAll();
     }
 
     @Test
@@ -62,7 +66,7 @@ class IdentityUserAuthorityServiceIntegrationTest extends BaseIntegrationTest {
         assertThat(authorityService.findByUserAndResourceType(user, IdentityResourceType.WORKSPACE))
                 .singleElement()
                 .satisfies(permission -> {
-                    assertThat(permission.getUserUniqueId()).isEqualTo(user.getUniqueId().value());
+                    assertThat(permission.getPrincipalUniqueId()).isEqualTo(user.getUniqueId().value());
                     assertThat(permission.getResource().getUniqueId()).isEqualTo(workspace.getUniqueId());
                     assertThat(permission.getPermissionName()).isEqualTo("read");
                     assertThat(permission.getResourceName()).isEqualTo(workspaceName);

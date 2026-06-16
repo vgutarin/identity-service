@@ -9,11 +9,11 @@ import vg.identity.model.IdentityUserResourcePermission;
 import java.util.List;
 
 public interface IdentityUserResourcePermissionRepository extends JpaRepository<IdentityUserResourcePermissionEntity, IdentityUserResourcePermissionEntityId> {
-    List<IdentityUserResourcePermissionEntity> getAllByUserUniqueId(Long userUniqueId);
+    List<IdentityUserResourcePermissionEntity> getAllByPrincipalUniqueId(Long principalUniqueId);
 
     @Query("""
             select
-                relation.userUniqueId as userUniqueId,
+                relation.principalUniqueId as principalUniqueId,
                 relation.createdAt as createdAt,
                 permission.name as permissionName,
                 workspace.name as resourceName,
@@ -21,8 +21,8 @@ public interface IdentityUserResourcePermissionRepository extends JpaRepository<
             from IdentityUserResourcePermissionEntity relation
                 join IdentityPermissionEntity permission on permission.id = relation.permissionId
                 join IdentityWorkspaceEntity workspace on workspace.uniqueId = relation.resourceUniqueId
-            where relation.userUniqueId = :userUniqueId
+            where relation.principalUniqueId = :principalUniqueId
             order by workspace.name, permission.name
             """)
-    List<IdentityUserResourcePermission> findWorkspacePermissionsByUserUniqueId(Long userUniqueId);
+    List<IdentityUserResourcePermission> findWorkspacePermissionsByPrincipalUniqueId(Long principalUniqueId);
 }

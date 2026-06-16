@@ -8,5 +8,5 @@ import vg.identity.entity.IdentityUserSystemRoleEntityId;
 import java.util.List;
 
 public interface IdentityUserSystemRoleRepository extends JpaRepository<IdentityUserSystemRoleEntity, IdentityUserSystemRoleEntityId> {
-    List<IdentityUserSystemRoleEntity> getAllByIdentityUserUniqueId(Long uniqueId);
+    List<IdentityUserSystemRoleEntity> getAllByIdentityPrincipalUniqueId(Long uniqueId);
 }
