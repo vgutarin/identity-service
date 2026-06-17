@@ -102,7 +102,6 @@ class IdentityRoleRepositoryIntegrationTest extends BaseIntegrationTest {
         return IdentityRoleEntity.builder()
                 .name(name)
                 .workspace(workspace)
-                .accessScope(AccessScope.WORKSPACE)
                 .build();
     }
 }

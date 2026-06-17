@@ -69,10 +69,6 @@ public class IdentityRoleEntity {
     @JoinColumn(name = "workspace_unique_id", updatable = false)
     private IdentityWorkspaceEntity workspace;
 
-    @Column(nullable = false)
-    @Enumerated(EnumType.ORDINAL)
-    private AccessScope accessScope;
-
     @Builder.Default
     @ManyToMany
     @JoinTable(
