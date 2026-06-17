@@ -3,8 +3,6 @@ package vg.identity.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.JoinColumn;
@@ -17,7 +15,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import vg.identity.model.access.AccessScope;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -25,7 +22,7 @@ import java.util.Objects;
 import static vg.utils.HibernateHelper.effectiveClass;
 
 /**
- * Represents an assigned role for a principal in a specific access scope.
+ * Represents an assigned role for a principal.
  */
 @NoArgsConstructor
 @AllArgsConstructor
@@ -48,14 +45,11 @@ public class IdentityRoleAssignmentEntity {
     @JoinColumn(name = "role_id", nullable = false)
     private IdentityRoleEntity role;
 
-    @Id
-    @Column(nullable = false)
-    @Enumerated(EnumType.ORDINAL)
-    private AccessScope accessScope;
-
     @Column(nullable = false, updatable = false)
     @CreatedDate
     private Instant createdAt;
+
+    //TODO VG assignedBy
 
     @Override
     public final boolean equals(Object o) {
@@ -64,8 +58,7 @@ public class IdentityRoleAssignmentEntity {
         if (effectiveClass(this) != effectiveClass(o)) return false;
         var that = (IdentityRoleAssignmentEntity) o;
         return principal != null && Objects.equals(principal, that.principal)
-                && role != null && Objects.equals(role, that.role)
-                && accessScope != null && Objects.equals(accessScope, that.accessScope);
+                && role != null && Objects.equals(role, that.role);
     }
 
     @Override

@@ -426,13 +426,6 @@ databaseChangeLog:
                     referencedTableName: identity_role
                     referencedColumnNames: id
               - column:
-                  name: access_scope
-                  type: SMALLINT
-                  constraints:
-                    nullable: false
-                    primaryKey: true
-                    primaryKeyName: pk_identity_role_assignment
-              - column:
                   name: created_at
                   type: DATETIME
                   constraints:
