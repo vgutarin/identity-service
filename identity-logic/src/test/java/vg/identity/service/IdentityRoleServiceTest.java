@@ -3,12 +3,14 @@ package vg.identity.service;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import vg.identity.entity.IdentityPermissionEntity;
 import vg.identity.entity.IdentityRoleEntity;
+import vg.identity.entity.IdentityRoleTemplateEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityRoleMapper;
 import vg.identity.model.IdentityRole;
@@ -21,6 +23,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static vg.test.TestHelper.nextLong;
@@ -33,8 +36,6 @@ class IdentityRoleServiceTest {
     @Mock
     IdentityPermissionService permissionService;
     @Mock
-    IdentityWorkspaceService workspaceService;
-    @Mock
     IdentityRoleMapper roleMapper;
 
     @InjectMocks
@@ -42,31 +43,51 @@ class IdentityRoleServiceTest {
 
     @Test
     void create() {
-        var workspaceId = nextLong();
-        var role = IdentityRole.builder()
-                .name(nextString())
-                .workspaceUniqueId(workspaceId)
-                .permissions(Set.of(" Workspace.READ ", "app.update"))
-                .build();
-        var entityToSave = IdentityRoleEntity.builder()
-                .name(role.getName())
-                .build();
-        var workspace = workspace(workspaceId);
+        var name = nextString();
+        var description = nextString();
         var savedEntity = roleEntity(1L);
         var savedModel = roleModel(1L);
+        var captor = ArgumentCaptor.forClass(IdentityRoleEntity.class);
 
-        when(roleMapper.toEntity(role)).thenReturn(entityToSave);
-        when(workspaceService.getEntity(workspaceId)).thenReturn(workspace);
-        when(permissionService.getOrCreateEntity(" Workspace.READ ")).thenReturn(permission("workspace.read"));
-        when(permissionService.getOrCreateEntity("app.update")).thenReturn(permission("app.update"));
-        when(roleRepository.save(entityToSave)).thenReturn(savedEntity);
+        when(roleRepository.save(any(IdentityRoleEntity.class))).thenReturn(savedEntity);
         when(roleMapper.toModel(savedEntity)).thenReturn(savedModel);
 
-        assertThat(service.create(role)).isSameAs(savedModel);
-        assertThat(entityToSave.getWorkspace()).isSameAs(workspace);
-        assertThat(entityToSave.getPermissions())
-                .extracting(IdentityPermissionEntity::getName)
-                .containsExactlyInAnyOrder("workspace.read", "app.update");
+        assertThat(service.create(name, description)).isSameAs(savedModel);
+        verify(roleRepository).save(captor.capture());
+        assertThat(captor.getValue().getName()).isEqualTo(name);
+        assertThat(captor.getValue().getDescription()).isEqualTo(description);
+        assertThat(captor.getValue().getWorkspace()).isNull();
+        assertThat(captor.getValue().getPermissions()).isEmpty();
+        verify(roleRepository).flush();
+    }
+
+    @Test
+    void createFromTemplate() {
+        var templateId = nextLong();
+        var workspaceId = nextLong();
+        var workspace = workspace(workspaceId);
+        var firstPermission = permission("workspace.read");
+        var secondPermission = permission("app.update");
+        var template = IdentityRoleTemplateEntity.builder()
+                .id(templateId)
+                .name(nextString())
+                .description(nextString())
+                .permissions(Set.of(firstPermission, secondPermission))
+                .build();
+        var savedModel = roleModel(nextLong());
+        var captor = ArgumentCaptor.forClass(IdentityRoleEntity.class);
+
+        when(roleRepository.save(any(IdentityRoleEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(roleMapper.toModel(any(IdentityRoleEntity.class))).thenReturn(savedModel);
+
+        assertThat(service.createFromTemplate(List.of(template), workspace)).containsExactly(savedModel);
+
+        verify(roleRepository).save(captor.capture());
+        var copiedRole = captor.getValue();
+        assertThat(copiedRole.getName()).isEqualTo(template.getName());
+        assertThat(copiedRole.getDescription()).isEqualTo(template.getDescription());
+        assertThat(copiedRole.getWorkspace()).isSameAs(workspace);
+        assertThat(copiedRole.getPermissions()).containsExactlyInAnyOrder(firstPermission, secondPermission);
         verify(roleRepository).flush();
     }
 

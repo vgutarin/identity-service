@@ -7,9 +7,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import vg.identity.entity.IdentityRoleTemplateEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityWorkspaceMapper;
 import vg.identity.model.IdentityWorkspace;
+import vg.identity.repository.IdentityRoleTemplateRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
@@ -31,6 +33,10 @@ class IdentityWorkspaceServiceTest {
     @Mock
     IdentityWorkspaceRepository workspaceRepository;
     @Mock
+    IdentityRoleTemplateRepository roleTemplateRepository;
+    @Mock
+    IdentityRoleService roleService;
+    @Mock
     IdentityWorkspaceMapper workspaceMapper;
 
     @InjectMocks
@@ -46,13 +52,16 @@ class IdentityWorkspaceServiceTest {
                 .build();
         var savedEntity = workspaceEntity(1L);
         var savedModel = workspaceModel(1L);
+        var templates = List.of(roleTemplateEntity(1L), roleTemplateEntity(2L));
 
         when(workspaceMapper.toEntity(workspace)).thenReturn(entityToSave);
         when(workspaceRepository.saveWithNewUniqueId(entityToSave, uniqueIdService)).thenReturn(savedEntity);
+        when(roleTemplateRepository.findAll()).thenReturn(templates);
         when(workspaceMapper.toModel(savedEntity)).thenReturn(savedModel);
 
         assertThat(service.create(workspace)).isSameAs(savedModel);
         verify(workspaceRepository).flush();
+        verify(roleService).createFromTemplate(templates, savedEntity);
     }
 
     @Test
@@ -161,6 +170,13 @@ class IdentityWorkspaceServiceTest {
     private static IdentityWorkspace workspaceModel(long id) {
         return IdentityWorkspace.builder()
                 .uniqueId(new UniqueId(id))
+                .name(nextString())
+                .build();
+    }
+
+    private static IdentityRoleTemplateEntity roleTemplateEntity(long id) {
+        return IdentityRoleTemplateEntity.builder()
+                .id(id)
                 .name(nextString())
                 .build();
     }

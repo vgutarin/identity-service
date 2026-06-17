@@ -9,8 +9,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
+import vg.identity.model.IdentityRoleTemplate;
 import vg.identity.model.IdentityWorkspace;
+import vg.identity.repository.IdentityPermissionRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
+import vg.identity.repository.IdentityRoleRepository;
+import vg.identity.repository.IdentityRoleTemplateRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
@@ -18,6 +22,7 @@ import vg.identity.repository.IdentityUserSystemRoleRepository;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,7 +33,17 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     @Autowired
     IdentityWorkspaceService service;
     @Autowired
+    IdentityRoleService roleService;
+    @Autowired
+    IdentityRoleTemplateService roleTemplateService;
+    @Autowired
     IdentityWorkspaceRepository workspaceRepository;
+    @Autowired
+    IdentityRoleRepository roleRepository;
+    @Autowired
+    IdentityRoleTemplateRepository roleTemplateRepository;
+    @Autowired
+    IdentityPermissionRepository permissionRepository;
     @Autowired
     IdentityUserRepository userRepository;
     @Autowired
@@ -47,7 +62,10 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
 
     @AfterEach
     void cleanUp() {
+        roleRepository.deleteAll();
+        roleTemplateRepository.deleteAll();
         workspaceRepository.deleteAll();
+        permissionRepository.deleteAll();
         systemRoleRepository.deleteAll();
         channelRepository.deleteAll();
         userRepository.deleteAll();
@@ -65,6 +83,39 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
                 new TemporalUnitWithinOffset(10, ChronoUnit.SECONDS)
         );
         assertThat(saved.getVersion()).isEqualTo(0);
+    }
+
+    @Test
+    void createCopiesRoleTemplatesToWorkspaceRoles() {
+        var firstName = nextString();
+        var firstDescription = nextString();
+        var secondName = nextString();
+        roleTemplateService.create(IdentityRoleTemplate.builder()
+                .name(firstName)
+                .description(firstDescription)
+                .permissions(Set.of("workspace.read", "workspace.write"))
+                .build());
+        roleTemplateService.create(IdentityRoleTemplate.builder()
+                .name(secondName)
+                .permissions(Set.of("app.read"))
+                .build());
+
+        var saved = service.create(buildWorkspace());
+        var workspace = workspaceRepository.findById(saved.getUniqueId().value()).orElseThrow();
+        var adminRole = roleRepository.findByNameAndWorkspace(firstName, workspace).orElseThrow();
+        var secondRole = roleRepository.findByNameAndWorkspace(secondName, workspace).orElseThrow();
+
+        assertThat(roleService.getById(adminRole.getId()))
+                .satisfies(role -> {
+                    assertThat(role.getDescription()).isEqualTo(firstDescription);
+                    assertThat(role.getWorkspaceUniqueId()).isEqualTo(saved.getUniqueId().value());
+                    assertThat(role.getPermissions()).containsExactlyInAnyOrder("workspace.read", "workspace.write");
+                });
+        assertThat(roleService.getById(secondRole.getId()))
+                .satisfies(role -> {
+                    assertThat(role.getWorkspaceUniqueId()).isEqualTo(saved.getUniqueId().value());
+                    assertThat(role.getPermissions()).containsExactly("app.read");
+                });
     }
 
     @Test

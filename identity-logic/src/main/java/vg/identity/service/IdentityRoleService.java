@@ -8,10 +8,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vg.identity.entity.IdentityPermissionEntity;
 import vg.identity.entity.IdentityRoleEntity;
+import vg.identity.entity.IdentityRoleTemplateEntity;
+import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityRoleMapper;
 import vg.identity.model.IdentityRole;
 import vg.identity.repository.IdentityRoleRepository;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -21,21 +24,43 @@ import java.util.Set;
 public class IdentityRoleService {
     private final IdentityRoleRepository roleRepository;
     private final IdentityPermissionService permissionService;
-    private final IdentityWorkspaceService workspaceService;
     private final IdentityRoleMapper roleMapper;
 
     @PreAuthorize("hasRole('OWNER')")
     @Transactional
-    public IdentityRole create(IdentityRole role) {
-        var entity = roleMapper.toEntity(role);
-        entity.setWorkspace(resolveWorkspace(role.getWorkspaceUniqueId()));
-        entity.setPermissions(resolvePermissions(role.getPermissions()));
+    IdentityRole create(String name, String description) {
+        var entity = IdentityRoleEntity.builder()
+                .name(name)
+                .description(description)
+                .build();
 
         var saved = roleRepository.save(entity);
         roleRepository.flush();
         return roleMapper.toModel(saved);
     }
 
+    @Transactional
+    List<IdentityRole> createFromTemplate(
+            Collection<IdentityRoleTemplateEntity> templates,
+            IdentityWorkspaceEntity workspace
+    ) {
+        var roles = templates.stream()
+                .map(template -> {
+                    var entity = IdentityRoleEntity.builder()
+                            .name(template.getName())
+                            .description(template.getDescription())
+                            .workspace(workspace)
+                            .permissions(new HashSet<>(template.getPermissions()))
+                            .build();
+
+                    var saved = roleRepository.save(entity);
+                    return roleMapper.toModel(saved);
+                })
+                .toList();
+
+        roleRepository.flush();
+        return roles;
+    }
     @Transactional(readOnly = true)
     public IdentityRole getById(long id) {
         return roleMapper.toModel(getEntity(id));
@@ -107,14 +132,6 @@ public class IdentityRoleService {
     public IdentityRoleEntity getEntity(long id) {
         return roleRepository.findById(id)
                 .orElseThrow(EntityNotFoundException::new);
-    }
-
-    private vg.identity.entity.IdentityWorkspaceEntity resolveWorkspace(Long workspaceUniqueId) {
-        if (workspaceUniqueId == null) {
-            return null;
-        }
-
-        return workspaceService.getEntity(workspaceUniqueId);
     }
 
     private Set<IdentityPermissionEntity> resolvePermissions(Set<String> permissions) {

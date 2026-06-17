@@ -9,14 +9,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
+import vg.identity.entity.IdentityRoleTemplateEntity;
 import vg.identity.model.IdentityRole;
+import vg.identity.model.IdentityRoleTemplate;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.repository.IdentityPermissionRepository;
 import vg.identity.repository.IdentityRoleRepository;
+import vg.identity.repository.IdentityRoleTemplateRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,9 +32,13 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
     @Autowired
     IdentityRoleService service;
     @Autowired
+    IdentityRoleTemplateService roleTemplateService;
+    @Autowired
     IdentityWorkspaceService workspaceService;
     @Autowired
     IdentityRoleRepository roleRepository;
+    @Autowired
+    IdentityRoleTemplateRepository roleTemplateRepository;
     @Autowired
     IdentityWorkspaceRepository workspaceRepository;
     @Autowired
@@ -46,62 +54,87 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
     @AfterEach
     void cleanUp() {
         roleRepository.deleteAll();
+        roleTemplateRepository.deleteAll();
         workspaceRepository.deleteAll();
         permissionRepository.deleteAll();
     }
 
     @Test
     void create() {
-        var workspace = createWorkspace();
         var description = nextString();
-        var saved = service.create(IdentityRole.builder()
-                .name(name)
-                .description(description)
-                .workspaceUniqueId(workspace.getUniqueId().value())
-                .permissions(Set.of(" Workspace.READ ", "app.update"))
-                .build());
+        var saved = service.create(name, description);
 
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getName()).isEqualTo(name);
         assertThat(saved.getDescription()).isEqualTo(description);
-        assertThat(saved.getWorkspaceUniqueId()).isEqualTo(workspace.getUniqueId().value());
-        assertThat(saved.getPermissions()).containsExactlyInAnyOrder("workspace.read", "app.update");
+        assertThat(saved.getWorkspaceUniqueId()).isNull();
+        assertThat(saved.getPermissions()).isEmpty();
         assertThat(saved.getCreatedAt()).isCloseTo(
                 Instant.now(),
                 new TemporalUnitWithinOffset(10, ChronoUnit.SECONDS)
         );
         assertThat(saved.getVersion()).isEqualTo(0);
-
-        assertThat(permissionRepository.findByName("workspace.read")).isPresent();
-        assertThat(permissionRepository.findByName("app.update")).isPresent();
     }
 
     @Test
     void create_AllowsGlobalRole() {
-        var saved = service.create(buildRole());
+        var saved = service.create(name, null);
 
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getWorkspaceUniqueId()).isNull();
     }
 
     @Test
+    void createFromTemplate() {
+        var workspace = createWorkspace();
+        var description = nextString();
+        var template = roleTemplateService.create(IdentityRoleTemplate.builder()
+                .name(name)
+                .description(description)
+                .permissions(Set.of("workspace.read", "app.update"))
+                .build());
+        var templateEntity = IdentityRoleTemplateEntity.builder()
+                .id(template.getId())
+                .name(template.getName())
+                .description(template.getDescription())
+                .permissions(Set.of(
+                        permissionRepository.findByName("workspace.read").orElseThrow(),
+                        permissionRepository.findByName("app.update").orElseThrow()
+                ))
+                .build();
+        var workspaceEntity = workspaceService.getEntity(workspace.getUniqueId().value());
+
+        var saved = service.createFromTemplate(List.of(templateEntity), workspaceEntity).getFirst();
+
+        assertThat(saved.getId()).isNotNull();
+        assertThat(saved.getName()).isEqualTo(name);
+        assertThat(saved.getDescription()).isEqualTo(description);
+        assertThat(saved.getWorkspaceUniqueId()).isEqualTo(workspace.getUniqueId().value());
+        assertThat(saved.getPermissions()).containsExactlyInAnyOrder("workspace.read", "app.update");
+        assertThat(roleRepository.findById(saved.getId()))
+                .hasValueSatisfying(role -> {
+                    assertThat(role.getWorkspace()).isNotNull();
+                    assertThat(role.getWorkspace().getUniqueId()).isEqualTo(workspace.getUniqueId().value());
+                });
+        assertThat(service.getById(saved.getId()).getPermissions())
+                .containsExactlyInAnyOrder("workspace.read", "app.update");
+    }
+
+    @Test
     void getById() {
-        var saved = service.create(buildRole());
+        var saved = service.create(name, null);
 
         var found = service.getById(saved.getId());
 
         assertThat(found.getId()).isEqualTo(saved.getId());
         assertThat(found.getName()).isEqualTo(name);
-        assertThat(found.getPermissions()).containsExactly("workspace.read");
+        assertThat(found.getPermissions()).isEmpty();
     }
 
     @Test
     void getAll() {
-        var first = service.create(buildRole());
-        var second = service.create(IdentityRole.builder()
-                .name(nextString())
-                .permissions(Set.of("app.read"))
-                .build());
+        var first = service.create(name, null);
+        var second = service.create(nextString(), null);
 
         assertThat(service.getAll())
                 .extracting(IdentityRole::getId)
@@ -110,7 +143,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void update() {
-        var saved = service.create(buildRole());
+        var saved = service.create(name, null);
         var newDescription = nextString();
 
         var updated = service.update(
@@ -135,7 +168,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void updateThrows_WhenVersionIsStale() {
-        var saved = service.create(buildRole());
+        var saved = service.create(name, null);
         var stale = IdentityRole.builder()
                 .id(saved.getId())
                 .version(saved.getVersion())
@@ -163,19 +196,18 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void addPermission() {
-        var saved = service.create(buildRole());
+        var saved = service.create(name, null);
 
         var updated = service.addPermission(saved.getId(), " app.create ");
 
-        assertThat(updated.getPermissions()).containsExactlyInAnyOrder("workspace.read", "app.create");
+        assertThat(updated.getPermissions()).containsExactly("app.create");
     }
 
     @Test
     void removePermission() {
-        var saved = service.create(IdentityRole.builder()
-                .name(name)
-                .permissions(Set.of("workspace.read", "app.create"))
-                .build());
+        var saved = service.create(name, null);
+        service.addPermission(saved.getId(), "workspace.read");
+        service.addPermission(saved.getId(), "app.create");
 
         var updated = service.removePermission(saved.getId(), " App.CREATE ");
 
@@ -184,7 +216,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void delete() {
-        var saved = service.create(buildRole());
+        var saved = service.create(name, null);
 
         service.delete(saved.getId());
 
@@ -195,13 +227,6 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
     void getByIdThrows_WhenEntityIsNotFound() {
         assertThatThrownBy(() -> service.getById(Long.MAX_VALUE))
                 .isInstanceOf(EntityNotFoundException.class);
-    }
-
-    private IdentityRole buildRole() {
-        return IdentityRole.builder()
-                .name(name)
-                .permissions(Set.of("workspace.read"))
-                .build();
     }
 
     private IdentityWorkspace createWorkspace() {

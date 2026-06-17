@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityWorkspaceMapper;
 import vg.identity.model.IdentityWorkspace;
+import vg.identity.repository.IdentityRoleTemplateRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.unique.id.service.UniqueIdService;
 
@@ -19,6 +20,8 @@ import java.util.List;
 public class IdentityWorkspaceService {
     private final UniqueIdService uniqueIdService;
     private final IdentityWorkspaceRepository workspaceRepository;
+    private final IdentityRoleTemplateRepository roleTemplateRepository;
+    private final IdentityRoleService roleService;
     private final IdentityWorkspaceMapper workspaceMapper;
 
     @PreAuthorize("hasRole('OWNER')")
@@ -29,6 +32,7 @@ public class IdentityWorkspaceService {
                 uniqueIdService
         );
         workspaceRepository.flush();
+        roleService.createFromTemplate(roleTemplateRepository.findAll(), saved);
         return workspaceMapper.toModel(saved);
     }
 
