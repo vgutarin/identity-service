@@ -12,6 +12,7 @@ import vg.identity.repository.IdentityPermissionRepository;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,38 +32,40 @@ class IdentityPermissionServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void create() {
+        var permissionName = permissionName();
         var saved = service.create(IdentityPermission.builder()
-                .name(" Workspace.READ ")
+                .name(" " + permissionName.toUpperCase(Locale.ROOT) + " ")
                 .build());
 
         assertThat(saved.getId()).isNotNull();
-        assertThat(saved.getName()).isEqualTo("workspace.read");
+        assertThat(saved.getName()).isEqualTo(permissionName);
         assertThat(saved.getCreatedAt()).isCloseTo(
                 Instant.now(),
                 new TemporalUnitWithinOffset(10, ChronoUnit.SECONDS)
         );
-        assertThat(permissionRepository.findByName("workspace.read")).isPresent();
+        assertThat(permissionRepository.findByName(permissionName)).isPresent();
     }
 
     @Test
     void getById() {
+        var permissionName = permissionName();
         var saved = service.create(IdentityPermission.builder()
-                .name("workspace.read")
+                .name(permissionName)
                 .build());
 
         var found = service.getById(saved.getId());
 
         assertThat(found.getId()).isEqualTo(saved.getId());
-        assertThat(found.getName()).isEqualTo("workspace.read");
+        assertThat(found.getName()).isEqualTo(permissionName);
     }
 
     @Test
     void getAll() {
         var first = service.create(IdentityPermission.builder()
-                .name("workspace.read")
+                .name(permissionName())
                 .build());
         var second = service.create(IdentityPermission.builder()
-                .name("app.read")
+                .name(permissionName())
                 .build());
 
         assertThat(service.getAll())
@@ -72,11 +75,12 @@ class IdentityPermissionServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getOrCreateEntityReturnsExistingPermission() {
+        var permissionName = permissionName();
         var saved = service.create(IdentityPermission.builder()
-                .name("workspace.read")
+                .name(permissionName)
                 .build());
 
-        var entity = service.getOrCreateEntity(" Workspace.READ ");
+        var entity = service.getOrCreateEntity(" " + permissionName.toUpperCase(Locale.ROOT) + " ");
 
         assertThat(entity.getId()).isEqualTo(saved.getId());
         assertThat(permissionRepository.findAll()).hasSize(1);
@@ -84,16 +88,22 @@ class IdentityPermissionServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getOrCreateEntityCreatesMissingPermission() {
-        var entity = service.getOrCreateEntity(" Workspace.READ ");
+        var permissionName = permissionName();
+
+        var entity = service.getOrCreateEntity(" " + permissionName.toUpperCase(Locale.ROOT) + " ");
 
         assertThat(entity.getId()).isNotNull();
-        assertThat(entity.getName()).isEqualTo("workspace.read");
-        assertThat(permissionRepository.findByName("workspace.read")).isPresent();
+        assertThat(entity.getName()).isEqualTo(permissionName);
+        assertThat(permissionRepository.findByName(permissionName)).isPresent();
     }
 
     @Test
     void getByIdThrows_WhenEntityIsNotFound() {
         assertThatThrownBy(() -> service.getById(Long.MAX_VALUE))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    private static String permissionName() {
+        return "permission." + nextString().toLowerCase(Locale.ROOT);
     }
 }
