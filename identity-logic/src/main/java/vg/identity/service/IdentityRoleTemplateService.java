@@ -66,6 +66,41 @@ public class IdentityRoleTemplateService {
         return roleTemplateMapper.toModel(saved);
     }
 
+    @PreAuthorize("hasRole('OWNER')")
+    @Transactional
+    public void delete(Long id) {
+        var existing = roleTemplateRepository.findById(id)
+                .orElseThrow(EntityNotFoundException::new);
+
+        roleTemplateRepository.delete(existing);
+        roleTemplateRepository.flush();
+    }
+
+    @PreAuthorize("hasRole('OWNER')")
+    @Transactional
+    public IdentityRoleTemplate addPermission(Long id, String permissionName) {
+        var existing = roleTemplateRepository.findById(id)
+                .orElseThrow(EntityNotFoundException::new);
+
+        existing.getPermissions().add(permissionService.getOrCreateEntity(permissionName));
+        var saved = roleTemplateRepository.save(existing);
+        roleTemplateRepository.flush();
+        return roleTemplateMapper.toModel(saved);
+    }
+
+    @PreAuthorize("hasRole('OWNER')")
+    @Transactional
+    public IdentityRoleTemplate removePermission(Long id, String permissionName) {
+        var existing = roleTemplateRepository.findById(id)
+                .orElseThrow(EntityNotFoundException::new);
+        var normalizedPermissionName = IdentityPermissionService.normalize(permissionName);
+
+        existing.getPermissions().removeIf(permission -> normalizedPermissionName.equals(permission.getName()));
+        var saved = roleTemplateRepository.save(existing);
+        roleTemplateRepository.flush();
+        return roleTemplateMapper.toModel(saved);
+    }
+
     @Transactional(readOnly = true)
     public IdentityRoleTemplateEntity getEntity(long id) {
         return roleTemplateRepository.findById(id)

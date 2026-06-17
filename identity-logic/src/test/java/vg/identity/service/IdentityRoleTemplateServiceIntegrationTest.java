@@ -144,6 +144,39 @@ class IdentityRoleTemplateServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void delete() {
+        var saved = service.create(buildRoleTemplate());
+
+        service.delete(saved.getId());
+
+        assertThat(roleTemplateRepository.findById(saved.getId())).isEmpty();
+        assertThat(permissionRepository.findByName("workspace.read")).isPresent();
+    }
+
+    @Test
+    void addPermission() {
+        var saved = service.create(buildRoleTemplate());
+
+        var updated = service.addPermission(saved.getId(), " Workspace.WRITE ");
+
+        assertThat(updated.getPermissions()).containsExactlyInAnyOrder("workspace.read", "workspace.write");
+        assertThat(permissionRepository.findByName("workspace.write")).isPresent();
+    }
+
+    @Test
+    void removePermission() {
+        var saved = service.create(IdentityRoleTemplate.builder()
+                .name(name)
+                .permissions(Set.of("workspace.read", "workspace.write"))
+                .build());
+
+        var updated = service.removePermission(saved.getId(), " Workspace.READ ");
+
+        assertThat(updated.getPermissions()).containsExactly("workspace.write");
+        assertThat(permissionRepository.findByName("workspace.read")).isPresent();
+    }
+
+    @Test
     void getByIdThrows_WhenEntityIsNotFound() {
         assertThatThrownBy(() -> service.getById(Long.MAX_VALUE))
                 .isInstanceOf(EntityNotFoundException.class);

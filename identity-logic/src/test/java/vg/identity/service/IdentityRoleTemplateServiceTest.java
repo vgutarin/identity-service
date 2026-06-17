@@ -150,6 +150,80 @@ class IdentityRoleTemplateServiceTest {
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);
     }
 
+    @Test
+    void delete() {
+        var id = nextLong();
+        var existing = roleTemplateEntity(id);
+
+        when(roleTemplateRepository.findById(id)).thenReturn(Optional.of(existing));
+
+        service.delete(id);
+
+        verify(roleTemplateRepository).delete(existing);
+        verify(roleTemplateRepository).flush();
+    }
+
+    @Test
+    void deleteThrows_WhenEntityIsNotFound() {
+        var id = nextLong();
+
+        assertThatThrownBy(() -> service.delete(id))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void addPermission() {
+        var id = nextLong();
+        var existing = roleTemplateEntity(id);
+        var permission = permission("workspace.read");
+        var savedEntity = roleTemplateEntity(id);
+        var savedModel = roleTemplateModel(id);
+
+        when(roleTemplateRepository.findById(id)).thenReturn(Optional.of(existing));
+        when(permissionService.getOrCreateEntity(" Workspace.READ ")).thenReturn(permission);
+        when(roleTemplateRepository.save(existing)).thenReturn(savedEntity);
+        when(roleTemplateMapper.toModel(savedEntity)).thenReturn(savedModel);
+
+        assertThat(service.addPermission(id, " Workspace.READ ")).isSameAs(savedModel);
+        assertThat(existing.getPermissions()).containsExactly(permission);
+        verify(roleTemplateRepository).flush();
+    }
+
+    @Test
+    void addPermissionThrows_WhenEntityIsNotFound() {
+        var id = nextLong();
+
+        assertThatThrownBy(() -> service.addPermission(id, "workspace.read"))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void removePermission() {
+        var id = nextLong();
+        var existing = roleTemplateEntity(id);
+        existing.setPermissions(new HashSet<>(Set.of(permission("workspace.read"), permission("workspace.write"))));
+        var savedEntity = roleTemplateEntity(id);
+        var savedModel = roleTemplateModel(id);
+
+        when(roleTemplateRepository.findById(id)).thenReturn(Optional.of(existing));
+        when(roleTemplateRepository.save(existing)).thenReturn(savedEntity);
+        when(roleTemplateMapper.toModel(savedEntity)).thenReturn(savedModel);
+
+        assertThat(service.removePermission(id, " Workspace.READ ")).isSameAs(savedModel);
+        assertThat(existing.getPermissions())
+                .extracting(IdentityPermissionEntity::getName)
+                .containsExactly("workspace.write");
+        verify(roleTemplateRepository).flush();
+    }
+
+    @Test
+    void removePermissionThrows_WhenEntityIsNotFound() {
+        var id = nextLong();
+
+        assertThatThrownBy(() -> service.removePermission(id, "workspace.read"))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
     private static IdentityRoleTemplateEntity roleTemplateEntity(long id) {
         return IdentityRoleTemplateEntity.builder()
                 .id(id)

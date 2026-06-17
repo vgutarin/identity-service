@@ -21,6 +21,7 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.security.core.userdetails.UserDetails;
+import vg.identity.frontend.vaadin.admin.IdentityRoleTemplates;
 import vg.identity.frontend.vaadin.admin.IdentityWorkspaces;
 import vg.identity.frontend.vaadin.admin.IdentityUserPermissions;
 import vg.identity.frontend.vaadin.admin.IdentityUsers;
@@ -150,6 +151,7 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
             adminGroup.setPrefixComponent(VaadinIcon.COG.create());
             adminGroup.addItem(
                     sideNavItem(IdentityWorkspaces.class),
+                    sideNavItem(IdentityRoleTemplates.class),
                     sideNavItem(IdentityUserPermissions.class),
                     sideNavItem(IdentityUsers.class),
                     sideNavItem(IdentityUsersChannels.class)

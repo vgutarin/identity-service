@@ -8,9 +8,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Component;
+import vg.identity.model.IdentityPermission;
 import vg.identity.model.IdentityUser;
 import vg.identity.model.IdentityUserSystemRole;
 import vg.identity.model.IdentityWorkspace;
+import vg.identity.model.access.Permission;
 
 import java.util.List;
 
@@ -23,6 +25,7 @@ public class IdentityApplicationStartup {
     private final IdentityPrincipalService principalService;
     private final IdentityUserAuthorityService authorityService;
     private final IdentityWorkspaceService workspaceService;
+    private final IdentityPermissionService permissionService;
 
     @EventListener(ApplicationStartedEvent.class)
     public void onApplicationReady() {
@@ -42,6 +45,10 @@ public class IdentityApplicationStartup {
                                 userDetailsManager.loadUserByUsername("vg").getAuthorities()
                         )
                 );
+
+        for(var permission : Permission.ALL) {
+            permissionService.create(IdentityPermission.builder().name(permission).build());
+        }
 
         List.of("Workspace1", "Workspace2", "Workspace3", "Workspace4", "Workspace5").forEach(workspaceName ->
                 workspaceService.create(

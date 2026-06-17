@@ -12,6 +12,9 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Locale;
 
@@ -52,6 +55,17 @@ public class LocalizationService implements I18NProvider {
                 .getOptionalValue()
                 .map(v -> v.toInstant(ZoneOffset.UTC))
                 .orElse(null);
+    }
+
+    public String formatDateTime(Instant instant) {
+        if (instant == null) {
+            return "";
+        }
+
+        return DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
+                .withLocale(currentLocale())
+                .withZone(ZoneId.systemDefault())
+                .format(instant);
     }
 
     private LocalDateTime toLocalDateTime(Instant instant) {

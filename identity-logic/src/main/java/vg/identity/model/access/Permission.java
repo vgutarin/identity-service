@@ -34,7 +34,7 @@ public class Permission {
         static final String[] ALL = concat(SELF, App.ALL);
     }
 
-    static final String[] ALL;
+    public static final String[] ALL;
 
     static {
         assertUniquenessAndCorrectness(App.ALL);
