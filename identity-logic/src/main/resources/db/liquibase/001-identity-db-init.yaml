@@ -304,6 +304,9 @@ databaseChangeLog:
                     nullable: false
                     unique: true
                     uniqueConstraintName: uk_identity_role_template_name
+              - column:
+                  name: description
+                  type: TEXT
         - createTable:
             tableName: identity_role_template_permission
             columns:
@@ -325,5 +328,70 @@ databaseChangeLog:
                     primaryKey: true
                     primaryKeyName: pk_identity_role_template_permission
                     foreignKeyName: fk_role_template_permission_to_permission
+                    referencedTableName: identity_permission
+                    referencedColumnNames: id
+  - changeSet:
+      id: 001-8
+      author: vg
+      changes:
+        - createTable:
+            tableName: identity_role
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_identity_role
+              - column:
+                  name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_identity_role_name
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  name: workspace_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    foreignKeyName: fk_identity_role_to_workspace
+                    referencedTableName: identity_workspace
+                    referencedColumnNames: unique_id
+              - column:
+                  name: access_scope
+                  type: SMALLINT
+                  constraints:
+                    nullable: false
+        - createTable:
+            tableName: identity_role_permission
+            columns:
+              - column:
+                  name: role_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_role_permission
+                    foreignKeyName: fk_role_permission_to_role
+                    referencedTableName: identity_role
+                    referencedColumnNames: id
+              - column:
+                  name: permission_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_role_permission
+                    foreignKeyName: fk_role_permission_to_permission
                     referencedTableName: identity_permission
                     referencedColumnNames: id
