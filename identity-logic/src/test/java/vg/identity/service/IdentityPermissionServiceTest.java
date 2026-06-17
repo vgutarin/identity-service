@@ -116,4 +116,11 @@ class IdentityPermissionServiceTest {
                 .name(nextString())
                 .build();
     }
+    @Test
+    void normalizeTrimsAndLowercases() {
+        assertThat(IdentityPermissionService.normalize(" Read "))
+                .isEqualTo("read");
+        assertThat(IdentityPermissionService.normalize("WORKSPACE:WRITE"))
+                .isEqualTo("workspace:write");
+    }
 }

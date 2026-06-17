@@ -71,7 +71,7 @@ public class IdentityUserAuthorityService {
     @Transactional
     @PreAuthorize("hasRole('OWNER')")
     public void assignResourceAuthority(UniqueIdEntity resource, IdentityUser user, String permission) {
-        var permissionName = normalizeAuthorityName(permission);
+        var permissionName = IdentityPermissionService.normalize(permission);
         var permissionId = permissionRepository.findByName(permissionName)
                 .orElseGet(() -> permissionRepository.save(
                         IdentityPermissionEntity.builder()
@@ -106,7 +106,7 @@ public class IdentityUserAuthorityService {
     @Transactional
     @PreAuthorize("hasRole('OWNER')")
     public void revokeResourceAuthority(UniqueIdEntity resource, IdentityUser user, String permission) {
-        var permissionName = normalizeAuthorityName(permission);
+        var permissionName = IdentityPermissionService.normalize(permission);
         var permissionEntity = permissionRepository.findByName(permissionName);
         if (permissionEntity.isEmpty()) {
             log.warn(
@@ -157,12 +157,8 @@ public class IdentityUserAuthorityService {
         return "ROLE_" + roleName;
     }
 
-    static String normalizeAuthorityName(String authorityName) {
-        return authorityName.trim().toLowerCase();
-    }
-
     //TODO delete
     static String resourceAuthorityName(long uniqueId, String name) {
-        return uniqueId + ":" + normalizeAuthorityName(name);
+        return uniqueId + ":" + IdentityPermissionService.normalize(name);
     }
 }

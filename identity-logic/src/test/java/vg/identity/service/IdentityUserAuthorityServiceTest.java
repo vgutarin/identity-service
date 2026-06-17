@@ -47,14 +47,6 @@ class IdentityUserAuthorityServiceTest {
     private IdentityUserAuthorityService service;
 
     @Test
-    void normalizeAuthorityNameTrimsAndLowercases() {
-        assertThat(IdentityUserAuthorityService.normalizeAuthorityName(" Read "))
-                .isEqualTo("read");
-        assertThat(IdentityUserAuthorityService.normalizeAuthorityName("WORKSPACE:WRITE"))
-                .isEqualTo("workspace:write");
-    }
-
-    @Test
     void resourceAuthorityNameIncludesResourceIdAndNormalizedAuthorityName() {
         assertThat(IdentityUserAuthorityService.resourceAuthorityName(123L, " Read "))
                 .isEqualTo("123:read");

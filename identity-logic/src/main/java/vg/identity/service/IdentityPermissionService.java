@@ -59,6 +59,6 @@ public class IdentityPermissionService {
     }
 
     static String normalize(String permissionName) {
-        return IdentityUserAuthorityService.normalizeAuthorityName(permissionName);
+        return permissionName.trim().toLowerCase();
     }
 }
