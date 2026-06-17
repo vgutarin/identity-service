@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
-import vg.identity.entity.IdentityWorkspaceEntity;
+import vg.identity.model.IdentityWorkspace;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
@@ -68,23 +68,23 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void get() {
+    void getById() {
         var saved = service.create(buildWorkspace());
 
-        var found = service.get(saved.getUniqueId());
+        var found = service.getById(saved.getUniqueId().value());
 
         assertThat(found.getUniqueId()).isEqualTo(saved.getUniqueId());
         assertThat(found.getName()).isEqualTo(name);
     }
 
     @Test
-    void findAll() {
+    void getAll() {
         var first = service.create(buildWorkspace());
-        var second = service.create(IdentityWorkspaceEntity.builder().name(nextString()).build());
+        var second = service.create(IdentityWorkspace.builder().name(nextString()).build());
 
-        assertThat(service.findAll())
-                .extracting(IdentityWorkspaceEntity::getUniqueId)
-                .contains(first.getUniqueId(), second.getUniqueId());
+        assertThat(service.getAll())
+                .extracting(workspace -> workspace.getUniqueId().value())
+                .contains(first.getUniqueId().value(), second.getUniqueId().value());
     }
 
     @Test
@@ -93,8 +93,9 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
         var newName = nextString();
 
         var updated = service.update(
-                IdentityWorkspaceEntity.builder()
+                IdentityWorkspace.builder()
                         .uniqueId(saved.getUniqueId())
+                        .version(saved.getVersion())
                         .name(newName)
                         .build()
         );
@@ -107,7 +108,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     @Test
     void updateThrows_WhenVersionIsStale() {
         var saved = service.create(buildWorkspace());
-        var stale = IdentityWorkspaceEntity.builder()
+        var stale = IdentityWorkspace.builder()
                 .uniqueId(saved.getUniqueId())
                 .version(saved.getVersion())
                 .name(nextString())
@@ -115,7 +116,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
         var currentName = nextString();
 
         service.update(
-                IdentityWorkspaceEntity.builder()
+                IdentityWorkspace.builder()
                         .uniqueId(saved.getUniqueId())
                         .version(saved.getVersion())
                         .name(currentName)
@@ -124,7 +125,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
 
         assertThatThrownBy(() -> service.update(stale))
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);
-        assertThat(workspaceRepository.findById(saved.getUniqueId()))
+        assertThat(workspaceRepository.findById(saved.getUniqueId().value()))
                 .hasValueSatisfying(workspace -> {
                     assertThat(workspace.getName()).isEqualTo(currentName);
                     assertThat(workspace.getVersion()).isEqualTo(1);
@@ -135,9 +136,9 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     void delete() {
         var saved = service.create(buildWorkspace());
 
-        service.delete(saved.getUniqueId());
+        service.delete(saved.getUniqueId().value());
 
-        assertThat(workspaceRepository.findById(saved.getUniqueId())).isEmpty();
+        assertThat(workspaceRepository.findById(saved.getUniqueId().value())).isEmpty();
     }
 
     @Test
@@ -146,8 +147,8 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
-    private IdentityWorkspaceEntity buildWorkspace() {
-        return IdentityWorkspaceEntity.builder()
+    private IdentityWorkspace buildWorkspace() {
+        return IdentityWorkspace.builder()
                 .name(name)
                 .build();
     }

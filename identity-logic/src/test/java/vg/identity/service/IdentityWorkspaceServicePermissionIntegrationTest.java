@@ -7,7 +7,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.entity.IdentityWorkspaceEntity;
+import vg.identity.model.IdentityWorkspace;
 import vg.identity.repository.IdentityWorkspaceRepository;
+import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,7 +42,7 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
     void getThrows_WhenUserDoesNotHaveResourceAuthority() {
         var saved = saveWorkspace();
 
-        assertThatThrownBy(() -> service.get(saved.getUniqueId()))
+        assertThatThrownBy(() -> service.getById(saved.getUniqueId()))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -50,8 +52,9 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
         var newName = nextString();
 
         assertThatThrownBy(() -> service.update(
-                IdentityWorkspaceEntity.builder()
-                        .uniqueId(saved.getUniqueId())
+                IdentityWorkspace.builder()
+                        .uniqueId(new UniqueId(saved.getUniqueId()))
+                        .version(saved.getVersion())
                         .name(newName)
                         .build()
         )).isInstanceOf(AccessDeniedException.class);
@@ -71,12 +74,18 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
     }
 
     private IdentityWorkspaceEntity saveWorkspace() {
-        var saved = workspaceRepository.saveWithNewUniqueId(buildWorkspace(), uniqueIdService);
+        var saved = workspaceRepository.saveWithNewUniqueId(buildWorkspaceEntity(), uniqueIdService);
         workspaceRepository.flush();
         return saved;
     }
 
-    private IdentityWorkspaceEntity buildWorkspace() {
+    private IdentityWorkspace buildWorkspace() {
+        return IdentityWorkspace.builder()
+                .name(nextString())
+                .build();
+    }
+
+    private IdentityWorkspaceEntity buildWorkspaceEntity() {
         return IdentityWorkspaceEntity.builder()
                 .name(nextString())
                 .build();

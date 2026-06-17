@@ -8,9 +8,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Component;
-import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.model.IdentityUser;
 import vg.identity.model.IdentityUserSystemRole;
+import vg.identity.model.IdentityWorkspace;
 
 import java.util.List;
 
@@ -45,7 +45,7 @@ public class IdentityApplicationStartup {
 
         List.of("Workspace1", "Workspace2", "Workspace3", "Workspace4", "Workspace5").forEach(workspaceName ->
                 workspaceService.create(
-                        IdentityWorkspaceEntity.builder().name(workspaceName).build()
+                        IdentityWorkspace.builder().name(workspaceName).build()
                 )
         );
 

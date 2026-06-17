@@ -7,6 +7,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vg.identity.entity.IdentityWorkspaceEntity;
+import vg.identity.mapper.IdentityWorkspaceMapper;
+import vg.identity.model.IdentityWorkspace;
 import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.unique.id.service.UniqueIdService;
 
@@ -17,42 +19,48 @@ import java.util.List;
 public class IdentityWorkspaceService {
     private final UniqueIdService uniqueIdService;
     private final IdentityWorkspaceRepository workspaceRepository;
+    private final IdentityWorkspaceMapper workspaceMapper;
 
     @PreAuthorize("hasRole('OWNER')")
     @Transactional
-    public IdentityWorkspaceEntity create(IdentityWorkspaceEntity workspace) {
-        var saved = workspaceRepository.saveWithNewUniqueId(workspace, uniqueIdService);
+    public IdentityWorkspace create(IdentityWorkspace workspace) {
+        var saved = workspaceRepository.saveWithNewUniqueId(
+                workspaceMapper.toEntity(workspace),
+                uniqueIdService
+        );
         workspaceRepository.flush();
-        return saved;
+        return workspaceMapper.toModel(saved);
     }
 
     @PreAuthorize("@authorityChecker.hasResourceAuthority(#uniqueId, 'read')")
     @Transactional(readOnly = true)
-    public IdentityWorkspaceEntity get(long uniqueId) {
-        return workspaceRepository.findById(uniqueId)
-                .orElseThrow(EntityNotFoundException::new);
+    public IdentityWorkspace getById(long uniqueId) {
+        return workspaceMapper.toModel(getEntity(uniqueId));
     }
 
     @Transactional(readOnly = true)
-    public List<IdentityWorkspaceEntity> findAll() {
-        return workspaceRepository.findAll();
+    public List<IdentityWorkspace> getAll() {
+        return workspaceRepository.findAll().stream()
+                .map(workspaceMapper::toModel)
+                .toList();
     }
 
     @PreAuthorize("hasRole('OWNER')")
     @Transactional
-    public IdentityWorkspaceEntity update(IdentityWorkspaceEntity workspace) {
-        var existing = workspaceRepository.findById(workspace.getUniqueId())
+    public IdentityWorkspace update(IdentityWorkspace workspace) {
+        var uniqueId = workspace.getUniqueId().value();
+        var existing = workspaceRepository.findById(uniqueId)
                 .orElseThrow(EntityNotFoundException::new);
 
         if (existing.getVersion() != workspace.getVersion()) {
-            throw new ObjectOptimisticLockingFailureException(IdentityWorkspaceEntity.class, workspace.getUniqueId());
+            throw new ObjectOptimisticLockingFailureException(IdentityWorkspaceEntity.class, uniqueId);
         }
 
-        existing.setName(workspace.getName());
+        workspaceMapper.updateEntity(existing, workspace);
 
         var saved = workspaceRepository.save(existing);
         workspaceRepository.flush();
-        return saved;
+        return workspaceMapper.toModel(saved);
     }
 
     @PreAuthorize("hasRole('OWNER')")
@@ -63,5 +71,48 @@ public class IdentityWorkspaceService {
 
         workspaceRepository.delete(existing);
         workspaceRepository.flush();
+    }
+
+    @Transactional(readOnly = true)
+    public IdentityWorkspaceEntity getEntity(long uniqueId) {
+        return workspaceRepository.findById(uniqueId)
+                .orElseThrow(EntityNotFoundException::new);
+    }
+
+    /**
+     * Legacy entity adapter for callers that still require JPA resources.
+     */
+    @PreAuthorize("hasRole('OWNER')")
+    @Transactional
+    public IdentityWorkspaceEntity create(IdentityWorkspaceEntity workspace) {
+        var saved = create(workspaceMapper.toModel(workspace));
+        return getEntity(saved.getUniqueId().value());
+    }
+
+    /**
+     * Legacy entity adapter for callers that still require JPA resources.
+     */
+    @PreAuthorize("@authorityChecker.hasResourceAuthority(#uniqueId, 'read')")
+    @Transactional(readOnly = true)
+    public IdentityWorkspaceEntity get(long uniqueId) {
+        return getEntity(uniqueId);
+    }
+
+    /**
+     * Legacy entity adapter for callers that still require JPA resources.
+     */
+    @Transactional(readOnly = true)
+    public List<IdentityWorkspaceEntity> findAll() {
+        return workspaceRepository.findAll();
+    }
+
+    /**
+     * Legacy entity adapter for callers that still require JPA resources.
+     */
+    @PreAuthorize("hasRole('OWNER')")
+    @Transactional
+    public IdentityWorkspaceEntity update(IdentityWorkspaceEntity workspace) {
+        var saved = update(workspaceMapper.toModel(workspace));
+        return getEntity(saved.getUniqueId().value());
     }
 }

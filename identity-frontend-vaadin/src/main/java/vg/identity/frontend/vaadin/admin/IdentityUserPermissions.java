@@ -27,7 +27,7 @@ import vg.identity.model.IdentityResourceType;
 import vg.identity.model.IdentityUser;
 import vg.identity.service.IdentityWorkspaceService;
 import vg.identity.service.IdentityUserAuthorityService;
-import vg.identity.service.IdentityUserServiceImpl;
+import vg.identity.service.IdentityPrincipalService;
 import vg.unique.id.jpa.UniqueIdEntity;
 
 import java.time.Instant;
@@ -45,7 +45,7 @@ import java.util.Set;
 @RolesAllowed(Role.OWNER)
 public class IdentityUserPermissions extends VerticalLayout {
 
-    private final IdentityUserServiceImpl userService;
+    private final IdentityPrincipalService userService;
     private final IdentityWorkspaceService workspaceService;
     private final IdentityUserAuthorityService authorityService;
     private final LocalizationService localization;
@@ -53,7 +53,7 @@ public class IdentityUserPermissions extends VerticalLayout {
     private final DateTimeFormatter dateTimeFormatter;
 
     public IdentityUserPermissions(
-            IdentityUserServiceImpl userService,
+            IdentityPrincipalService userService,
             IdentityWorkspaceService workspaceService,
             IdentityUserAuthorityService authorityService,
             LocalizationService localization

@@ -8,7 +8,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import vg.identity.entity.IdentityWorkspaceEntity;
+import vg.identity.mapper.IdentityWorkspaceMapper;
+import vg.identity.model.IdentityWorkspace;
 import vg.identity.repository.IdentityWorkspaceRepository;
+import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
 import java.util.List;
@@ -27,72 +30,89 @@ class IdentityWorkspaceServiceTest {
     UniqueIdService uniqueIdService;
     @Mock
     IdentityWorkspaceRepository workspaceRepository;
+    @Mock
+    IdentityWorkspaceMapper workspaceMapper;
 
     @InjectMocks
     IdentityWorkspaceService service;
 
     @Test
     void create() {
-        var workspace = IdentityWorkspaceEntity.builder()
+        var workspace = IdentityWorkspace.builder()
                 .name(nextString())
                 .build();
-        var saved = workspace(1L);
+        var entityToSave = IdentityWorkspaceEntity.builder()
+                .name(workspace.getName())
+                .build();
+        var savedEntity = workspaceEntity(1L);
+        var savedModel = workspaceModel(1L);
 
-        when(workspaceRepository.saveWithNewUniqueId(workspace, uniqueIdService)).thenReturn(saved);
+        when(workspaceMapper.toEntity(workspace)).thenReturn(entityToSave);
+        when(workspaceRepository.saveWithNewUniqueId(entityToSave, uniqueIdService)).thenReturn(savedEntity);
+        when(workspaceMapper.toModel(savedEntity)).thenReturn(savedModel);
 
-        assertThat(service.create(workspace)).isSameAs(saved);
+        assertThat(service.create(workspace)).isSameAs(savedModel);
         verify(workspaceRepository).flush();
     }
 
     @Test
-    void get() {
+    void getById() {
         var workspaceId = nextLong();
-        var workspace = workspace(workspaceId);
-        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
-        assertThat(service.get(workspaceId)).isSameAs(workspace);
+        var entity = workspaceEntity(workspaceId);
+        var model = workspaceModel(workspaceId);
+        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(entity));
+        when(workspaceMapper.toModel(entity)).thenReturn(model);
+
+        assertThat(service.getById(workspaceId)).isSameAs(model);
     }
 
     @Test
-    void getThrows_WhenEntityIsNotFound() {
+    void getByIdThrows_WhenEntityIsNotFound() {
         var workspaceId = nextLong();
 
-        assertThatThrownBy(() -> service.get(workspaceId))
+        assertThatThrownBy(() -> service.getById(workspaceId))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test
-    void findAll() {
-        var workspaces = List.of(workspace(1L), workspace(2L));
+    void getAll() {
+        var entities = List.of(workspaceEntity(1L), workspaceEntity(2L));
+        var firstModel = workspaceModel(1L);
+        var secondModel = workspaceModel(2L);
 
-        when(workspaceRepository.findAll()).thenReturn(workspaces);
+        when(workspaceRepository.findAll()).thenReturn(entities);
+        when(workspaceMapper.toModel(entities.get(0))).thenReturn(firstModel);
+        when(workspaceMapper.toModel(entities.get(1))).thenReturn(secondModel);
 
-        assertThat(service.findAll()).isSameAs(workspaces);
+        assertThat(service.getAll()).containsExactly(firstModel, secondModel);
     }
 
     @Test
     void update() {
         var workspaceId = nextLong();
         var newName = nextString();
-        var model = IdentityWorkspaceEntity.builder()
-                .uniqueId(workspaceId)
+        var model = IdentityWorkspace.builder()
+                .uniqueId(new UniqueId(workspaceId))
                 .name(newName)
                 .build();
-        var existing = workspace(workspaceId);
-        var saved = workspace(workspaceId);
+        var existing = workspaceEntity(workspaceId);
+        var savedEntity = workspaceEntity(workspaceId);
+        var savedModel = workspaceModel(workspaceId);
 
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(existing));
-        when(workspaceRepository.save(existing)).thenReturn(saved);
+        when(workspaceRepository.save(existing)).thenReturn(savedEntity);
+        when(workspaceMapper.toModel(savedEntity)).thenReturn(savedModel);
 
-        assertThat(service.update(model)).isSameAs(saved);
-        assertThat(existing.getName()).isEqualTo(newName);
+        assertThat(service.update(model)).isSameAs(savedModel);
+        verify(workspaceMapper).updateEntity(existing, model);
         verify(workspaceRepository).flush();
     }
 
     @Test
     void updateThrows_WhenEntityIsNotFound() {
-        var model = workspace(nextLong());
+        var model = workspaceModel(nextLong());
 
-        when(workspaceRepository.findById(model.getUniqueId())).thenReturn(Optional.empty());
+        when(workspaceRepository.findById(model.getUniqueId().value())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.update(model))
                 .isInstanceOf(EntityNotFoundException.class);
@@ -101,8 +121,8 @@ class IdentityWorkspaceServiceTest {
     @Test
     void updateThrows_WhenVersionIsStale() {
         var workspaceId = nextLong();
-        var model = IdentityWorkspaceEntity.builder()
-                .uniqueId(workspaceId)
+        var model = IdentityWorkspace.builder()
+                .uniqueId(new UniqueId(workspaceId))
                 .version(1)
                 .name(nextString())
                 .build();
@@ -121,7 +141,7 @@ class IdentityWorkspaceServiceTest {
     @Test
     void delete() {
         var workspaceId = nextLong();
-        var workspace = workspace(workspaceId);
+        var workspace = workspaceEntity(workspaceId);
 
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
 
@@ -131,9 +151,16 @@ class IdentityWorkspaceServiceTest {
         verify(workspaceRepository).flush();
     }
 
-    private static IdentityWorkspaceEntity workspace(long id) {
+    private static IdentityWorkspaceEntity workspaceEntity(long id) {
         return IdentityWorkspaceEntity.builder()
                 .uniqueId(id)
+                .name(nextString())
+                .build();
+    }
+
+    private static IdentityWorkspace workspaceModel(long id) {
+        return IdentityWorkspace.builder()
+                .uniqueId(new UniqueId(id))
                 .name(nextString())
                 .build();
     }
