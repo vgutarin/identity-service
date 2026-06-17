@@ -46,7 +46,7 @@ public class IdentityUserServiceImpl implements IdentityUserService {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('IDENTITY_ADMIN')")
+    @PreAuthorize("hasRole('OWNER')")
     public List<IdentityUser> findAll() {
         return repository.findAll().stream()
                 .map(mapper::toModel)

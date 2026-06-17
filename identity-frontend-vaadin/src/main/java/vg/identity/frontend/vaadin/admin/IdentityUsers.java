@@ -11,7 +11,7 @@ import vg.identity.frontend.vaadin.service.LocalizationService;
 
 @PageTitle("Users")
 @Route(value = "admin/users", layout = MainView.class)
-@RolesAllowed(Role.IDENTITY_ADMIN)
+@RolesAllowed(Role.OWNER)
 public class IdentityUsers extends VerticalLayout {
     public IdentityUsers(LocalizationService localization) {
         add(

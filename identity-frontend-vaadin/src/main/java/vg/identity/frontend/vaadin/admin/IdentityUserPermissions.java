@@ -42,7 +42,7 @@ import java.util.Set;
 
 @PageTitle("User permissions")
 @Route(value = "admin/user-permissions", layout = MainView.class)
-@RolesAllowed(Role.IDENTITY_ADMIN)
+@RolesAllowed(Role.OWNER)
 public class IdentityUserPermissions extends VerticalLayout {
 
     private final IdentityUserServiceImpl userService;

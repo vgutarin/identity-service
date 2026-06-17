@@ -31,7 +31,7 @@ import java.time.format.FormatStyle;
 
 @PageTitle("Workspaces")
 @Route(value = "admin/workspaces", layout = MainView.class)
-@RolesAllowed(Role.IDENTITY_ADMIN)
+@RolesAllowed(Role.OWNER)
 public class IdentityWorkspaces extends VerticalLayout {
 
     private final transient IdentityWorkspaceService workspaceService;

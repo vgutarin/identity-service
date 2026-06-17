@@ -4,7 +4,7 @@ import lombok.Getter;
 
 public enum AccessScope {
     GLOBAL(
-            Permission.Workspace.ALL
+            Permission.ALL
     ),
     WORKSPACE(
             Permission.Workspace.ALL

@@ -13,8 +13,8 @@ class IdentityUserSystemRoleTest {
      */
     @Test
     void ordinalsAndNamesAreNeverChanged() {
-        assertThat(IdentityUserSystemRole.IDENTITY_ADMIN.name()).isEqualTo("IDENTITY_ADMIN");
-        assertThat(IdentityUserSystemRole.IDENTITY_ADMIN.ordinal()).isEqualTo(0);
+        assertThat(IdentityUserSystemRole.OWNER.name()).isEqualTo("OWNER");
+        assertThat(IdentityUserSystemRole.OWNER.ordinal()).isEqualTo(0);
     }
 
     /**
@@ -26,7 +26,7 @@ class IdentityUserSystemRoleTest {
         assertThat(
                 IdentityUserSystemRole.values()
         ).containsExactly(
-                IdentityUserSystemRole.IDENTITY_ADMIN
+                IdentityUserSystemRole.OWNER
         );
     }
 }

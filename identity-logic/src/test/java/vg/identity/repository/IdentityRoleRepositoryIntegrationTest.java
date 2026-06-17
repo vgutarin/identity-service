@@ -8,14 +8,13 @@ import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.entity.IdentityRoleEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
-import vg.identity.model.access.AccessScope;
 import vg.identity.service.IdentityWorkspaceService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static vg.test.TestHelper.nextString;
 
-@WithMockUser(username = "john", roles = "IDENTITY_ADMIN")
+@WithMockUser(username = "john", roles = "OWNER")
 class IdentityRoleRepositoryIntegrationTest extends BaseIntegrationTest {
 
     @Autowired

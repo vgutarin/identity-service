@@ -44,7 +44,7 @@ public class IdentityUserAuthorityService {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('IDENTITY_ADMIN')")//TODO vg check it works
+    @PreAuthorize("hasRole('OWNER')")//TODO vg go over this an use per
     public void assignAuthority(IdentityUser user, IdentityUserSystemRole role) {
         var id = IdentityUserSystemRoleEntityId.builder()
                 .identityPrincipalUniqueId(user.getUniqueId().value())
@@ -69,7 +69,7 @@ public class IdentityUserAuthorityService {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('IDENTITY_ADMIN')")
+    @PreAuthorize("hasRole('OWNER')")
     public void assignResourceAuthority(UniqueIdEntity resource, IdentityUser user, String permission) {
         var permissionName = normalizeAuthorityName(permission);
         var permissionId = permissionRepository.findByName(permissionName)
@@ -104,7 +104,7 @@ public class IdentityUserAuthorityService {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('IDENTITY_ADMIN')")
+    @PreAuthorize("hasRole('OWNER')")
     public void revokeResourceAuthority(UniqueIdEntity resource, IdentityUser user, String permission) {
         var permissionName = normalizeAuthorityName(permission);
         var permissionEntity = permissionRepository.findByName(permissionName);
@@ -136,7 +136,7 @@ public class IdentityUserAuthorityService {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('IDENTITY_ADMIN')")
+    @PreAuthorize("hasRole('OWNER')")
     public List<IdentityUserResourcePermission> findByUserAndResourceType(IdentityUser user, IdentityResourceType resourceType) {
         return switch (resourceType) {
             case WORKSPACE -> resourcePermissionRepository.findWorkspacePermissionsByPrincipalUniqueId(user.getUniqueId().value());
@@ -161,6 +161,7 @@ public class IdentityUserAuthorityService {
         return authorityName.trim().toLowerCase();
     }
 
+    //TODO delete
     static String resourceAuthorityName(long uniqueId, String name) {
         return uniqueId + ":" + normalizeAuthorityName(name);
     }

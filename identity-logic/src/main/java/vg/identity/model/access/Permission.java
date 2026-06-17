@@ -5,37 +5,41 @@ import java.util.stream.Collectors;
 
 public class Permission {
     static class App {
+        static final String CREATE = "app.create";
         static final String READ = "app.read";
-        static final String WRITE = "app.write";
+        static final String UPDATE = "app.update";
         static final String DELETE = "app.delete";
 
         static final String[] ALL = {
+                CREATE,
                 READ,
-                WRITE,
+                UPDATE,
                 DELETE
         };
     }
 
     static class Workspace {
+        static final String CREATE = "workspace.create";
         static final String READ = "workspace.read";
-        static final String WRITE = "workspace.write";
+        static final String UPDATE = "workspace.update";
         static final String DELETE = "workspace.delete";
 
-        static final String[] ALL;
+        private final static String[] SELF = {
+                CREATE,
+                READ,
+                UPDATE,
+                DELETE
+        };
 
-        static {
-            ALL = new String[3 + App.ALL.length];
-            ALL[0] = READ;
-            ALL[1] = WRITE;
-            ALL[2] = DELETE;
-            System.arraycopy(App.ALL, 0, ALL, 3, App.ALL.length);
-
-        }
+        static final String[] ALL = concat(SELF, App.ALL);
     }
+
+    static final String[] ALL;
 
     static {
         assertUniquenessAndCorrectness(App.ALL);
         assertUniquenessAndCorrectness(Workspace.ALL);
+        ALL = Workspace.ALL;
     }
 
     static void assertUniquenessAndCorrectness(String[] values) {
@@ -53,5 +57,11 @@ public class Permission {
                 throw new IllegalArgumentException("Permission has incorrect format: " + permission);
             }
         }
+    }
+
+    static String[] concat(String[] ... arrays) {
+        return Arrays.stream(arrays)
+                .flatMap(Arrays::stream)
+                .toArray(String[]::new);
     }
 }

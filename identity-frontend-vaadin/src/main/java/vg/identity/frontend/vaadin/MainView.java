@@ -145,7 +145,7 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
     private SideNav createMenu() {
         var navMenu = new SideNav();
 
-        if (authContext.hasRole(Role.IDENTITY_ADMIN)) {
+        if (authContext.hasRole(Role.OWNER)) {
             var adminGroup = new SideNavItem(localization.i18n("Admin"));
             adminGroup.setPrefixComponent(VaadinIcon.COG.create());
             adminGroup.addItem(

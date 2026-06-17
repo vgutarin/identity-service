@@ -18,7 +18,7 @@ public class IdentityWorkspaceService {
     private final UniqueIdService uniqueIdService;
     private final IdentityWorkspaceRepository workspaceRepository;
 
-    @PreAuthorize("hasRole('IDENTITY_ADMIN')")
+    @PreAuthorize("hasRole('OWNER')")
     @Transactional
     public IdentityWorkspaceEntity create(IdentityWorkspaceEntity workspace) {
         var saved = workspaceRepository.saveWithNewUniqueId(workspace, uniqueIdService);
@@ -38,7 +38,7 @@ public class IdentityWorkspaceService {
         return workspaceRepository.findAll();
     }
 
-    @PreAuthorize("hasRole('IDENTITY_ADMIN')")
+    @PreAuthorize("hasRole('OWNER')")
     @Transactional
     public IdentityWorkspaceEntity update(IdentityWorkspaceEntity workspace) {
         var existing = workspaceRepository.findById(workspace.getUniqueId())
@@ -55,7 +55,7 @@ public class IdentityWorkspaceService {
         return saved;
     }
 
-    @PreAuthorize("hasRole('IDENTITY_ADMIN')")
+    @PreAuthorize("hasRole('OWNER')")
     @Transactional
     public void delete(Long uniqueId) {
         var existing = workspaceRepository.findById(uniqueId)

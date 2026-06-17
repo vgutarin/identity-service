@@ -30,7 +30,7 @@ public class IdentityApplicationStartup {
         userDetailsManager.createUser(
                 userService.getGuest()
         );
-        createUser("vg", "vg", IdentityUserSystemRole.IDENTITY_ADMIN);
+        createUser("vg", "vg", IdentityUserSystemRole.OWNER);
         createUser("g", "g", null);
         createUser("a", "a", null);
 

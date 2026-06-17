@@ -11,7 +11,7 @@ import vg.identity.frontend.vaadin.service.LocalizationService;
 
 @PageTitle("Channels")
 @Route(value = "admin/users-channels", layout = MainView.class)
-@RolesAllowed(Role.IDENTITY_ADMIN)
+@RolesAllowed(Role.OWNER)
 public class IdentityUsersChannels extends VerticalLayout {
     public IdentityUsersChannels(LocalizationService localization) {
         add(

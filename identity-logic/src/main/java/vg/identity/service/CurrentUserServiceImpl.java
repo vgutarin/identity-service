@@ -11,7 +11,7 @@ import vg.unique.id.model.UniqueId;
 
 import java.util.Optional;
 
-@Service("authorityChecker")
+@Service
 @RequiredArgsConstructor
 public class CurrentUserServiceImpl implements CurrentUserService {
 
@@ -43,22 +43,5 @@ public class CurrentUserServiceImpl implements CurrentUserService {
         var normalizedRole = IdentityUserAuthorityService.normalizeRoleName(role);
         return currentUserDetails != null && currentUserDetails.getAuthorities().stream()
                 .anyMatch(grantedAuthority -> normalizedRole.equals(grantedAuthority.getAuthority()));
-    }
-
-    public boolean hasResourceAuthority(long resourceUniqueId, String permission) {
-
-        var currentUserDetails = getCurrentUserDetails();
-        if (currentUserDetails == null) {
-            return false;
-        }
-        var normalizedRole = IdentityUserAuthorityService.normalizeRoleName(
-                IdentityUserSystemRole.IDENTITY_ADMIN.name()
-        );
-        var normalizedPermission = IdentityUserAuthorityService.resourceAuthorityName(resourceUniqueId, permission);
-        return currentUserDetails.getAuthorities()
-                .stream()
-                .anyMatch(grantedAuthority ->
-                        normalizedRole.equals(grantedAuthority.getAuthority()) || normalizedPermission.equals(grantedAuthority.getAuthority())
-                );
     }
 }

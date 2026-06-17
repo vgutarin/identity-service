@@ -385,11 +385,6 @@ databaseChangeLog:
                     foreignKeyName: fk_identity_role_to_workspace
                     referencedTableName: identity_workspace
                     referencedColumnNames: unique_id
-              - column:
-                  name: access_scope
-                  type: SMALLINT
-                  constraints:
-                    nullable: false
         - sql:
             dbms: mysql
             splitStatements: false
@@ -407,6 +402,41 @@ databaseChangeLog:
             sql: >
               ALTER TABLE identity_role
               ADD CONSTRAINT uk_identity_role_key UNIQUE (role_key)
+        - createTable:
+            tableName: identity_role_assignment
+            columns:
+              - column:
+                  name: principal_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_role_assignment
+                    foreignKeyName: fk_role_assignment_to_principal
+                    referencedTableName: identity_principal
+                    referencedColumnNames: unique_id
+              - column:
+                  name: role_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_role_assignment
+                    foreignKeyName: fk_role_assignment_to_role
+                    referencedTableName: identity_role
+                    referencedColumnNames: id
+              - column:
+                  name: access_scope
+                  type: SMALLINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_role_assignment
+              - column:
+                  name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
         - createTable:
             tableName: identity_role_permission
             columns:
