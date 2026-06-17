@@ -42,7 +42,7 @@ public class IdentityPermissionEntity {
     @CreatedDate
     private Instant createdAt;
 
-    @Column(nullable = false, updatable = false, unique = true)
+    @Column(nullable = false, unique = true)
     private String name;
 
     @Override

@@ -11,7 +11,6 @@ import vg.identity.entity.IdentityPermissionEntity;
 import vg.identity.entity.IdentityRoleTemplateEntity;
 import vg.identity.mapper.IdentityRoleTemplateMapper;
 import vg.identity.model.IdentityRoleTemplate;
-import vg.identity.repository.IdentityPermissionRepository;
 import vg.identity.repository.IdentityRoleTemplateRepository;
 
 import java.util.HashSet;
@@ -21,7 +20,6 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static vg.test.TestHelper.nextLong;
@@ -32,7 +30,7 @@ class IdentityRoleTemplateServiceTest {
     @Mock
     IdentityRoleTemplateRepository roleTemplateRepository;
     @Mock
-    IdentityPermissionRepository permissionRepository;
+    IdentityPermissionService permissionService;
     @Mock
     IdentityRoleTemplateMapper roleTemplateMapper;
 
@@ -50,12 +48,10 @@ class IdentityRoleTemplateServiceTest {
                 .build();
         var savedEntity = roleTemplateEntity(1L);
         var savedModel = roleTemplateModel(1L);
-        var existingPermission = permission("workspace.read");
 
         when(roleTemplateMapper.toEntity(template)).thenReturn(entityToSave);
-        when(permissionRepository.findByName("workspace.read")).thenReturn(Optional.of(existingPermission));
-        when(permissionRepository.findByName("app.update")).thenReturn(Optional.empty());
-        when(permissionRepository.save(any(IdentityPermissionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(permissionService.getOrCreateEntity(" Workspace.READ ")).thenReturn(permission("workspace.read"));
+        when(permissionService.getOrCreateEntity("app.update")).thenReturn(permission("app.update"));
         when(roleTemplateRepository.save(entityToSave)).thenReturn(savedEntity);
         when(roleTemplateMapper.toModel(savedEntity)).thenReturn(savedModel);
 
@@ -112,8 +108,7 @@ class IdentityRoleTemplateServiceTest {
         var savedModel = roleTemplateModel(id);
 
         when(roleTemplateRepository.findById(id)).thenReturn(Optional.of(existing));
-        when(permissionRepository.findByName("workspace.delete")).thenReturn(Optional.empty());
-        when(permissionRepository.save(any(IdentityPermissionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(permissionService.getOrCreateEntity("workspace.delete")).thenReturn(permission("workspace.delete"));
         when(roleTemplateRepository.save(existing)).thenReturn(savedEntity);
         when(roleTemplateMapper.toModel(savedEntity)).thenReturn(savedModel);
 

@@ -10,19 +10,17 @@ import vg.identity.entity.IdentityPermissionEntity;
 import vg.identity.entity.IdentityRoleTemplateEntity;
 import vg.identity.mapper.IdentityRoleTemplateMapper;
 import vg.identity.model.IdentityRoleTemplate;
-import vg.identity.repository.IdentityPermissionRepository;
 import vg.identity.repository.IdentityRoleTemplateRepository;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
 public class IdentityRoleTemplateService {
     private final IdentityRoleTemplateRepository roleTemplateRepository;
-    private final IdentityPermissionRepository permissionRepository;
+    private final IdentityPermissionService permissionService;
     private final IdentityRoleTemplateMapper roleTemplateMapper;
 
     @PreAuthorize("hasRole('OWNER')")
@@ -80,19 +78,7 @@ public class IdentityRoleTemplateService {
         }
 
         return permissions.stream()
-                .map(IdentityUserAuthorityService::normalizeAuthorityName)
-                .collect(Collectors.toSet())
-                .stream()
-                .map(this::resolvePermission)
-                .collect(Collectors.toSet());
-    }
-
-    private IdentityPermissionEntity resolvePermission(String permissionName) {
-        return permissionRepository.findByName(permissionName)
-                .orElseGet(() -> permissionRepository.save(
-                        IdentityPermissionEntity.builder()
-                                .name(permissionName)
-                                .build()
-                ));
+                .map(permissionService::getOrCreateEntity)
+                .collect(java.util.stream.Collectors.toSet());
     }
 }
