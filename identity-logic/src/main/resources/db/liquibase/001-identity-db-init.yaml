@@ -278,3 +278,52 @@ databaseChangeLog:
                   type: DATETIME
                   constraints:
                     nullable: false
+  - changeSet:
+      id: 001-7
+      author: vg
+      changes:
+        - createTable:
+            tableName: identity_role_template
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_identity_role_template
+              - column:
+                  name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_identity_role_template_name
+        - createTable:
+            tableName: identity_role_template_permission
+            columns:
+              - column:
+                  name: role_template_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_role_template_permission
+                    foreignKeyName: fk_role_template_permission_to_role_template
+                    referencedTableName: identity_role_template
+                    referencedColumnNames: id
+              - column:
+                  name: permission_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_role_template_permission
+                    foreignKeyName: fk_role_template_permission_to_permission
+                    referencedTableName: identity_permission
+                    referencedColumnNames: id
