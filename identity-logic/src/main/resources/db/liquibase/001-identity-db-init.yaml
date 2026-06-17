@@ -293,7 +293,17 @@ databaseChangeLog:
                     primaryKey: true
                     primaryKeyName: pk_identity_role_template
               - column:
+                  name: version
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
                   name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
                   type: DATETIME
                   constraints:
                     nullable: false
@@ -345,7 +355,17 @@ databaseChangeLog:
                     primaryKey: true
                     primaryKeyName: pk_identity_role
               - column:
+                  name: version
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
                   name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
                   type: DATETIME
                   constraints:
                     nullable: false
@@ -354,8 +374,6 @@ databaseChangeLog:
                   type: VARCHAR(64)
                   constraints:
                     nullable: false
-                    unique: true
-                    uniqueConstraintName: uk_identity_role_name
               - column:
                   name: description
                   type: TEXT
@@ -372,6 +390,23 @@ databaseChangeLog:
                   type: SMALLINT
                   constraints:
                     nullable: false
+        - sql:
+            dbms: mysql
+            splitStatements: false
+            sql: >
+              ALTER TABLE identity_role
+              ADD COLUMN role_key VARCHAR(128)
+              GENERATED ALWAYS AS (
+                  CASE
+                      WHEN workspace_unique_id IS NULL THEN name
+                      ELSE CONCAT(workspace_unique_id, ':', name)
+                  END
+              ) STORED
+        - sql:
+            dbms: mysql
+            sql: >
+              ALTER TABLE identity_role
+              ADD CONSTRAINT uk_identity_role_key UNIQUE (role_key)
         - createTable:
             tableName: identity_role_permission
             columns:
