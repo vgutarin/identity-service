@@ -25,7 +25,7 @@ import static org.mockito.Mockito.when;
 class CurrentUserServiceImplTest {
 
     @Mock
-    private IdentityUserServiceImpl userService;
+    private IdentityPrincipalService principalService;
 
     @InjectMocks
     private CurrentUserServiceImpl currentUserService;
@@ -110,7 +110,7 @@ class CurrentUserServiceImplTest {
         var guestDetails = mock(IdentityUser.class);
         
         when(securityContext.getAuthentication()).thenReturn(null);
-        when(userService.getGuest()).thenReturn(guestDetails);
+        when(principalService.getGuest()).thenReturn(guestDetails);
         when(guestDetails.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority(expectedAuthority)));
 
         // When
@@ -127,7 +127,7 @@ class CurrentUserServiceImplTest {
         var guestDetails = mock(IdentityUser.class);
         
         when(securityContext.getAuthentication()).thenReturn(null);
-        when(userService.getGuest()).thenReturn(guestDetails);
+        when(principalService.getGuest()).thenReturn(guestDetails);
         when(guestDetails.getAuthorities()).thenAnswer(invocation -> Collections.emptyList());
 
         // When

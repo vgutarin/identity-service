@@ -6,7 +6,6 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-import vg.identity.model.IdentityUserSystemRole;
 import vg.unique.id.model.UniqueId;
 
 import java.util.Optional;
@@ -15,7 +14,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class CurrentUserServiceImpl implements CurrentUserService {
 
-    private final IdentityUserServiceImpl userService;
+    private final IdentityPrincipalService principalService;
 
     @Override
     public UserDetails getCurrentUserDetails() {
@@ -24,17 +23,17 @@ public class CurrentUserServiceImpl implements CurrentUserService {
                 .filter(Authentication::isAuthenticated)
                 .map(Authentication::getPrincipal)
                 .map(UserDetails.class::cast)
-                .orElse(userService.getGuest());
+                .orElse(principalService.getGuest());
     }
 
     @Override
     public UniqueId getCurrentUserUniqueId() {
         var currentUserDetails = getCurrentUserDetails();
-        var guest = userService.getGuest();
+        var guest = principalService.getGuest();
         if (guest == currentUserDetails) {
             return guest.getUniqueId();
         }
-        return  userService.findByUsername(currentUserDetails.getUsername()).getUniqueId();
+        return  principalService.findByUsername(currentUserDetails.getUsername()).getUniqueId();
     }
 
     @Override

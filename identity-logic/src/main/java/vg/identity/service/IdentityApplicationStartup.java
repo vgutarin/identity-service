@@ -20,7 +20,7 @@ import java.util.List;
 public class IdentityApplicationStartup {
 
     private final UserDetailsManager userDetailsManager;
-    private final IdentityUserServiceImpl userService;
+    private final IdentityPrincipalService principalService;
     private final IdentityUserAuthorityService authorityService;
     private final IdentityWorkspaceService workspaceService;
 
@@ -28,7 +28,7 @@ public class IdentityApplicationStartup {
     public void onApplicationReady() {
         log.info("Identity application started");
         userDetailsManager.createUser(
-                userService.getGuest()
+                principalService.getGuest()
         );
         createUser("vg", "vg", IdentityUserSystemRole.OWNER);
         createUser("g", "g", null);
@@ -54,7 +54,7 @@ public class IdentityApplicationStartup {
 
     private void createUser(String username, String psw, IdentityUserSystemRole role) {
 
-        var user = userService.create(
+        var user = principalService.create(
                 IdentityUser.builder()
                         .username(username)
                         .password(psw)

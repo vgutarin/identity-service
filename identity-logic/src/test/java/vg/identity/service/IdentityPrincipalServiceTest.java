@@ -35,7 +35,7 @@ import static vg.test.TestHelper.nextString;
 import static vg.test.TestHelper.nextUniqueId;
 
 @ExtendWith(MockitoExtension.class)
-class UserServiceImplTest {
+class IdentityPrincipalServiceTest {
     @Mock
     UniqueIdService uniqueIdService;
     @Mock
@@ -52,7 +52,7 @@ class UserServiceImplTest {
     EncryptionService encryptionService;
 
     @InjectMocks
-    IdentityUserServiceImpl service;
+    IdentityPrincipalService service;
 
     @Test
     void create() {

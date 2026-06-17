@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static vg.test.TestHelper.nextString;
 
 
-class UserServiceImplIntegrationTest extends BaseIntegrationTest {
+class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     IdentityUserRepository repository;
@@ -34,7 +34,7 @@ class UserServiceImplIntegrationTest extends BaseIntegrationTest {
     IdentityUserChannelRepository channelRepository;
 
     @Autowired
-    IdentityUserServiceImpl service;
+    IdentityPrincipalService service;
 
     @Autowired
     PasswordEncoder passwordEncoder;

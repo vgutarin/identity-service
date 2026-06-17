@@ -26,7 +26,7 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 @Service
-public class IdentityUserServiceImpl implements IdentityUserService {
+public class IdentityPrincipalService implements IdentityUserService {
     private static final String GUEST = "guest";
 
     private final UniqueIdService uniqueIdService;
