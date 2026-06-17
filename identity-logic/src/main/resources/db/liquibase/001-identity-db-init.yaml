@@ -240,6 +240,58 @@ databaseChangeLog:
                     unique: true
                     uniqueConstraintName: uk_identity_permission_name
   - changeSet:
+      id: 001-5-1
+      author: vg
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createTable:
+            tableName: identity_application
+            columns:
+              - column:
+                  name: unique_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_identity_application
+                    foreignKeyName: fk_identity_application_to_identity_principal
+                    referencedTableName: identity_principal
+                    referencedColumnNames: unique_id
+              - column:
+                  name: workspace_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_identity_application_to_workspace
+                    referencedTableName: identity_workspace
+                    referencedColumnNames: unique_id
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: INT
+              - column:
+                  name: name_hash
+                  type: BINARY(32)
+                  constraints:
+                    unique: true
+                    uniqueConstraintName: uk_identity_application_name_hash
+              - column:
+                  name: name
+                  type: BLOB
+              - column:
+                  name: data
+                  type: MEDIUMBLOB
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_at
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: updated_at
+                  type: DATETIME
+  - changeSet:
       id: 001-6
       author: vg
       changes:
