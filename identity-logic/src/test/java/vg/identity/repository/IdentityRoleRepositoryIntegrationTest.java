@@ -31,7 +31,7 @@ class IdentityRoleRepositoryIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void save_allowsSameNameInDifferentWorkspaces() {
+    void save_whenSameNameIsUsedInDifferentWorkspaces_returnsSavedRoles() {
         var roleName = nextString();
         var firstWorkspace = createWorkspace();
         var secondWorkspace = createWorkspace();
@@ -47,7 +47,7 @@ class IdentityRoleRepositoryIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void save_throwsWithoutWorkspace() {
+    void save_whenWorkspaceIsMissing_throwsDataIntegrityViolationException() {
         var roleName = nextString();
 
         assertThatThrownBy(
@@ -56,7 +56,7 @@ class IdentityRoleRepositoryIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void save_throwsWhenSameNameIsUsedInSameWorkspace() {
+    void save_whenSameNameIsUsedInSameWorkspace_throwsDataIntegrityViolationException() {
         var roleName = nextString();
         var workspace = createWorkspace();
 

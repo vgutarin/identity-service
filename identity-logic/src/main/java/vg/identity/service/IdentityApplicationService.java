@@ -47,12 +47,28 @@ public class IdentityApplicationService {
 
     @Transactional(readOnly = true)
     public IdentityApplication getById(long uniqueId) {
-        return applicationMapper.toModel(getEntity(uniqueId));
+        return applicationRepository.findById(uniqueId)
+                .map(applicationMapper::toModel)
+                .orElseThrow(EntityNotFoundException::new);
+    }
+
+    @Transactional(readOnly = true)
+    public IdentityApplication findById(long uniqueId) {
+        return applicationRepository.findById(uniqueId)
+                .map(applicationMapper::toModel)
+                .orElse(null);
     }
 
     @Transactional(readOnly = true)
     public List<IdentityApplication> getAll() {
         return applicationRepository.findAll().stream()
+                .map(applicationMapper::toModel)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<IdentityApplication> findByWorkspaceUniqueId(long workspaceUniqueId) {
+        return applicationRepository.findByWorkspaceUniqueId(workspaceUniqueId).stream()
                 .map(applicationMapper::toModel)
                 .toList();
     }
@@ -86,12 +102,6 @@ public class IdentityApplicationService {
         applicationRepository.flush();
     }
 
-    @Transactional(readOnly = true)
-    public IdentityApplicationEntity getEntity(long uniqueId) {
-        return applicationRepository.findById(uniqueId)
-                .orElseThrow(EntityNotFoundException::new);
-    }
-
     private IdentityPrincipalEntity createPrincipal(String name) {
         var principal = IdentityPrincipalEntity.builder()
                 .displayName(name)
@@ -100,4 +110,5 @@ public class IdentityApplicationService {
                 .build();
         return principalRepository.saveWithNewUniqueId(principal, uniqueIdService);
     }
+
 }

@@ -8,13 +8,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class PermissionTest {
 
     @Test
-    void assertUniquenessAndCorrectness_allowsCurrentPermissionSets() {
+    void assertUniquenessAndCorrectness_whenCurrentPermissionSetsAreValid_doesNotThrow() {
         assertThatNoException().isThrownBy(() -> Permission.assertUniquenessAndCorrectness(Permission.App.ALL));
         assertThatNoException().isThrownBy(() -> Permission.assertUniquenessAndCorrectness(Permission.Workspace.ALL));
     }
 
     @Test
-    void assertUniquenessAndCorrectness_rejectsValuesThatAreNotLowerCase() {
+    void assertUniquenessAndCorrectness_whenValuesAreNotLowerCase_throwsIllegalStateException() {
         assertThatThrownBy(() -> Permission.assertUniquenessAndCorrectness(new String[]{
                 "workspace.read",
                 "Workspace.write"
@@ -23,7 +23,7 @@ class PermissionTest {
     }
 
     @Test
-    void assertUniquenessAndCorrectness_rejectsDuplicateValues() {
+    void assertUniquenessAndCorrectness_whenValuesHaveDuplicates_throwsIllegalStateException() {
         assertThatThrownBy(() -> Permission.assertUniquenessAndCorrectness(new String[]{
                 "workspace.read",
                 "workspace.read"
@@ -32,7 +32,7 @@ class PermissionTest {
     }
 
     @Test
-    void assertUniquenessAndCorrectness_rejectsValuesWithLeadingOrTrailingSpaces() {
+    void assertUniquenessAndCorrectness_whenValuesHaveLeadingOrTrailingSpaces_throwsIllegalStateException() {
         assertThatThrownBy(() -> Permission.assertUniquenessAndCorrectness(new String[]{
                 "workspace.read",
                 " workspace.write"

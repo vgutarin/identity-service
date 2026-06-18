@@ -47,7 +47,7 @@ class IdentityUserAuthorityServiceTest {
     private IdentityUserAuthorityService service;
 
     @Test
-    void resourceAuthorityNameIncludesResourceIdAndNormalizedAuthorityName() {
+    void resourceAuthorityName_whenPermissionHasMixedCaseAndSpaces_returnsResourceIdAndNormalizedAuthorityName() {
         assertThat(IdentityUserAuthorityService.resourceAuthorityName(123L, " Read "))
                 .isEqualTo("123:read");
         assertThat(IdentityUserAuthorityService.resourceAuthorityName(987L, "WORKSPACE:WRITE"))
@@ -90,7 +90,7 @@ class IdentityUserAuthorityServiceTest {
     }
 
     @Test
-    void assignResourceAuthorityUses_whenPermissionExists_doesNotDuplicateRelation() {
+    void assignResourceAuthority_whenPermissionExists_doesNotDuplicateRelation() {
         var user = user(11L);
         var permission = IdentityPermissionEntity.builder()
                 .id(31L)
@@ -113,7 +113,7 @@ class IdentityUserAuthorityServiceTest {
     }
 
     @Test
-    void revokeResourceAuthority_whenNoPermissionRegistered_doesNothing() {
+    void revokeResourceAuthority_whenPermissionIsNotRegistered_doesNothing() {
         var user = user(11L);
 
         when(resource.getUniqueId()).thenReturn(21L);
@@ -125,7 +125,7 @@ class IdentityUserAuthorityServiceTest {
     }
 
     @Test
-    void revokeResourceAuthority_whenPermissionRegistered_deletesExistingRelation() {
+    void revokeResourceAuthority_whenPermissionIsRegistered_deletesExistingRelation() {
         var user = user(11L);
         var permission = IdentityPermissionEntity.builder()
                 .id(31L)
@@ -147,7 +147,7 @@ class IdentityUserAuthorityServiceTest {
     }
 
     @Test
-    void findByUserAndResourceType_whenWorkspaceResourceType_usesWorkspacePermissionQuery() {
+    void findByUserAndResourceType_whenResourceTypeIsWorkspace_usesWorkspacePermissionQuery() {
         var user = user(11L);
         List<IdentityUserResourcePermission> permissions = List.of();
 

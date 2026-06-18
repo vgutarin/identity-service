@@ -23,7 +23,7 @@ class StringEncryptionConverterTest {
     StringEncryptionConverter converter;
 
     @Test
-    void convertToDatabaseColumn_delegatesToEncryptionService() {
+    void convertToDatabaseColumn_whenValueIsProvided_delegatesToEncryptionService() {
         var plaintext = nextString();
         var encoded = new byte[]{1, 2, 3};
         when(encryptionService.encode(plaintext)).thenReturn(encoded);
@@ -32,7 +32,7 @@ class StringEncryptionConverterTest {
     }
 
     @Test
-    void convertToEntityAttribute_delegatesToEncryptionService() {
+    void convertToEntityAttribute_whenValueIsProvided_delegatesToEncryptionService() {
         var encoded = new byte[]{1, 2, 3};
         var plaintext = nextString();
         when(encryptionService.decode(encoded)).thenReturn(plaintext);

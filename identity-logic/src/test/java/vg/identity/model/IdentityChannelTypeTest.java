@@ -12,7 +12,7 @@ class IdentityChannelTypeTest {
      * pins every value to its expected name and ordinal.
      */
     @Test
-    void ordinalsAndNamesAreNeverChanged() {
+    void values_whenEnumPersistsByOrdinal_returnsStableOrdinalsAndNames() {
         assertThat(IdentityChannelType.GENERIC.name()).isEqualTo("GENERIC");
         assertThat(IdentityChannelType.GENERIC.ordinal()).isEqualTo(0);
 
@@ -34,7 +34,7 @@ class IdentityChannelTypeTest {
      * values being removed. New values must be appended at the end.
      */
     @Test
-    void valuesAreInExpectedOrder() {
+    void values_whenCalled_returnsExpectedOrder() {
         assertThat(
                 IdentityChannelType.values()
         ).containsExactly(

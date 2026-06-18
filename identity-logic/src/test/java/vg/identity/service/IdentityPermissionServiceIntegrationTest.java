@@ -25,7 +25,7 @@ class IdentityPermissionServiceIntegrationTest extends BaseIntegrationTest {
     IdentityPermissionRepository permissionRepository;
 
     @Test
-    void create() {
+    void create_whenValidInput_returnsCreatedPermission() {
         var permissionName = permissionName();
         var saved = service.create(IdentityPermission.builder()
                 .name(" " + permissionName.toUpperCase(Locale.ROOT) + " ")
@@ -41,7 +41,7 @@ class IdentityPermissionServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getById() {
+    void getById_whenEntityExists_returnsPermission() {
         var permissionName = permissionName();
         var saved = service.create(IdentityPermission.builder()
                 .name(permissionName)
@@ -54,7 +54,7 @@ class IdentityPermissionServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getAll() {
+    void getAll_whenEntitiesExist_returnsPermissions() {
         var first = service.create(IdentityPermission.builder()
                 .name(permissionName())
                 .build());
@@ -68,7 +68,7 @@ class IdentityPermissionServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getOrCreateEntityReturnsExistingPermission() {
+    void getOrCreateEntity_whenPermissionExists_returnsExistingPermission() {
         var permissionName = permissionName();
         var saved = service.create(IdentityPermission.builder()
                 .name(permissionName)
@@ -80,7 +80,7 @@ class IdentityPermissionServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getOrCreateEntityCreatesMissingPermission() {
+    void getOrCreateEntity_whenPermissionIsMissing_returnsCreatedPermission() {
         var permissionName = permissionName();
 
         var entity = service.getOrCreateEntity(" " + permissionName.toUpperCase(Locale.ROOT) + " ");
@@ -91,7 +91,7 @@ class IdentityPermissionServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getByIdThrows_WhenEntityIsNotFound() {
+    void getById_whenEntityIsNotFound_throwsEntityNotFoundException() {
         assertThatThrownBy(() -> service.getById(Long.MAX_VALUE))
                 .isInstanceOf(EntityNotFoundException.class);
     }

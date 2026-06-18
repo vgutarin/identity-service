@@ -31,7 +31,7 @@ class UserControllerTest extends BaseRestControllerTest {
     }
 
     @Test
-    void create() {
+    void create_whenRequestIsValid_returnsCreatedUser() {
         var savedModel = restClient.create(buildModel());
 
         assertThat(
@@ -64,7 +64,7 @@ class UserControllerTest extends BaseRestControllerTest {
     }
 
     @Test
-    void update() {
+    void update_whenRequestIsValid_returnsUpdatedUser() {
         var savedModel = restClient.create(buildModel());
 
         var savedModelId = savedModel.getUniqueId();

@@ -12,7 +12,7 @@ class IdentityUserSystemRoleTest {
      * pins every value to its expected name and ordinal.
      */
     @Test
-    void ordinalsAndNamesAreNeverChanged() {
+    void values_whenEnumPersistsByOrdinal_returnsStableOrdinalsAndNames() {
         assertThat(IdentityUserSystemRole.OWNER.name()).isEqualTo("OWNER");
         assertThat(IdentityUserSystemRole.OWNER.ordinal()).isEqualTo(0);
     }
@@ -22,7 +22,7 @@ class IdentityUserSystemRoleTest {
      * values being removed. New values must be appended at the end.
      */
     @Test
-    void valuesAreInExpectedOrder() {
+    void values_whenCalled_returnsExpectedOrder() {
         assertThat(
                 IdentityUserSystemRole.values()
         ).containsExactly(

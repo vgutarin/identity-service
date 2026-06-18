@@ -12,7 +12,7 @@ class IdentityPrincipalTypeTest {
      * pins every value to its expected name and ordinal.
      */
     @Test
-    void ordinalsAndNamesAreNeverChanged() {
+    void values_whenEnumPersistsByOrdinal_returnsStableOrdinalsAndNames() {
         assertThat(IdentityPrincipalType.USER.name()).isEqualTo("USER");
         assertThat(IdentityPrincipalType.USER.ordinal()).isEqualTo(0);
 
@@ -25,7 +25,7 @@ class IdentityPrincipalTypeTest {
      * values being removed. New values must be appended at the end.
      */
     @Test
-    void valuesAreInExpectedOrder() {
+    void values_whenCalled_returnsExpectedOrder() {
         assertThat(
                 IdentityPrincipalType.values()
         ).containsExactly(

@@ -64,7 +64,7 @@ class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void create() {
+    void create_whenValidInput_returnsCreatedUser() {
         var savedModel = service.create(buildModel());
 
         assertThat(
@@ -102,7 +102,7 @@ class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void update() {
+    void update_whenEntityExistsAndVersionMatches_returnsUpdatedUser() {
         var savedModel = service.create(buildModel());
 
         var savedModelId = savedModel.getUniqueId();
@@ -143,7 +143,7 @@ class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void findByUsername() {
+    void findByUsername_whenUserExists_returnsUser() {
         service.create(buildModel());
 
         var found = service.findByUsername(name);
@@ -153,7 +153,7 @@ class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void findByUsername_caseInsensitive() {
+    void findByUsername_whenUsernameCaseDiffers_returnsUser() {
         service.create(buildModel());
 
         var found = service.findByUsername(name.toUpperCase());
@@ -163,7 +163,7 @@ class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void create_duplicateUsername_throwsException() {
+    void create_whenUsernameAlreadyExists_throwsDataIntegrityViolationException() {
         service.create(buildModel());
 
         var duplicate = buildModel();
@@ -176,7 +176,7 @@ class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getByChannel_createsNewUser() {
+    void getByChannel_whenUserDoesNotExist_returnsNewUser() {
         var channelType = IdentityChannelType.TELEGRAM_USER;
         var channelUserId = nextString();
 
@@ -195,7 +195,7 @@ class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getByChannel_returnsExistingUser() {
+    void getByChannel_whenUserExists_returnsUser() {
         var channelType = IdentityChannelType.TELEGRAM_USER;
         var channelUserId = nextString();
 
@@ -207,7 +207,7 @@ class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getByChannel_isCaseSensitive() {
+    void getByChannel_whenChannelUserIdCaseDiffers_returnsDifferentUsers() {
         var channelType = IdentityChannelType.TELEGRAM_USER;
         var channelUserId = "SomeUser";
 

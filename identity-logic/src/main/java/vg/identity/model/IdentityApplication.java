@@ -9,6 +9,9 @@ import vg.unique.id.model.UniqueId;
 
 import java.time.Instant;
 
+/**
+ * Represents application within the workspace.
+ */
 @NoArgsConstructor
 @AllArgsConstructor
 @Data

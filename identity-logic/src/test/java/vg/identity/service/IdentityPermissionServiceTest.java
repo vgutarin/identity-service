@@ -33,7 +33,7 @@ class IdentityPermissionServiceTest {
     IdentityPermissionService service;
 
     @Test
-    void create() {
+    void create_whenValidInput_returnsCreatedPermission() {
         var permission = IdentityPermission.builder()
                 .name(" Workspace.READ ")
                 .build();
@@ -53,7 +53,7 @@ class IdentityPermissionServiceTest {
     }
 
     @Test
-    void getById() {
+    void getById_whenEntityExists_returnsPermission() {
         var id = nextLong();
         var entity = permissionEntity(id);
         var model = permissionModel(id);
@@ -65,13 +65,13 @@ class IdentityPermissionServiceTest {
     }
 
     @Test
-    void getByIdThrows_WhenEntityIsNotFound() {
+    void getById_whenEntityIsNotFound_throwsEntityNotFoundException() {
         assertThatThrownBy(() -> service.getById(nextLong()))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test
-    void getAll() {
+    void getAll_whenEntitiesExist_returnsPermissions() {
         var entities = List.of(permissionEntity(1L), permissionEntity(2L));
         var firstModel = permissionModel(1L);
         var secondModel = permissionModel(2L);
@@ -84,7 +84,7 @@ class IdentityPermissionServiceTest {
     }
 
     @Test
-    void getOrCreateEntityReturnsExistingPermission() {
+    void getOrCreateEntity_whenPermissionExists_returnsExistingPermission() {
         var entity = permissionEntity(nextLong());
 
         when(permissionRepository.findByName("workspace.read")).thenReturn(Optional.of(entity));
@@ -93,7 +93,7 @@ class IdentityPermissionServiceTest {
     }
 
     @Test
-    void getOrCreateEntityCreatesMissingPermission() {
+    void getOrCreateEntity_whenPermissionIsMissing_returnsCreatedPermission() {
         var name = "workspace.read";
         var saved = permissionEntity(nextLong());
 
@@ -117,7 +117,7 @@ class IdentityPermissionServiceTest {
                 .build();
     }
     @Test
-    void normalizeTrimsAndLowercases() {
+    void normalize_whenValueHasSpacesAndUppercase_returnsTrimmedLowercaseValue() {
         assertThat(IdentityPermissionService.normalize(" Read "))
                 .isEqualTo("read");
         assertThat(IdentityPermissionService.normalize("WORKSPACE:WRITE"))

@@ -9,6 +9,11 @@ import vg.unique.id.model.UniqueId;
 
 import java.time.Instant;
 
+/**
+ * Represents workspace.
+ * Can contain multiple applications, roles (1:M relationship)
+ * Can have users (M:M relationship)
+ */
 @NoArgsConstructor
 @AllArgsConstructor
 @Data

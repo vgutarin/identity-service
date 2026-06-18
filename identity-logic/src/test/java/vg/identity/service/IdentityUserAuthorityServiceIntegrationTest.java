@@ -51,7 +51,7 @@ class IdentityUserAuthorityServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void findByUserAndResourceType_returnsWorkspacePermissionsWithResourceAndPermissionNames() {
+    void findByUserAndResourceType_whenResourceTypeIsWorkspace_returnsPermissionsWithResourceAndPermissionNames() {
         var user = principalService.create(IdentityUser.builder()
                 .username(nextString())
                 .password(nextString())

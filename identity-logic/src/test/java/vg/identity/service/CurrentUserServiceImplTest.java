@@ -47,7 +47,7 @@ class CurrentUserServiceImplTest {
     }
 
     @Test
-    void hasRole_shouldReturnTrue_whenUserHasRole() {
+    void hasRole_whenUserHasRole_returnsTrue() {
         // Given
         var role = "ADMIN";
         var expectedAuthority = "ROLE_ADMIN";
@@ -66,7 +66,7 @@ class CurrentUserServiceImplTest {
     }
 
     @Test
-    void hasRole_shouldReturnTrue_whenUserHasRoleWithPrefix() {
+    void hasRole_whenUserHasRole_returnsTrueWithPrefix() {
         // Given
         var role = "ROLE_ADMIN";
         var expectedAuthority = "ROLE_ADMIN";
@@ -85,7 +85,7 @@ class CurrentUserServiceImplTest {
     }
 
     @Test
-    void hasRole_shouldReturnFalse_whenUserDoesNotHaveRole() {
+    void hasRole_whenUserDoesNotHaveRole_returnsFalse() {
         // Given
         var role = "ADMIN";
         var userDetails = mock(UserDetails.class);
@@ -103,7 +103,7 @@ class CurrentUserServiceImplTest {
     }
 
     @Test
-    void hasRole_shouldReturnTrue_whenGuestHasRole() {
+    void hasRole_whenGuestHasRole_returnsTrue() {
         // Given
         var role = "GUEST";
         var expectedAuthority = "ROLE_GUEST";
@@ -121,7 +121,7 @@ class CurrentUserServiceImplTest {
     }
 
     @Test
-    void hasRole_shouldReturnFalse_whenGuestDoesNotHaveRole() {
+    void hasRole_whenGuestDoesNotHaveRole_returnsFalse() {
         // Given
         var role = "ADMIN";
         var guestDetails = mock(IdentityUser.class);
@@ -138,7 +138,7 @@ class CurrentUserServiceImplTest {
     }
 
     @Test
-    void hasRole_shouldBeCaseInsensitive() {
+    void hasRole_whenRoleCaseDiffers_returnsTrue() {
         // Given
         var role = "admin";
         var expectedAuthority = "ROLE_ADMIN";

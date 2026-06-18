@@ -49,7 +49,7 @@ class IdentityApplicationServiceTest {
     IdentityApplicationService service;
 
     @Test
-    void create() {
+    void create_whenValidInput_returnsCreatedApplication() {
         var name = nextString();
         var data = nextString();
         var nameHash = new byte[]{1, 2, 3};
@@ -83,7 +83,7 @@ class IdentityApplicationServiceTest {
     }
 
     @Test
-    void getById() {
+    void getById_whenEntityExists_returnsApplication() {
         var id = nextLong();
         var entity = applicationEntity(id);
         var model = applicationModel(id);
@@ -95,7 +95,7 @@ class IdentityApplicationServiceTest {
     }
 
     @Test
-    void getByIdThrows_WhenEntityIsNotFound() {
+    void getById_whenEntityIsNotFound_throwsEntityNotFoundException() {
         var id = nextLong();
 
         assertThatThrownBy(() -> service.getById(id))
@@ -103,7 +103,28 @@ class IdentityApplicationServiceTest {
     }
 
     @Test
-    void getAll() {
+    void findById_whenEntityExists_returnsApplication() {
+        var id = nextLong();
+        var entity = applicationEntity(id);
+        var model = applicationModel(id);
+
+        when(applicationRepository.findById(id)).thenReturn(Optional.of(entity));
+        when(applicationMapper.toModel(entity)).thenReturn(model);
+
+        assertThat(service.findById(id)).isSameAs(model);
+    }
+
+    @Test
+    void findById_whenEntityIsNotFound_returnsNull() {
+        var id = nextLong();
+
+        when(applicationRepository.findById(id)).thenReturn(Optional.empty());
+
+        assertThat(service.findById(id)).isNull();
+    }
+
+    @Test
+    void getAll_whenEntitiesExist_returnsApplications() {
         var entities = List.of(applicationEntity(1L), applicationEntity(2L));
         var firstModel = applicationModel(1L);
         var secondModel = applicationModel(2L);
@@ -116,7 +137,21 @@ class IdentityApplicationServiceTest {
     }
 
     @Test
-    void update() {
+    void findByWorkspaceUniqueId_whenApplicationsExist_returnsApplications() {
+        var workspaceId = nextLong();
+        var entities = List.of(applicationEntity(1L), applicationEntity(2L));
+        var firstModel = applicationModel(1L);
+        var secondModel = applicationModel(2L);
+
+        when(applicationRepository.findByWorkspaceUniqueId(workspaceId)).thenReturn(entities);
+        when(applicationMapper.toModel(entities.get(0))).thenReturn(firstModel);
+        when(applicationMapper.toModel(entities.get(1))).thenReturn(secondModel);
+
+        assertThat(service.findByWorkspaceUniqueId(workspaceId)).containsExactly(firstModel, secondModel);
+    }
+
+    @Test
+    void update_whenEntityExistsAndVersionMatches_returnsUpdatedApplication() {
         var id = nextLong();
         var nameHash = new byte[]{4, 5, 6};
         var model = IdentityApplication.builder()
@@ -140,7 +175,7 @@ class IdentityApplicationServiceTest {
     }
 
     @Test
-    void updateThrows_WhenEntityIsNotFound() {
+    void update_whenEntityIsNotFound_throwsEntityNotFoundException() {
         var model = applicationModel(nextLong());
 
         when(applicationRepository.findById(model.getUniqueId().value())).thenReturn(Optional.empty());
@@ -150,7 +185,7 @@ class IdentityApplicationServiceTest {
     }
 
     @Test
-    void updateThrows_WhenVersionIsStale() {
+    void update_whenVersionIsStale_throwsObjectOptimisticLockingFailureException() {
         var id = nextLong();
         var model = IdentityApplication.builder()
                 .uniqueId(new UniqueId(id))
@@ -170,7 +205,7 @@ class IdentityApplicationServiceTest {
     }
 
     @Test
-    void delete() {
+    void delete_whenEntityExists_deleteApplication() {
         var id = nextLong();
         var entity = applicationEntity(id);
 

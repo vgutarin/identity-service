@@ -124,7 +124,7 @@ public class IdentityWorkspaces extends VerticalLayout {
     private List<WorkspaceAction> managementActions() {
         return List.of(
                 new WorkspaceAction(
-                        "Manage roles",
+                        localization.i18n("Roles"),
                         VaadinIcon.USERS,
                         workspace -> UI.getCurrent().navigate(
                                 IdentityWorkspaceRoles.class,
@@ -134,7 +134,7 @@ public class IdentityWorkspaces extends VerticalLayout {
                         )
                 ),
                 new WorkspaceAction(
-                        "Manage application",
+                        localization.i18n("Applications"),
                         VaadinIcon.COG,
                         workspace -> UI.getCurrent().navigate(
                                 IdentityWorkspaceApplications.class,

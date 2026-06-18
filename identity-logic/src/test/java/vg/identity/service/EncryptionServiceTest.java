@@ -27,7 +27,7 @@ class EncryptionServiceTest {
     }
 
     @Test
-    void encode_withEmptyString_works() {
+    void encode_whenInputIsEmpty_returnsEncodedValue() {
         var plaintext = "";
         var encoded = encryptionService.encode(plaintext);
         assertThat(encoded).isNotNull();
@@ -40,7 +40,7 @@ class EncryptionServiceTest {
     }
 
     @Test
-    void encodeAndDecode_returnsOriginalString() {
+    void encodeAndDecode_whenInputIsValid_returnsOriginalString() {
         var plaintext = "Hello, World! " + UUID.randomUUID();
         var encoded = encryptionService.encode(plaintext);
 
@@ -52,7 +52,7 @@ class EncryptionServiceTest {
     }
 
     @Test
-    void encode_producesDifferentResultsForSameInput() {
+    void encode_whenSameInputIsEncodedTwice_returnsDifferentResults() {
         var plaintext = "same-input";
         var encoded1 = encryptionService.encode(plaintext);
         var encoded2 = encryptionService.encode(plaintext);
@@ -63,20 +63,20 @@ class EncryptionServiceTest {
     }
 
     @Test
-    void decode_withInvalidData_throwsException() {
+    void decode_whenDataIsInvalid_throwsException() {
         assertThatThrownBy(() -> encryptionService.decode(new byte[]{1, 2, 3}))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed to decrypt field value");
     }
 
     @Test
-    void constructor_withNullProperties_throwsException() {
+    void constructor_whenPropertiesAreNull_throwsException() {
         assertThatThrownBy(() -> new EncryptionService(null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
-    void decode_withDifferentSecret_fails() {
+    void decode_whenSecretIsDifferent_throwsException() {
         var plaintext = "secret-data";
         var encoded = encryptionService.encode(plaintext);
 
@@ -91,7 +91,7 @@ class EncryptionServiceTest {
     }
 
     @Test
-    void hash_worksCorrectly() {
+    void hash_whenInputIsValid_returnsHash() {
         var input = "test-input";
         var hash1 = encryptionService.hash(input);
         var hash2 = encryptionService.hash(input);
@@ -102,12 +102,12 @@ class EncryptionServiceTest {
     }
 
     @Test
-    void hash_withNullInput_returnsNull() {
+    void hash_whenInputIsNull_returnsNull() {
         assertThat(encryptionService.hash(null)).isNull();
     }
 
     @Test
-    void hash_usesSalt() {
+    void hash_whenInputIsValid_usesSalt() {
         var input = "test-input";
         var hash1 = encryptionService.hash(input);
 
@@ -122,7 +122,7 @@ class EncryptionServiceTest {
     }
 
     @Test
-    void canonicalizeAndHash_isCaseInsensitiveAndTrimmed() {
+    void canonicalizeAndHash_whenInputHasCaseAndSpaces_returnsCanonicalHash() {
         var input1 = "  UserInput  ";
         var input2 = "userinput";
 
@@ -133,7 +133,7 @@ class EncryptionServiceTest {
     }
 
     @Test
-    void hashCaseSensitive_isCaseSensitive() {
+    void hashCaseSensitive_whenInputCaseDiffers_returnsDifferentHashes() {
         var input1 = "UserInput";
         var input2 = "userinput";
 

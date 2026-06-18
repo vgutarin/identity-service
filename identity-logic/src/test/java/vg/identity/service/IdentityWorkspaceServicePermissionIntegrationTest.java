@@ -31,7 +31,7 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
     }
 
     @Test
-    void createThrows_WhenUserIsNotAdmin() {
+    void create_whenUserIsNotAdmin_throwsAccessDeniedException() {
         assertThatThrownBy(() -> service.create(buildWorkspace()))
                 .isInstanceOf(AccessDeniedException.class);
 
@@ -39,7 +39,7 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
     }
 
     @Test
-    void getThrows_WhenUserDoesNotHaveResourceAuthority() {
+    void getById_whenUserDoesNotHaveResourceAuthority_throwsAccessDeniedException() {
         var saved = saveWorkspace();
 
         assertThatThrownBy(() -> service.getById(saved.getUniqueId()))
@@ -47,7 +47,7 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
     }
 
     @Test
-    void updateThrows_WhenUserIsNotAdmin() {
+    void update_whenUserIsNotAdmin_throwsAccessDeniedException() {
         var saved = saveWorkspace();
         var newName = nextString();
 
@@ -64,7 +64,7 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
     }
 
     @Test
-    void deleteThrows_WhenUserIsNotAdmin() {
+    void delete_whenUserIsNotAdmin_throwsAccessDeniedException() {
         var saved = saveWorkspace();
 
         assertThatThrownBy(() -> service.delete(saved.getUniqueId()))

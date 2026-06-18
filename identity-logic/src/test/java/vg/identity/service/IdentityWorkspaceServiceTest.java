@@ -47,7 +47,7 @@ class IdentityWorkspaceServiceTest {
     IdentityWorkspaceService service;
 
     @Test
-    void create() {
+    void create_whenValidInput_returnsCreatedWorkspace() {
         var workspace = IdentityWorkspace.builder()
                 .name(nextString())
                 .build();
@@ -69,7 +69,7 @@ class IdentityWorkspaceServiceTest {
     }
 
     @Test
-    void getById() {
+    void getById_whenEntityExists_returnsWorkspace() {
         var workspaceId = nextLong();
         var entity = workspaceEntity(workspaceId);
         var model = workspaceModel(workspaceId);
@@ -80,7 +80,7 @@ class IdentityWorkspaceServiceTest {
     }
 
     @Test
-    void getByIdThrows_WhenEntityIsNotFound() {
+    void getById_whenEntityIsNotFound_throwsEntityNotFoundException() {
         var workspaceId = nextLong();
 
         assertThatThrownBy(() -> service.getById(workspaceId))
@@ -88,7 +88,7 @@ class IdentityWorkspaceServiceTest {
     }
 
     @Test
-    void getAll() {
+    void getAll_whenEntitiesExist_returnsWorkspaces() {
         var entities = List.of(workspaceEntity(1L), workspaceEntity(2L));
         var firstModel = workspaceModel(1L);
         var secondModel = workspaceModel(2L);
@@ -101,7 +101,7 @@ class IdentityWorkspaceServiceTest {
     }
 
     @Test
-    void update() {
+    void update_whenEntityExistsAndVersionMatches_returnsUpdatedWorkspace() {
         var workspaceId = nextLong();
         var newName = nextString();
         var model = IdentityWorkspace.builder()
@@ -122,7 +122,7 @@ class IdentityWorkspaceServiceTest {
     }
 
     @Test
-    void updateThrows_WhenEntityIsNotFound() {
+    void update_whenEntityIsNotFound_throwsEntityNotFoundException() {
         var model = workspaceModel(nextLong());
 
         when(workspaceRepository.findById(model.getUniqueId().value())).thenReturn(Optional.empty());
@@ -132,7 +132,7 @@ class IdentityWorkspaceServiceTest {
     }
 
     @Test
-    void updateThrows_WhenVersionIsStale() {
+    void update_whenVersionIsStale_throwsObjectOptimisticLockingFailureException() {
         var workspaceId = nextLong();
         var model = IdentityWorkspace.builder()
                 .uniqueId(new UniqueId(workspaceId))
@@ -152,7 +152,7 @@ class IdentityWorkspaceServiceTest {
     }
 
     @Test
-    void delete() {
+    void delete_whenEntityExists_deleteWorkspace() {
         var workspaceId = nextLong();
         var workspace = workspaceEntity(workspaceId);
 
@@ -165,7 +165,7 @@ class IdentityWorkspaceServiceTest {
     }
 
     @Test
-    void addRole() {
+    void addRole_whenWorkspaceExists_createRoleInWorkspace() {
         var workspaceId = nextLong();
         var workspace = workspaceEntity(workspaceId);
         var role = IdentityRole.builder()
@@ -184,7 +184,7 @@ class IdentityWorkspaceServiceTest {
     }
 
     @Test
-    void addRoleThrows_WhenWorkspaceIsNotFound() {
+    void addRole_whenWorkspaceIsNotFound_throwsEntityNotFoundException() {
         var workspaceId = nextLong();
         var role = IdentityRole.builder().name(nextString()).build();
 
@@ -193,7 +193,7 @@ class IdentityWorkspaceServiceTest {
     }
 
     @Test
-    void addApplication() {
+    void addApplication_whenWorkspaceExists_createApplicationInWorkspace() {
         var workspaceId = nextLong();
         var workspace = workspaceEntity(workspaceId);
         var application = IdentityApplication.builder()
@@ -212,12 +212,21 @@ class IdentityWorkspaceServiceTest {
     }
 
     @Test
-    void addApplicationThrows_WhenWorkspaceIsNotFound() {
+    void addApplication_whenWorkspaceIsNotFound_throwsEntityNotFoundException() {
         var workspaceId = nextLong();
         var application = IdentityApplication.builder().name(nextString()).build();
 
         assertThatThrownBy(() -> service.addApplication(workspaceId, application))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void existsById_whenWorkspaceExists_returnsTrue() {
+        var workspaceId = nextLong();
+
+        when(workspaceRepository.existsById(workspaceId)).thenReturn(true);
+
+        assertThat(service.existsById(workspaceId)).isTrue();
     }
 
     private static IdentityWorkspaceEntity workspaceEntity(long id) {

@@ -74,7 +74,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void create() {
+    void create_whenValidInput_returnsCreatedWorkspace() {
         var saved = service.create(buildWorkspace());
 
         assertThat(saved.getUniqueId()).isNotNull();
@@ -87,7 +87,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void createCopiesRoleTemplatesToWorkspaceRoles() {
+    void create_whenRoleTemplatesExist_copiesRoleTemplatesToWorkspaceRoles() {
         var firstName = nextString();
         var firstDescription = nextString();
         var secondName = nextString();
@@ -120,7 +120,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getById() {
+    void getById_whenEntityExists_returnsWorkspace() {
         var saved = service.create(buildWorkspace());
 
         var found = service.getById(saved.getUniqueId().value());
@@ -130,7 +130,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getAll() {
+    void getAll_whenEntitiesExist_returnsWorkspaces() {
         var first = service.create(buildWorkspace());
         var second = service.create(IdentityWorkspace.builder().name(nextString()).build());
 
@@ -140,7 +140,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void update() {
+    void update_whenEntityExistsAndVersionMatches_returnsUpdatedWorkspace() {
         var saved = service.create(buildWorkspace());
         var newName = nextString();
 
@@ -158,7 +158,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void updateThrows_WhenVersionIsStale() {
+    void update_whenVersionIsStale_throwsObjectOptimisticLockingFailureException() {
         var saved = service.create(buildWorkspace());
         var stale = IdentityWorkspace.builder()
                 .uniqueId(saved.getUniqueId())
@@ -185,7 +185,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void delete() {
+    void delete_whenEntityExists_deleteWorkspace() {
         var saved = service.create(buildWorkspace());
 
         service.delete(saved.getUniqueId().value());
@@ -194,13 +194,13 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void deleteThrows_WhenEntityIsNotFound() {
+    void delete_whenEntityIsNotFound_throwsEntityNotFoundException() {
         assertThatThrownBy(() -> service.delete(Long.MAX_VALUE))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test
-    void addRole() {
+    void addRole_whenWorkspaceExists_createRoleInWorkspace() {
         var saved = service.create(buildWorkspace());
         var roleName = nextString();
         var roleDescription = nextString();

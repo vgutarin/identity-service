@@ -55,7 +55,7 @@ class IdentityPrincipalServiceTest {
     IdentityPrincipalService service;
 
     @Test
-    void create() {
+    void create_whenValidInput_returnsCreatedUser() {
         var username = nextString();
         var password = nextString();
         var encodedPassword = "encoded_" + password;
@@ -99,7 +99,7 @@ class IdentityPrincipalServiceTest {
     }
 
     @Test
-    void update() {
+    void update_whenEntityExistsAndVersionMatches_returnsUpdatedUser() {
 
         var userId = nextUniqueId();
         var updatedName = nextString();
@@ -132,7 +132,7 @@ class IdentityPrincipalServiceTest {
     }
 
     @Test
-    void updateThrows_WhenEntityIsNotFound() {
+    void update_whenEntityIsNotFound_throwsEntityNotFoundException() {
 
         var model = model(nextLong());
 
@@ -144,7 +144,7 @@ class IdentityPrincipalServiceTest {
     }
 
     @Test
-    void findByUsername() {
+    void findByUsername_whenUserExists_returnsUser() {
         var username = nextString();
         var hash = new byte[]{1, 2, 3};
         var entity = entity(1L);
@@ -158,7 +158,7 @@ class IdentityPrincipalServiceTest {
     }
 
     @Test
-    void findByUsername_NotFound() {
+    void findByUsername_whenUserDoesNotExist_returnsNull() {
         var username = nextString();
         var hash = new byte[]{1, 2, 3};
 
@@ -169,7 +169,7 @@ class IdentityPrincipalServiceTest {
     }
 
     @Test
-    void get_existingUser() {
+    void get_whenUserExists_returnsUser() {
         var channelType = IdentityChannelType.TELEGRAM_USER;
         var channelUserId = nextString();
         var hash = new byte[]{4, 5, 6};
@@ -188,7 +188,7 @@ class IdentityPrincipalServiceTest {
     }
 
     @Test
-    void get_newUser() {
+    void get_whenUserDoesNotExist_returnsNewUser() {
         var channelType = IdentityChannelType.TELEGRAM_USER;
         var channelUserId = nextString();
         var channelUserIdHash = new byte[]{1};

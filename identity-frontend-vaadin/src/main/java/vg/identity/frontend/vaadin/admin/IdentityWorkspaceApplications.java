@@ -242,9 +242,7 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
     }
 
     private void refreshGrid() {
-        var applications = applicationService.getAll().stream()
-                .filter(application -> Long.valueOf(workspace.getUniqueId().value()).equals(application.getWorkspaceUniqueId()))
-                .toList();
+        var applications = applicationService.findByWorkspaceUniqueId(workspace.getUniqueId().value());
 
         grid.setItems(applications);
     }

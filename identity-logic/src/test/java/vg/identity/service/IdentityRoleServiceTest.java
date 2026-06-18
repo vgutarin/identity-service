@@ -42,7 +42,7 @@ class IdentityRoleServiceTest {
     IdentityRoleService service;
 
     @Test
-    void create() {
+    void create_whenValidInput_returnsCreatedRole() {
         var name = nextString();
         var description = nextString();
         var savedEntity = roleEntity(1L);
@@ -62,7 +62,7 @@ class IdentityRoleServiceTest {
     }
 
     @Test
-    void createInWorkspace() {
+    void create_whenWorkspaceIsProvided_returnsCreatedWorkspaceRole() {
         var workspace = workspace(nextLong());
         var name = nextString();
         var description = nextString();
@@ -83,7 +83,7 @@ class IdentityRoleServiceTest {
     }
 
     @Test
-    void createFromTemplate() {
+    void createFromTemplate_whenTemplatesAreProvided_returnsCreatedRoles() {
         var templateId = nextLong();
         var workspaceId = nextLong();
         var workspace = workspace(workspaceId);
@@ -113,7 +113,7 @@ class IdentityRoleServiceTest {
     }
 
     @Test
-    void getById() {
+    void getById_whenEntityExists_returnsRole() {
         var id = nextLong();
         var entity = roleEntity(id);
         var model = roleModel(id);
@@ -125,7 +125,7 @@ class IdentityRoleServiceTest {
     }
 
     @Test
-    void getByIdThrows_WhenEntityIsNotFound() {
+    void getById_whenEntityIsNotFound_throwsEntityNotFoundException() {
         var id = nextLong();
 
         assertThatThrownBy(() -> service.getById(id))
@@ -133,7 +133,7 @@ class IdentityRoleServiceTest {
     }
 
     @Test
-    void getAll() {
+    void getAll_whenEntitiesExist_returnsRoles() {
         var entities = List.of(roleEntity(1L), roleEntity(2L));
         var firstModel = roleModel(1L);
         var secondModel = roleModel(2L);
@@ -146,7 +146,7 @@ class IdentityRoleServiceTest {
     }
 
     @Test
-    void update() {
+    void update_whenEntityExistsAndVersionMatches_returnsUpdatedRole() {
         var id = nextLong();
         var model = IdentityRole.builder()
                 .id(id)
@@ -172,7 +172,7 @@ class IdentityRoleServiceTest {
     }
 
     @Test
-    void updateThrows_WhenEntityIsNotFound() {
+    void update_whenEntityIsNotFound_throwsEntityNotFoundException() {
         var model = roleModel(nextLong());
 
         when(roleRepository.findById(model.getId())).thenReturn(Optional.empty());
@@ -182,7 +182,7 @@ class IdentityRoleServiceTest {
     }
 
     @Test
-    void updateThrows_WhenVersionIsStale() {
+    void update_whenVersionIsStale_throwsObjectOptimisticLockingFailureException() {
         var id = nextLong();
         var model = IdentityRole.builder()
                 .id(id)
@@ -202,7 +202,7 @@ class IdentityRoleServiceTest {
     }
 
     @Test
-    void delete() {
+    void delete_whenEntityExists_deleteRole() {
         var id = nextLong();
         var entity = roleEntity(id);
 
@@ -215,7 +215,7 @@ class IdentityRoleServiceTest {
     }
 
     @Test
-    void addPermission() {
+    void addPermission_whenEntityExists_addsPermission() {
         var id = nextLong();
         var entity = roleEntity(id);
         var permission = permission("workspace.read");
@@ -232,7 +232,7 @@ class IdentityRoleServiceTest {
     }
 
     @Test
-    void removePermission() {
+    void removePermission_whenEntityExists_removesPermission() {
         var id = nextLong();
         var entity = roleEntity(id);
         entity.setPermissions(new HashSet<>(Set.of(permission("workspace.read"))));

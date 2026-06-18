@@ -44,7 +44,7 @@ class IdentityRoleTemplateServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void create() {
+    void create_whenValidInput_returnsCreatedRoleTemplate() {
         var description = nextString();
         var saved = service.create(IdentityRoleTemplate.builder()
                 .name(name)
@@ -67,7 +67,7 @@ class IdentityRoleTemplateServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getById() {
+    void getById_whenEntityExists_returnsRoleTemplate() {
         var saved = service.create(buildRoleTemplate());
 
         var found = service.getById(saved.getId());
@@ -78,7 +78,7 @@ class IdentityRoleTemplateServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getAll() {
+    void getAll_whenEntitiesExist_returnsRoleTemplates() {
         var first = service.create(buildRoleTemplate());
         var second = service.create(IdentityRoleTemplate.builder()
                 .name(nextString())
@@ -91,7 +91,7 @@ class IdentityRoleTemplateServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void update() {
+    void update_whenEntityExistsAndVersionMatches_returnsUpdatedRoleTemplate() {
         var saved = service.create(buildRoleTemplate());
         var newDescription = nextString();
 
@@ -116,7 +116,7 @@ class IdentityRoleTemplateServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void updateThrows_WhenVersionIsStale() {
+    void update_whenVersionIsStale_throwsObjectOptimisticLockingFailureException() {
         var saved = service.create(buildRoleTemplate());
         var stale = IdentityRoleTemplate.builder()
                 .id(saved.getId())
@@ -144,7 +144,7 @@ class IdentityRoleTemplateServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void delete() {
+    void delete_whenEntityExists_deleteRoleTemplate() {
         var saved = service.create(buildRoleTemplate());
 
         service.delete(saved.getId());
@@ -154,7 +154,7 @@ class IdentityRoleTemplateServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void addPermission() {
+    void addPermission_whenEntityExists_addsPermission() {
         var saved = service.create(buildRoleTemplate());
 
         var updated = service.addPermission(saved.getId(), " Workspace.WRITE ");
@@ -164,7 +164,7 @@ class IdentityRoleTemplateServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void removePermission() {
+    void removePermission_whenEntityExists_removesPermission() {
         var saved = service.create(IdentityRoleTemplate.builder()
                 .name(name)
                 .permissions(Set.of("workspace.read", "workspace.write"))
@@ -177,7 +177,7 @@ class IdentityRoleTemplateServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getByIdThrows_WhenEntityIsNotFound() {
+    void getById_whenEntityIsNotFound_throwsEntityNotFoundException() {
         assertThatThrownBy(() -> service.getById(Long.MAX_VALUE))
                 .isInstanceOf(EntityNotFoundException.class);
     }

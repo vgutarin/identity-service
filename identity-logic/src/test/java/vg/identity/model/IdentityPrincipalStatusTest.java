@@ -12,7 +12,7 @@ class IdentityPrincipalStatusTest {
      * pins every value to its expected name and ordinal.
      */
     @Test
-    void ordinalsAndNamesAreNeverChanged() {
+    void values_whenEnumPersistsByOrdinal_returnsStableOrdinalsAndNames() {
         assertThat(IdentityPrincipalStatus.VERIFICATION.name()).isEqualTo("VERIFICATION");
         assertThat(IdentityPrincipalStatus.VERIFICATION.ordinal()).isEqualTo(0);
 
@@ -25,7 +25,7 @@ class IdentityPrincipalStatusTest {
      * values being removed. New values must be appended at the end.
      */
     @Test
-    void valuesAreInExpectedOrder() {
+    void values_whenCalled_returnsExpectedOrder() {
         assertThat(
                 IdentityPrincipalStatus.values()
         ).containsExactly(

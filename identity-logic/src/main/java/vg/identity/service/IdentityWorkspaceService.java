@@ -140,4 +140,9 @@ public class IdentityWorkspaceService {
         var saved = update(workspaceMapper.toModel(workspace));
         return getEntity(saved.getUniqueId().value());
     }
+
+    @Transactional(readOnly = true)
+    public boolean existsById(long workspaceId) {
+        return workspaceRepository.existsById(workspaceId);
+    }
 }
