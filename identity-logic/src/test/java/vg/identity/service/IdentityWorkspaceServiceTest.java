@@ -10,6 +10,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import vg.identity.entity.IdentityRoleTemplateEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityWorkspaceMapper;
+import vg.identity.model.IdentityApplication;
 import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.repository.IdentityRoleTemplateRepository;
@@ -37,6 +38,8 @@ class IdentityWorkspaceServiceTest {
     IdentityRoleTemplateRepository roleTemplateRepository;
     @Mock
     IdentityRoleService roleService;
+    @Mock
+    IdentityApplicationService applicationService;
     @Mock
     IdentityWorkspaceMapper workspaceMapper;
 
@@ -186,6 +189,34 @@ class IdentityWorkspaceServiceTest {
         var role = IdentityRole.builder().name(nextString()).build();
 
         assertThatThrownBy(() -> service.addRole(workspaceId, role))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void addApplication() {
+        var workspaceId = nextLong();
+        var workspace = workspaceEntity(workspaceId);
+        var application = IdentityApplication.builder()
+                .name(nextString())
+                .data(nextString())
+                .build();
+        var savedApplication = IdentityApplication.builder()
+                .uniqueId(new UniqueId(nextLong()))
+                .workspaceUniqueId(workspaceId)
+                .build();
+
+        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
+        when(applicationService.create(application.getName(), application.getData(), workspace)).thenReturn(savedApplication);
+
+        assertThat(service.addApplication(workspaceId, application)).isSameAs(savedApplication);
+    }
+
+    @Test
+    void addApplicationThrows_WhenWorkspaceIsNotFound() {
+        var workspaceId = nextLong();
+        var application = IdentityApplication.builder().name(nextString()).build();
+
+        assertThatThrownBy(() -> service.addApplication(workspaceId, application))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
