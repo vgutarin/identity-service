@@ -21,10 +21,10 @@ import com.vaadin.flow.router.RouteParam;
 import com.vaadin.flow.router.RouteParameters;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
-import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.frontend.vaadin.MainView;
 import vg.identity.frontend.vaadin.Role;
 import vg.identity.frontend.vaadin.service.LocalizationService;
+import vg.identity.model.IdentityWorkspace;
 import vg.identity.service.IdentityWorkspaceService;
 
 import java.time.Instant;
@@ -41,7 +41,7 @@ public class IdentityWorkspaces extends VerticalLayout {
 
     private final transient IdentityWorkspaceService workspaceService;
     private final LocalizationService localization;
-    private final Grid<IdentityWorkspaceEntity> grid = new Grid<>(IdentityWorkspaceEntity.class, false);
+    private final Grid<IdentityWorkspace> grid = new Grid<>(IdentityWorkspace.class, false);
     private final DateTimeFormatter dateTimeFormatter;
 
     public IdentityWorkspaces(IdentityWorkspaceService workspaceService, LocalizationService localization) {
@@ -59,7 +59,7 @@ public class IdentityWorkspaces extends VerticalLayout {
 
         var create = new Button(localization.i18n("Create"), VaadinIcon.PLUS.create());
         create.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        create.addClickListener(event -> openForm(new IdentityWorkspaceEntity()));
+        create.addClickListener(event -> openForm(new IdentityWorkspace()));
 
         var toolbar = new HorizontalLayout(create);
         toolbar.setWidthFull();
@@ -75,24 +75,24 @@ public class IdentityWorkspaces extends VerticalLayout {
         grid.setSizeFull();
         grid.setEmptyStateText(localization.i18n("No workspaces found"));
 
-        grid.addColumn(IdentityWorkspaceEntity::getUniqueId)
+        grid.addColumn(workspace -> workspace.getUniqueId() == null ? "" : workspace.getUniqueId().value())
                 .setHeader(localization.i18n("ID"))
                 .setSortable(true)
                 .setAutoWidth(true)
                 .setFlexGrow(0);
-        grid.addColumn(IdentityWorkspaceEntity::getName)
+        grid.addColumn(IdentityWorkspace::getName)
                 .setHeader(localization.i18n("Name"))
                 .setSortable(true)
                 .setAutoWidth(true);
         grid.addColumn(workspace -> format(workspace.getCreatedAt()))
                 .setHeader(localization.i18n("Created"))
                 .setSortable(true)
-                .setComparator(IdentityWorkspaceEntity::getCreatedAt)
+                .setComparator(IdentityWorkspace::getCreatedAt)
                 .setAutoWidth(true);
         grid.addColumn(workspace -> format(workspace.getUpdatedAt()))
                 .setHeader(localization.i18n("Updated"))
                 .setSortable(true)
-                .setComparator(IdentityWorkspaceEntity::getUpdatedAt)
+                .setComparator(IdentityWorkspace::getUpdatedAt)
                 .setAutoWidth(true);
         grid.addComponentColumn(this::actions)
                 .setHeader(localization.i18n("Actions"))
@@ -100,7 +100,7 @@ public class IdentityWorkspaces extends VerticalLayout {
                 .setFlexGrow(0);
     }
 
-    private HorizontalLayout actions(IdentityWorkspaceEntity workspace) {
+    private HorizontalLayout actions(IdentityWorkspace workspace) {
         var actions = new HorizontalLayout();
         actions.setPadding(false);
         actions.setSpacing(true);
@@ -129,14 +129,24 @@ public class IdentityWorkspaces extends VerticalLayout {
                         workspace -> UI.getCurrent().navigate(
                                 IdentityWorkspaceRoles.class,
                                 new RouteParameters(
-                                        new RouteParam("workspaceId", String.valueOf(workspace.getUniqueId()))
+                                        new RouteParam("workspaceId", String.valueOf(workspace.getUniqueId().value()))
+                                )
+                        )
+                ),
+                new WorkspaceAction(
+                        "Manage application",
+                        VaadinIcon.COG,
+                        workspace -> UI.getCurrent().navigate(
+                                IdentityWorkspaceApplications.class,
+                                new RouteParameters(
+                                        new RouteParam("workspaceId", String.valueOf(workspace.getUniqueId().value()))
                                 )
                         )
                 )
         );
     }
 
-    private void openForm(IdentityWorkspaceEntity workspace) {
+    private void openForm(IdentityWorkspace workspace) {
         var editing = workspace.getUniqueId() != null;
         var formWorkspace = editing ? copy(workspace) : workspace;
 
@@ -144,7 +154,7 @@ public class IdentityWorkspaces extends VerticalLayout {
         dialog.setHeaderTitle(localization.i18n(editing ? "Edit workspace" : "Create workspace"));
         dialog.setDraggable(true);
 
-        var binder = new Binder<>(IdentityWorkspaceEntity.class);
+        var binder = new Binder<>(IdentityWorkspace.class);
         var name = new TextField(localization.i18n("Name"));
         name.setWidthFull();
         name.setRequiredIndicatorVisible(true);
@@ -152,7 +162,7 @@ public class IdentityWorkspaces extends VerticalLayout {
         binder.forField(name)
                 .asRequired(localization.i18n("Name is required"))
                 .withValidator(value -> !value.isBlank(), localization.i18n("Name is required"))
-                .bind(IdentityWorkspaceEntity::getName, IdentityWorkspaceEntity::setName);
+                .bind(IdentityWorkspace::getName, IdentityWorkspace::setName);
         binder.readBean(formWorkspace);
 
         var form = new FormLayout(name);
@@ -171,7 +181,7 @@ public class IdentityWorkspaces extends VerticalLayout {
         dialog.open();
     }
 
-    private void save(Dialog dialog, Binder<IdentityWorkspaceEntity> binder, IdentityWorkspaceEntity workspace) {
+    private void save(Dialog dialog, Binder<IdentityWorkspace> binder, IdentityWorkspace workspace) {
         try {
             binder.writeBean(workspace);
             if (workspace.getUniqueId() == null) {
@@ -189,7 +199,7 @@ public class IdentityWorkspaces extends VerticalLayout {
         }
     }
 
-    private void confirmDelete(IdentityWorkspaceEntity workspace) {
+    private void confirmDelete(IdentityWorkspace workspace) {
         var dialog = new ConfirmDialog();
         dialog.setHeader(localization.i18n("Delete workspace"));
         dialog.setText(localization.i18n("Delete workspace confirmation"));
@@ -201,9 +211,9 @@ public class IdentityWorkspaces extends VerticalLayout {
         dialog.open();
     }
 
-    private void delete(IdentityWorkspaceEntity workspace) {
+    private void delete(IdentityWorkspace workspace) {
         try {
-            workspaceService.delete(workspace.getUniqueId());
+            workspaceService.delete(workspace.getUniqueId().value());
             refreshGrid();
             notify(localization.i18n("Workspace deleted"), NotificationVariant.LUMO_SUCCESS);
         } catch (Exception e) {
@@ -212,15 +222,15 @@ public class IdentityWorkspaces extends VerticalLayout {
     }
 
     private void refreshGrid() {
-        grid.setItems(workspaceService.findAll());
+        grid.setItems(workspaceService.getAll());
     }
 
     private String format(Instant instant) {
         return instant == null ? "" : dateTimeFormatter.format(instant);
     }
 
-    private IdentityWorkspaceEntity copy(IdentityWorkspaceEntity workspace) {
-        return IdentityWorkspaceEntity.builder()
+    private IdentityWorkspace copy(IdentityWorkspace workspace) {
+        return IdentityWorkspace.builder()
                 .uniqueId(workspace.getUniqueId())
                 .version(workspace.getVersion())
                 .createdAt(workspace.getCreatedAt())
@@ -237,9 +247,9 @@ public class IdentityWorkspaces extends VerticalLayout {
     private record WorkspaceAction(
             String label,
             VaadinIcon icon,
-            Consumer<IdentityWorkspaceEntity> action
+            Consumer<IdentityWorkspace> action
     ) {
-        private Button button(IdentityWorkspaceEntity workspace, LocalizationService localization) {
+        private Button button(IdentityWorkspace workspace, LocalizationService localization) {
             var button = new Button(localization.i18n(label), icon.create());
             button.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
             button.addClickListener(event -> action.accept(workspace));
