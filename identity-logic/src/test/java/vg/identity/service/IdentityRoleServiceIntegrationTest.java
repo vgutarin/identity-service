@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
+import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.entity.IdentityRoleTemplateEntity;
 import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityRoleTemplate;
@@ -62,12 +63,13 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
     @Test
     void create() {
         var description = nextString();
-        var saved = service.create(name, description);
+        var workspace = createWorkspaceEntity();
+        var saved = service.create(name, description, workspace);
 
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getName()).isEqualTo(name);
         assertThat(saved.getDescription()).isEqualTo(description);
-        assertThat(saved.getWorkspaceUniqueId()).isNull();
+        assertThat(saved.getWorkspaceUniqueId()).isEqualTo(workspace.getUniqueId());
         assertThat(saved.getPermissions()).isEmpty();
         assertThat(saved.getCreatedAt()).isCloseTo(
                 Instant.now(),
@@ -77,11 +79,12 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void create_AllowsGlobalRole() {
-        var saved = service.create(name, null);
+    void createAllowsWorkspaceRole() {
+        var workspace = createWorkspaceEntity();
+        var saved = service.create(name, null, workspace);
 
         assertThat(saved.getId()).isNotNull();
-        assertThat(saved.getWorkspaceUniqueId()).isNull();
+        assertThat(saved.getWorkspaceUniqueId()).isEqualTo(workspace.getUniqueId());
     }
 
     @Test
@@ -122,7 +125,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getById() {
-        var saved = service.create(name, null);
+        var saved = service.create(name, null, createWorkspaceEntity());
 
         var found = service.getById(saved.getId());
 
@@ -133,8 +136,9 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getAll() {
-        var first = service.create(name, null);
-        var second = service.create(nextString(), null);
+        var workspace = createWorkspaceEntity();
+        var first = service.create(name, null, workspace);
+        var second = service.create(nextString(), null, workspace);
 
         assertThat(service.getAll())
                 .extracting(IdentityRole::getId)
@@ -143,7 +147,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void update() {
-        var saved = service.create(name, null);
+        var saved = service.create(name, null, createWorkspaceEntity());
         var newDescription = nextString();
 
         var updated = service.update(
@@ -168,7 +172,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void updateThrows_WhenVersionIsStale() {
-        var saved = service.create(name, null);
+        var saved = service.create(name, null, createWorkspaceEntity());
         var stale = IdentityRole.builder()
                 .id(saved.getId())
                 .version(saved.getVersion())
@@ -196,7 +200,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void addPermission() {
-        var saved = service.create(name, null);
+        var saved = service.create(name, null, createWorkspaceEntity());
 
         var updated = service.addPermission(saved.getId(), " app.create ");
 
@@ -205,7 +209,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void removePermission() {
-        var saved = service.create(name, null);
+        var saved = service.create(name, null, createWorkspaceEntity());
         service.addPermission(saved.getId(), "workspace.read");
         service.addPermission(saved.getId(), "app.create");
 
@@ -216,7 +220,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void delete() {
-        var saved = service.create(name, null);
+        var saved = service.create(name, null, createWorkspaceEntity());
 
         service.delete(saved.getId());
 
@@ -233,5 +237,10 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
         return workspaceService.create(IdentityWorkspace.builder()
                 .name(nextString())
                 .build());
+    }
+
+    private IdentityWorkspaceEntity createWorkspaceEntity() {
+        var workspace = createWorkspace();
+        return workspaceService.getEntity(workspace.getUniqueId().value());
     }
 }

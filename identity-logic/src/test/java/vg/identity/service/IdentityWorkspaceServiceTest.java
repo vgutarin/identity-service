@@ -10,6 +10,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import vg.identity.entity.IdentityRoleTemplateEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityWorkspaceMapper;
+import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.repository.IdentityRoleTemplateRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
@@ -158,6 +159,34 @@ class IdentityWorkspaceServiceTest {
 
         verify(workspaceRepository).delete(workspace);
         verify(workspaceRepository).flush();
+    }
+
+    @Test
+    void addRole() {
+        var workspaceId = nextLong();
+        var workspace = workspaceEntity(workspaceId);
+        var role = IdentityRole.builder()
+                .name(nextString())
+                .description(nextString())
+                .build();
+        var savedRole = IdentityRole.builder()
+                .id(nextLong())
+                .workspaceUniqueId(workspaceId)
+                .build();
+
+        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
+        when(roleService.create(role.getName(), role.getDescription(), workspace)).thenReturn(savedRole);
+
+        assertThat(service.addRole(workspaceId, role)).isSameAs(savedRole);
+    }
+
+    @Test
+    void addRoleThrows_WhenWorkspaceIsNotFound() {
+        var workspaceId = nextLong();
+        var role = IdentityRole.builder().name(nextString()).build();
+
+        assertThatThrownBy(() -> service.addRole(workspaceId, role))
+                .isInstanceOf(EntityNotFoundException.class);
     }
 
     private static IdentityWorkspaceEntity workspaceEntity(long id) {

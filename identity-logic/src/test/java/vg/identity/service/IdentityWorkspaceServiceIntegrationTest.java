@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
+import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityRoleTemplate;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.repository.IdentityPermissionRepository;
@@ -196,6 +197,30 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     void deleteThrows_WhenEntityIsNotFound() {
         assertThatThrownBy(() -> service.delete(Long.MAX_VALUE))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void addRole() {
+        var saved = service.create(buildWorkspace());
+        var roleName = nextString();
+        var roleDescription = nextString();
+
+        var role = service.addRole(saved.getUniqueId().value(), IdentityRole.builder()
+                .name(roleName)
+                .description(roleDescription)
+                .permissions(Set.of("workspace.read"))
+                .build());
+
+        assertThat(role.getId()).isNotNull();
+        assertThat(role.getName()).isEqualTo(roleName);
+        assertThat(role.getDescription()).isEqualTo(roleDescription);
+        assertThat(role.getWorkspaceUniqueId()).isEqualTo(saved.getUniqueId().value());
+        assertThat(role.getPermissions()).isEmpty();
+        assertThat(roleRepository.findById(role.getId()))
+                .hasValueSatisfying(entity -> {
+                    assertThat(entity.getWorkspace()).isNotNull();
+                    assertThat(entity.getWorkspace().getUniqueId()).isEqualTo(saved.getUniqueId().value());
+                });
     }
 
     private IdentityWorkspace buildWorkspace() {

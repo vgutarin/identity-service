@@ -52,11 +52,32 @@ class IdentityRoleServiceTest {
         when(roleRepository.save(any(IdentityRoleEntity.class))).thenReturn(savedEntity);
         when(roleMapper.toModel(savedEntity)).thenReturn(savedModel);
 
-        assertThat(service.create(name, description)).isSameAs(savedModel);
+        assertThat(service.create(name, description, null)).isSameAs(savedModel);
         verify(roleRepository).save(captor.capture());
         assertThat(captor.getValue().getName()).isEqualTo(name);
         assertThat(captor.getValue().getDescription()).isEqualTo(description);
         assertThat(captor.getValue().getWorkspace()).isNull();
+        assertThat(captor.getValue().getPermissions()).isEmpty();
+        verify(roleRepository).flush();
+    }
+
+    @Test
+    void createInWorkspace() {
+        var workspace = workspace(nextLong());
+        var name = nextString();
+        var description = nextString();
+        var savedEntity = roleEntity(1L);
+        var savedModel = roleModel(1L);
+        var captor = ArgumentCaptor.forClass(IdentityRoleEntity.class);
+
+        when(roleRepository.save(any(IdentityRoleEntity.class))).thenReturn(savedEntity);
+        when(roleMapper.toModel(savedEntity)).thenReturn(savedModel);
+
+        assertThat(service.create(name, description, workspace)).isSameAs(savedModel);
+        verify(roleRepository).save(captor.capture());
+        assertThat(captor.getValue().getName()).isEqualTo(name);
+        assertThat(captor.getValue().getDescription()).isEqualTo(description);
+        assertThat(captor.getValue().getWorkspace()).isSameAs(workspace);
         assertThat(captor.getValue().getPermissions()).isEmpty();
         verify(roleRepository).flush();
     }

@@ -63,7 +63,7 @@ public class IdentityRoleEntity {
     private String description;
 
     @ManyToOne
-    @JoinColumn(name = "workspace_unique_id", updatable = false)
+    @JoinColumn(name = "workspace_unique_id", updatable = false, nullable = false)
     private IdentityWorkspaceEntity workspace;
 
     @Builder.Default

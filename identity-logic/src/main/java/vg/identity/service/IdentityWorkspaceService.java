@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityWorkspaceMapper;
+import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.repository.IdentityRoleTemplateRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
@@ -75,6 +76,15 @@ public class IdentityWorkspaceService {
 
         workspaceRepository.delete(existing);
         workspaceRepository.flush();
+    }
+
+    @PreAuthorize("hasRole('OWNER')")
+    @Transactional
+    public IdentityRole addRole(Long uniqueId, IdentityRole role) {
+        var workspace = workspaceRepository.findById(uniqueId)
+                .orElseThrow(EntityNotFoundException::new);
+
+        return roleService.create(role.getName(), role.getDescription(), workspace);
     }
 
     @Transactional(readOnly = true)

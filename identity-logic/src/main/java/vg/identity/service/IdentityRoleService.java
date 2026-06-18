@@ -28,11 +28,12 @@ public class IdentityRoleService {
 
     @PreAuthorize("hasRole('OWNER')")
     @Transactional
-    IdentityRole create(String name, String description) {
+    IdentityRole create(String name, String description, IdentityWorkspaceEntity workspace) {
         var entity = IdentityRoleEntity.builder()
                 .name(name)
                 .description(description)
                 .build();
+        entity.setWorkspace(workspace);
 
         var saved = roleRepository.save(entity);
         roleRepository.flush();
