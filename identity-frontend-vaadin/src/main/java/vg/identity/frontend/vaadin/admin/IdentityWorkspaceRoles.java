@@ -1,6 +1,7 @@
 package vg.identity.frontend.vaadin.admin;
 
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -18,6 +19,8 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
@@ -34,21 +37,23 @@ import vg.identity.service.IdentityWorkspaceService;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @PageTitle("Roles")
-@Route(value = "admin/roles", layout = MainView.class)
+@Route(value = "admin/workspaces/:workspaceId/roles", layout = MainView.class)
 @RolesAllowed(Role.OWNER)
-public class IdentityRoles extends VerticalLayout {
+public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnterObserver {
+
+    private static final String WORKSPACE_ID_PARAMETER = "workspaceId";
 
     private final transient IdentityWorkspaceService workspaceService;
     private final transient IdentityRoleService roleService;
     private final transient IdentityPermissionService permissionService;
     private final LocalizationService localization;
+    private final HorizontalLayout toolbar = new HorizontalLayout();
     private final TreeGrid<RoleTreeItem> grid = new TreeGrid<>();
+    private IdentityWorkspace workspace;
 
-    public IdentityRoles(
+    public IdentityWorkspaceRoles(
             IdentityWorkspaceService workspaceService,
             IdentityRoleService roleService,
             IdentityPermissionService permissionService,
@@ -63,12 +68,48 @@ public class IdentityRoles extends VerticalLayout {
         setPadding(true);
         setSpacing(true);
 
+        configureToolbar();
         configureGrid();
 
-        add(grid);
+        add(toolbar, grid);
         expand(grid);
+    }
 
+    private void configureToolbar() {
+        toolbar.setWidthFull();
+        toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
+        toolbar.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
+        toolbar.setVisible(false);
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        workspace = event.getRouteParameters()
+                .get(WORKSPACE_ID_PARAMETER)
+                .map(this::loadWorkspace)
+                .orElseThrow();
+        refreshToolbar();
         refreshGrid();
+    }
+
+    private void refreshToolbar() {
+        toolbar.removeAll();
+        toolbar.setVisible(workspace != null);
+        if (workspace == null) {
+            return;
+        }
+
+        var workspaceName = new Button(workspace.getName(), VaadinIcon.ARROW_LEFT.create());
+        workspaceName.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        workspaceName.addClassName("workspace-context-button");
+        workspaceName.addClickListener(event -> UI.getCurrent().navigate(IdentityWorkspaces.class));
+
+        var add = new Button(localization.i18n("Add role"), VaadinIcon.PLUS.create());
+        add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        add.addClickListener(event -> openForm(workspace, new IdentityRole()));
+
+        toolbar.add(workspaceName, add);
+        toolbar.expand(workspaceName);
     }
 
     private void configureGrid() {
@@ -127,12 +168,6 @@ public class IdentityRoles extends VerticalLayout {
     }
 
     private HorizontalLayout actions(RoleTreeItem item) {
-        if (item.workspace()) {
-            var add = new Button(localization.i18n("Add role"), VaadinIcon.PLUS.create());
-            add.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_PRIMARY);
-            add.addClickListener(event -> openForm(item.workspaceModel(), new IdentityRole()));
-            return actionLayout(add);
-        }
         if (!item.role()) {
             return new HorizontalLayout();
         }
@@ -249,14 +284,16 @@ public class IdentityRoles extends VerticalLayout {
                 .map(IdentityPermission::getName)
                 .sorted()
                 .toList();
-        var rolesByWorkspaceUniqueId = roleService.getAll().stream()
-                .filter(role -> role.getWorkspaceUniqueId() != null)
-                .collect(Collectors.groupingBy(IdentityRole::getWorkspaceUniqueId));
-        var roots = workspaceService.getAll().stream()
-                .map(workspace -> RoleTreeItem.workspace(workspace, rolesByWorkspaceUniqueId, permissions))
+        var roles = roleService.getAll().stream()
+                .filter(role -> Long.valueOf(workspace.getUniqueId().value()).equals(role.getWorkspaceUniqueId()))
+                .map(role -> RoleTreeItem.role(workspace, role, permissions))
                 .toList();
 
-        grid.setItems(roots, RoleTreeItem::children);
+        grid.setItems(roles, RoleTreeItem::children);
+    }
+
+    private IdentityWorkspace loadWorkspace(String workspaceId) {
+        return workspaceService.getById(Long.parseLong(workspaceId));
     }
 
     private String format(Instant instant) {
@@ -302,19 +339,6 @@ public class IdentityRoles extends VerticalLayout {
             this.granted = granted;
         }
 
-        private static RoleTreeItem workspace(
-                IdentityWorkspace workspace,
-                Map<Long, List<IdentityRole>> rolesByWorkspaceUniqueId,
-                List<String> permissions
-        ) {
-            var roles = rolesByWorkspaceUniqueId
-                    .getOrDefault(workspace.getUniqueId().value(), List.of())
-                    .stream()
-                    .map(role -> role(workspace, role, permissions))
-                    .toList();
-            return new RoleTreeItem(workspace, null, "", roles, false);
-        }
-
         private static RoleTreeItem role(IdentityWorkspace workspace, IdentityRole role, List<String> permissions) {
             var permissionItems = permissions.stream()
                     .map(permission -> permission(workspace, role, permission))
@@ -349,9 +373,6 @@ public class IdentityRoles extends VerticalLayout {
         }
 
         private String name() {
-            if (workspace()) {
-                return workspace.getName();
-            }
             if (role()) {
                 return role.getName();
             }
@@ -363,9 +384,6 @@ public class IdentityRoles extends VerticalLayout {
         }
 
         private Instant createdAt() {
-            if (workspace()) {
-                return workspace.getCreatedAt();
-            }
             if (role()) {
                 return role.getCreatedAt();
             }
@@ -373,9 +391,6 @@ public class IdentityRoles extends VerticalLayout {
         }
 
         private Instant updatedAt() {
-            if (workspace()) {
-                return workspace.getUpdatedAt();
-            }
             if (role()) {
                 return role.getUpdatedAt();
             }
@@ -384,10 +399,6 @@ public class IdentityRoles extends VerticalLayout {
 
         private List<RoleTreeItem> children() {
             return children;
-        }
-
-        private boolean workspace() {
-            return role == null && permissionName.isEmpty();
         }
 
         private boolean role() {
@@ -399,7 +410,7 @@ public class IdentityRoles extends VerticalLayout {
         }
 
         private boolean expandable() {
-            return workspace() || role();
+            return role();
         }
 
         private boolean granted() {

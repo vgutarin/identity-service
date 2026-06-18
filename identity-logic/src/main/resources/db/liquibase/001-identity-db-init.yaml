@@ -433,27 +433,14 @@ databaseChangeLog:
                   name: workspace_unique_id
                   type: BIGINT
                   constraints:
-                    nullable: true
+                    nullable: false
                     foreignKeyName: fk_identity_role_to_workspace
                     referencedTableName: identity_workspace
                     referencedColumnNames: unique_id
-        - sql:
-            dbms: mysql
-            splitStatements: false
-            sql: >
-              ALTER TABLE identity_role
-              ADD COLUMN role_key VARCHAR(128)
-              GENERATED ALWAYS AS (
-                  CASE
-                      WHEN workspace_unique_id IS NULL THEN name
-                      ELSE CONCAT(workspace_unique_id, ':', name)
-                  END
-              ) STORED
-        - sql:
-            dbms: mysql
-            sql: >
-              ALTER TABLE identity_role
-              ADD CONSTRAINT uk_identity_role_key UNIQUE (role_key)
+        - addUniqueConstraint:
+            tableName: identity_role
+            columnNames: workspace_unique_id, name
+            constraintName: uk_identity_role_workspace_name
         - createTable:
             tableName: identity_role_assignment
             columns:
@@ -467,6 +454,13 @@ databaseChangeLog:
                     foreignKeyName: fk_role_assignment_to_principal
                     referencedTableName: identity_principal
                     referencedColumnNames: unique_id
+              - column:
+                  name: resource_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_role_assignment
               - column:
                   name: role_id
                   type: BIGINT

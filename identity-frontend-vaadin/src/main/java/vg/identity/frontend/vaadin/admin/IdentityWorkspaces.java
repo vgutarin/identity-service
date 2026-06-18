@@ -15,7 +15,10 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.RouteParam;
+import com.vaadin.flow.router.RouteParameters;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 import vg.identity.entity.IdentityWorkspaceEntity;
@@ -28,6 +31,8 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
+import java.util.List;
+import java.util.function.Consumer;
 
 @PageTitle("Workspaces")
 @Route(value = "admin/workspaces", layout = MainView.class)
@@ -96,6 +101,14 @@ public class IdentityWorkspaces extends VerticalLayout {
     }
 
     private HorizontalLayout actions(IdentityWorkspaceEntity workspace) {
+        var actions = new HorizontalLayout();
+        actions.setPadding(false);
+        actions.setSpacing(true);
+
+        managementActions().stream()
+                .map(action -> action.button(workspace, localization))
+                .forEach(actions::add);
+
         var edit = new Button(localization.i18n("Edit"), VaadinIcon.EDIT.create());
         edit.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
         edit.addClickListener(event -> openForm(workspace));
@@ -104,10 +117,23 @@ public class IdentityWorkspaces extends VerticalLayout {
         delete.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
         delete.addClickListener(event -> confirmDelete(workspace));
 
-        var actions = new HorizontalLayout(edit, delete);
-        actions.setPadding(false);
-        actions.setSpacing(true);
+        actions.add(edit, delete);
         return actions;
+    }
+
+    private List<WorkspaceAction> managementActions() {
+        return List.of(
+                new WorkspaceAction(
+                        "Manage roles",
+                        VaadinIcon.USERS,
+                        workspace -> UI.getCurrent().navigate(
+                                IdentityWorkspaceRoles.class,
+                                new RouteParameters(
+                                        new RouteParam("workspaceId", String.valueOf(workspace.getUniqueId()))
+                                )
+                        )
+                )
+        );
     }
 
     private void openForm(IdentityWorkspaceEntity workspace) {
@@ -206,5 +232,18 @@ public class IdentityWorkspaces extends VerticalLayout {
     private void notify(String message, NotificationVariant variant) {
         var notification = Notification.show(message, 3000, Notification.Position.TOP_END);
         notification.addThemeVariants(variant);
+    }
+
+    private record WorkspaceAction(
+            String label,
+            VaadinIcon icon,
+            Consumer<IdentityWorkspaceEntity> action
+    ) {
+        private Button button(IdentityWorkspaceEntity workspace, LocalizationService localization) {
+            var button = new Button(localization.i18n(label), icon.create());
+            button.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
+            button.addClickListener(event -> action.accept(workspace));
+            return button;
+        }
     }
 }

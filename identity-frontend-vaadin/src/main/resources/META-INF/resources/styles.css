@@ -64,6 +64,11 @@ body {
   margin: 0;
 }
 
+vaadin-button.workspace-context-button {
+  --vaadin-button-font-size: var(--aura-font-size-l);
+  justify-content: flex-start;
+}
+
 .login-view {
   background: var(--aura-background-color);
   color: var(--vaadin-text-color);
