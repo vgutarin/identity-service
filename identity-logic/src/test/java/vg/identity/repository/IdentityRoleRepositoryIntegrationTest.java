@@ -47,35 +47,12 @@ class IdentityRoleRepositoryIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void save_allowsWithoutWorkspace() {
+    void save_throwsWithoutWorkspace() {
         var roleName = nextString();
 
-        var firstRole = roleRepository.saveAndFlush(buildRole(roleName, null));
-        assertThat(firstRole.getId()).isNotNull();
-    }
-
-    @Test
-    void save_allowsSameNameWithoutWorkspaceAndInWorkspace() {
-        var roleName = nextString();
-        var workspace = createWorkspace();
-
-        var globalRole = roleRepository.saveAndFlush(buildRole(roleName, null));
-        var workspaceRole = roleRepository.saveAndFlush(buildRole(roleName, workspace));
-
-        assertThat(globalRole.getId()).isNotNull();
-        assertThat(workspaceRole.getId()).isNotNull();
-        assertThat(globalRole.getId()).isNotEqualTo(workspaceRole.getId());
-        assertThat(roleRepository.findByNameAndWorkspace(roleName, workspace)).contains(workspaceRole);
-    }
-
-    @Test
-    void save_throwsWhenSameNameIsUsedWithoutWorkspace() {
-        var roleName = nextString();
-
-        roleRepository.saveAndFlush(buildRole(roleName, null));
-
-        assertThatThrownBy(() -> roleRepository.saveAndFlush(buildRole(roleName, null)))
-                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(
+                () -> roleRepository.saveAndFlush(buildRole(roleName, null))
+        ).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

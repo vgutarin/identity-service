@@ -41,9 +41,14 @@ public class IdentityRoleAssignmentEntity {
     private IdentityPrincipalEntity principal;
 
     @Id
+    @Column(name = "resource_unique_id", nullable = false)
+    private Long resourceUniqueId;
+
+    @Id
     @ManyToOne
     @JoinColumn(name = "role_id", nullable = false)
     private IdentityRoleEntity role;
+
 
     @Column(nullable = false, updatable = false)
     @CreatedDate
@@ -58,6 +63,7 @@ public class IdentityRoleAssignmentEntity {
         if (effectiveClass(this) != effectiveClass(o)) return false;
         var that = (IdentityRoleAssignmentEntity) o;
         return principal != null && Objects.equals(principal, that.principal)
+                && resourceUniqueId != null && Objects.equals(resourceUniqueId, that.resourceUniqueId)
                 && role != null && Objects.equals(role, that.role);
     }
 

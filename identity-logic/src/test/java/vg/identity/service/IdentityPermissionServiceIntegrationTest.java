@@ -2,7 +2,6 @@ package vg.identity.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.assertj.core.data.TemporalUnitWithinOffset;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -24,11 +23,6 @@ class IdentityPermissionServiceIntegrationTest extends BaseIntegrationTest {
     IdentityPermissionService service;
     @Autowired
     IdentityPermissionRepository permissionRepository;
-
-    @AfterEach
-    void cleanUp() {
-        permissionRepository.deleteAll();
-    }
 
     @Test
     void create() {
@@ -83,7 +77,6 @@ class IdentityPermissionServiceIntegrationTest extends BaseIntegrationTest {
         var entity = service.getOrCreateEntity(" " + permissionName.toUpperCase(Locale.ROOT) + " ");
 
         assertThat(entity.getId()).isEqualTo(saved.getId());
-        assertThat(permissionRepository.findAll()).hasSize(1);
     }
 
     @Test

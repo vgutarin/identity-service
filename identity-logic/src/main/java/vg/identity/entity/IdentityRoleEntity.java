@@ -11,6 +11,7 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -36,7 +37,13 @@ import static vg.utils.HibernateHelper.effectiveClass;
 @Getter
 @Setter
 @Builder
-@Table(name = "identity_role")
+@Table(
+        name = "identity_role",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_identity_role_workspace_name",
+                columnNames = {"workspace_unique_id", "name"}
+        )
+)
 @Entity
 @EntityListeners(AuditingEntityListener.class)
 public class IdentityRoleEntity {
@@ -56,15 +63,15 @@ public class IdentityRoleEntity {
     @LastModifiedDate
     private Instant updatedAt;
 
+    @ManyToOne
+    @JoinColumn(name = "workspace_unique_id", updatable = false, nullable = false)
+    private IdentityWorkspaceEntity workspace;
+
     @Column(nullable = false, length = 64)
     private String name;
 
     @Column(columnDefinition = "TEXT")
     private String description;
-
-    @ManyToOne
-    @JoinColumn(name = "workspace_unique_id", updatable = false, nullable = false)
-    private IdentityWorkspaceEntity workspace;
 
     @Builder.Default
     @ManyToMany

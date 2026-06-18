@@ -13,5 +13,6 @@ import java.io.Serializable;
 @AllArgsConstructor
 public class IdentityRoleAssignmentEntityId implements Serializable {
     private Long principal;
+    private Long resourceUniqueId;
     private Long role;
 }

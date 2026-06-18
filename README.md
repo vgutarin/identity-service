@@ -14,9 +14,13 @@
   - `User`  
   - `ChatManager` ...
 
+### Authentication model
+
+
 
 ## TODO
 
+- Go over enyiyies and db tables naming (My be better IdentityWorkspaceRole? IdentitiUserGlobalRole? etc)
 - introduce IdentityClient ROLE (chat bot, site, service, etc)
 - implement logic for client to be authenticated and authorized (actually it will be a user with corresponded role)
 - implement Logic to allow IdentityUser give/revoke access to his personal info per client
