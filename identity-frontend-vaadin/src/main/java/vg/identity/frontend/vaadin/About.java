@@ -11,6 +11,7 @@ import vg.identity.frontend.vaadin.service.LocalizationService;
 @PageTitle("About")
 @Route(value = "about", layout = MainView.class)
 @RouteAlias(value = "", layout = MainView.class)
+
 @PermitAll
 public class About extends VerticalLayout {
     public About(LocalizationService localization) {

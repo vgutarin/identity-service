@@ -3,3 +3,5 @@
 */build/
 /identity-frontend-vaadin/node_modules/
 /identity-frontend-vaadin/frontend/
+/identity-frontend-vaadin/src/main/frontend/generated/
+/identity-frontend-vaadin/src/main/frontend/index.html

@@ -1,0 +1,5 @@
+- add Permission manage service
+- on application creation assign default permissions
+- add WorkspaceUser relation
+- add Application user relation (extend application view to show users)
+- extend workspace view to show users (members + app users)
