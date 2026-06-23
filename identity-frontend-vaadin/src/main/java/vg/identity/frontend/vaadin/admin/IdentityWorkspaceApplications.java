@@ -30,6 +30,7 @@ import vg.identity.model.IdentityApplication;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.service.IdentityApplicationService;
 import vg.identity.service.IdentityWorkspaceService;
+import vg.unique.id.model.UniqueId;
 
 import java.time.Instant;
 
@@ -108,7 +109,7 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
         grid.setSizeFull();
         grid.setEmptyStateText(localization.i18n("No applications found"));
 
-        grid.addColumn(application -> application.getUniqueId() == null ? "" : application.getUniqueId().value())
+        grid.addColumn(application -> application.getUniqueId() == null ? "" : application.getUniqueId())
                 .setHeader(localization.i18n("ID"))
                 .setSortable(true)
                 .setAutoWidth(true)
@@ -205,7 +206,7 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
             binder.writeBean(application);
 
             if (application.getUniqueId() == null) {
-                workspaceService.addApplication(workspace.getUniqueId().value(), application);
+                workspaceService.addApplication(workspace.getUniqueId().getLongValue(), application);
             } else {
                 applicationService.update(application);
             }
@@ -233,7 +234,7 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
 
     private void delete(IdentityApplication application) {
         try {
-            applicationService.delete(application.getUniqueId().value());
+            applicationService.delete(application.getUniqueId().getLongValue());
             refreshGrid();
             notify(localization.i18n("Application deleted"), NotificationVariant.LUMO_SUCCESS);
         } catch (Exception e) {
@@ -242,13 +243,13 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
     }
 
     private void refreshGrid() {
-        var applications = applicationService.findByWorkspaceUniqueId(workspace.getUniqueId().value());
+        var applications = applicationService.findByWorkspaceUniqueId(workspace.getUniqueId().getLongValue());
 
         grid.setItems(applications);
     }
 
     private IdentityWorkspace loadWorkspace(String workspaceId) {
-        return workspaceService.getById(Long.parseLong(workspaceId));
+        return workspaceService.getById(UniqueId.parse(workspaceId).getLongValue());
     }
 
     private String format(Instant instant) {

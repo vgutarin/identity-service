@@ -93,7 +93,7 @@ public class AuthorityChecker {
             return false;
         }
 
-        return roleAssignmentRepository.hasPermission(currentUserUniqueId.value(), pathToWorkspace, permission);
+        return roleAssignmentRepository.hasPermission(currentUserUniqueId.getLongValue(), pathToWorkspace, permission);
     }
 
     private List<Long> pathToWorkspace(long accessScopeResourceUniqueId) {
@@ -109,7 +109,7 @@ public class AuthorityChecker {
         }
 
         return List.of(
-                res.getUniqueId().value(),
+                res.getUniqueId().getLongValue(),
                 res.getWorkspaceUniqueId()
         );
     }

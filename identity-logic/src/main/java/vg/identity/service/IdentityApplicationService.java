@@ -76,7 +76,7 @@ public class IdentityApplicationService {
     @PreAuthorize("hasRole('OWNER')")
     @Transactional
     public IdentityApplication update(IdentityApplication application) {
-        var uniqueId = application.getUniqueId().value();
+        var uniqueId = application.getUniqueId().getLongValue();
         var existing = applicationRepository.findById(uniqueId)
                 .orElseThrow(EntityNotFoundException::new);
 

@@ -191,7 +191,7 @@ class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
                 channelType, encryptionService.hashCaseSensitive(channelUserId)
         ).orElse(null);
         assertThat(channel).isNotNull();
-        assertThat(channel.getIdentityUser().getUniqueId()).isEqualTo(user.getUniqueId().value());
+        assertThat(channel.getIdentityUser().getUniqueId()).isEqualTo(user.getUniqueId().getLongValue());
     }
 
     @Test

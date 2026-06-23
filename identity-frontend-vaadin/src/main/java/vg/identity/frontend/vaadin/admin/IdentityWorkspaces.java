@@ -75,7 +75,7 @@ public class IdentityWorkspaces extends VerticalLayout {
         grid.setSizeFull();
         grid.setEmptyStateText(localization.i18n("No workspaces found"));
 
-        grid.addColumn(workspace -> workspace.getUniqueId() == null ? "" : workspace.getUniqueId().value())
+        grid.addColumn(workspace -> workspace.getUniqueId() == null ? "" : workspace.getUniqueId())
                 .setHeader(localization.i18n("ID"))
                 .setSortable(true)
                 .setAutoWidth(true)
@@ -129,7 +129,7 @@ public class IdentityWorkspaces extends VerticalLayout {
                         workspace -> UI.getCurrent().navigate(
                                 IdentityWorkspaceRoles.class,
                                 new RouteParameters(
-                                        new RouteParam("workspaceId", String.valueOf(workspace.getUniqueId().value()))
+                                        new RouteParam("workspaceId", workspace.getUniqueId().toString())
                                 )
                         )
                 ),
@@ -139,7 +139,7 @@ public class IdentityWorkspaces extends VerticalLayout {
                         workspace -> UI.getCurrent().navigate(
                                 IdentityWorkspaceApplications.class,
                                 new RouteParameters(
-                                        new RouteParam("workspaceId", String.valueOf(workspace.getUniqueId().value()))
+                                        new RouteParam("workspaceId", workspace.getUniqueId().toString())
                                 )
                         )
                 )
@@ -213,7 +213,7 @@ public class IdentityWorkspaces extends VerticalLayout {
 
     private void delete(IdentityWorkspace workspace) {
         try {
-            workspaceService.delete(workspace.getUniqueId().value());
+            workspaceService.delete(workspace.getUniqueId().getLongValue());
             refreshGrid();
             notify(localization.i18n("Workspace deleted"), NotificationVariant.LUMO_SUCCESS);
         } catch (Exception e) {

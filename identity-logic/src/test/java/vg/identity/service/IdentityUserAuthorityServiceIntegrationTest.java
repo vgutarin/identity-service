@@ -66,7 +66,7 @@ class IdentityUserAuthorityServiceIntegrationTest extends BaseIntegrationTest {
         assertThat(authorityService.findByUserAndResourceType(user, IdentityResourceType.WORKSPACE))
                 .singleElement()
                 .satisfies(permission -> {
-                    assertThat(permission.getPrincipalUniqueId()).isEqualTo(user.getUniqueId().value());
+                    assertThat(permission.getPrincipalUniqueId()).isEqualTo(user.getUniqueId().getLongValue());
                     assertThat(permission.getResource().getUniqueId()).isEqualTo(workspace.getUniqueId());
                     assertThat(permission.getPermissionName()).isEqualTo("read");
                     assertThat(permission.getResourceName()).isEqualTo(workspaceName);

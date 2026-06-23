@@ -135,7 +135,7 @@ class AuthorityCheckerTest {
         when(currentUserService.hasRole("OWNER")).thenReturn(false);
         when(currentUserService.getCurrentUserUniqueId()).thenReturn(userUniqueId);
         when(workspaceService.existsById(workspaceId)).thenReturn(true);
-        when(roleAssignmentRepository.hasPermission(userUniqueId.value(), List.of(workspaceId), permission)).thenReturn(true);
+        when(roleAssignmentRepository.hasPermission(userUniqueId.getLongValue(), List.of(workspaceId), permission)).thenReturn(true);
 
         assertThat(authorityChecker.hasAuthority(workspaceId, permission)).isTrue();
     }
@@ -157,7 +157,7 @@ class AuthorityCheckerTest {
                 .workspaceUniqueId(workspaceId)
                 .build());
         when(roleAssignmentRepository.hasPermission(
-                userUniqueId.value(),
+                userUniqueId.getLongValue(),
                 List.of(applicationId, workspaceId),
                 permission
         )).thenReturn(true);

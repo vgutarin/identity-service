@@ -102,19 +102,19 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
                 .build());
 
         var saved = service.create(buildWorkspace());
-        var workspace = workspaceRepository.findById(saved.getUniqueId().value()).orElseThrow();
+        var workspace = workspaceRepository.findById(saved.getUniqueId().getLongValue()).orElseThrow();
         var adminRole = roleRepository.findByNameAndWorkspace(firstName, workspace).orElseThrow();
         var secondRole = roleRepository.findByNameAndWorkspace(secondName, workspace).orElseThrow();
 
         assertThat(roleService.getById(adminRole.getId()))
                 .satisfies(role -> {
                     assertThat(role.getDescription()).isEqualTo(firstDescription);
-                    assertThat(role.getWorkspaceUniqueId()).isEqualTo(saved.getUniqueId().value());
+                    assertThat(role.getWorkspaceUniqueId()).isEqualTo(saved.getUniqueId().getLongValue());
                     assertThat(role.getPermissions()).containsExactlyInAnyOrder("workspace.read", "workspace.write");
                 });
         assertThat(roleService.getById(secondRole.getId()))
                 .satisfies(role -> {
-                    assertThat(role.getWorkspaceUniqueId()).isEqualTo(saved.getUniqueId().value());
+                    assertThat(role.getWorkspaceUniqueId()).isEqualTo(saved.getUniqueId().getLongValue());
                     assertThat(role.getPermissions()).containsExactly("app.read");
                 });
     }
@@ -123,7 +123,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     void getById_whenEntityExists_returnsWorkspace() {
         var saved = service.create(buildWorkspace());
 
-        var found = service.getById(saved.getUniqueId().value());
+        var found = service.getById(saved.getUniqueId().getLongValue());
 
         assertThat(found.getUniqueId()).isEqualTo(saved.getUniqueId());
         assertThat(found.getName()).isEqualTo(name);
@@ -135,8 +135,8 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
         var second = service.create(IdentityWorkspace.builder().name(nextString()).build());
 
         assertThat(service.getAll())
-                .extracting(workspace -> workspace.getUniqueId().value())
-                .contains(first.getUniqueId().value(), second.getUniqueId().value());
+                .extracting(workspace -> workspace.getUniqueId().getLongValue())
+                .contains(first.getUniqueId().getLongValue(), second.getUniqueId().getLongValue());
     }
 
     @Test
@@ -177,7 +177,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
 
         assertThatThrownBy(() -> service.update(stale))
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);
-        assertThat(workspaceRepository.findById(saved.getUniqueId().value()))
+        assertThat(workspaceRepository.findById(saved.getUniqueId().getLongValue()))
                 .hasValueSatisfying(workspace -> {
                     assertThat(workspace.getName()).isEqualTo(currentName);
                     assertThat(workspace.getVersion()).isEqualTo(1);
@@ -188,9 +188,9 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     void delete_whenEntityExists_deleteWorkspace() {
         var saved = service.create(buildWorkspace());
 
-        service.delete(saved.getUniqueId().value());
+        service.delete(saved.getUniqueId().getLongValue());
 
-        assertThat(workspaceRepository.findById(saved.getUniqueId().value())).isEmpty();
+        assertThat(workspaceRepository.findById(saved.getUniqueId().getLongValue())).isEmpty();
     }
 
     @Test
@@ -205,7 +205,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
         var roleName = nextString();
         var roleDescription = nextString();
 
-        var role = service.addRole(saved.getUniqueId().value(), IdentityRole.builder()
+        var role = service.addRole(saved.getUniqueId().getLongValue(), IdentityRole.builder()
                 .name(roleName)
                 .description(roleDescription)
                 .permissions(Set.of("workspace.read"))
@@ -214,12 +214,12 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
         assertThat(role.getId()).isNotNull();
         assertThat(role.getName()).isEqualTo(roleName);
         assertThat(role.getDescription()).isEqualTo(roleDescription);
-        assertThat(role.getWorkspaceUniqueId()).isEqualTo(saved.getUniqueId().value());
+        assertThat(role.getWorkspaceUniqueId()).isEqualTo(saved.getUniqueId().getLongValue());
         assertThat(role.getPermissions()).isEmpty();
         assertThat(roleRepository.findById(role.getId()))
                 .hasValueSatisfying(entity -> {
                     assertThat(entity.getWorkspace()).isNotNull();
-                    assertThat(entity.getWorkspace().getUniqueId()).isEqualTo(saved.getUniqueId().value());
+                    assertThat(entity.getWorkspace().getUniqueId()).isEqualTo(saved.getUniqueId().getLongValue());
                 });
     }
 

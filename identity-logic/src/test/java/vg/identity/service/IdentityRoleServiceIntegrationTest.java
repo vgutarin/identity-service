@@ -105,19 +105,19 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
                         permissionRepository.findByName("app.update").orElseThrow()
                 ))
                 .build();
-        var workspaceEntity = workspaceService.getEntity(workspace.getUniqueId().value());
+        var workspaceEntity = workspaceService.getEntity(workspace.getUniqueId().getLongValue());
 
         var saved = service.createFromTemplate(List.of(templateEntity), workspaceEntity).getFirst();
 
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getName()).isEqualTo(name);
         assertThat(saved.getDescription()).isEqualTo(description);
-        assertThat(saved.getWorkspaceUniqueId()).isEqualTo(workspace.getUniqueId().value());
+        assertThat(saved.getWorkspaceUniqueId()).isEqualTo(workspace.getUniqueId().getLongValue());
         assertThat(saved.getPermissions()).containsExactlyInAnyOrder("workspace.read", "app.update");
         assertThat(roleRepository.findById(saved.getId()))
                 .hasValueSatisfying(role -> {
                     assertThat(role.getWorkspace()).isNotNull();
-                    assertThat(role.getWorkspace().getUniqueId()).isEqualTo(workspace.getUniqueId().value());
+                    assertThat(role.getWorkspace().getUniqueId()).isEqualTo(workspace.getUniqueId().getLongValue());
                 });
         assertThat(service.getById(saved.getId()).getPermissions())
                 .containsExactlyInAnyOrder("workspace.read", "app.update");
@@ -241,6 +241,6 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
     private IdentityWorkspaceEntity createWorkspaceEntity() {
         var workspace = createWorkspace();
-        return workspaceService.getEntity(workspace.getUniqueId().value());
+        return workspaceService.getEntity(workspace.getUniqueId().getLongValue());
     }
 }

@@ -178,7 +178,7 @@ class IdentityApplicationServiceTest {
     void update_whenEntityIsNotFound_throwsEntityNotFoundException() {
         var model = applicationModel(nextLong());
 
-        when(applicationRepository.findById(model.getUniqueId().value())).thenReturn(Optional.empty());
+        when(applicationRepository.findById(model.getUniqueId().getLongValue())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.update(model))
                 .isInstanceOf(EntityNotFoundException.class);

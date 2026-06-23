@@ -33,6 +33,7 @@ import vg.identity.model.IdentityWorkspace;
 import vg.identity.service.IdentityPermissionService;
 import vg.identity.service.IdentityRoleService;
 import vg.identity.service.IdentityWorkspaceService;
+import vg.unique.id.model.UniqueId;
 
 import java.time.Instant;
 import java.util.HashSet;
@@ -243,7 +244,7 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
             binder.writeBean(role);
 
             if (role.getId() == null) {
-                workspaceService.addRole(workspace.getUniqueId().value(), role);
+                workspaceService.addRole(workspace.getUniqueId().getLongValue(), role);
             } else {
                 roleService.update(role);
             }
@@ -285,7 +286,7 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
                 .sorted()
                 .toList();
         var roles = roleService.getAll().stream()
-                .filter(role -> Long.valueOf(workspace.getUniqueId().value()).equals(role.getWorkspaceUniqueId()))
+                .filter(role -> Long.valueOf(workspace.getUniqueId().getLongValue()).equals(role.getWorkspaceUniqueId()))
                 .map(role -> RoleTreeItem.role(workspace, role, permissions))
                 .toList();
 
@@ -293,7 +294,7 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
     }
 
     private IdentityWorkspace loadWorkspace(String workspaceId) {
-        return workspaceService.getById(Long.parseLong(workspaceId));
+        return workspaceService.getById(UniqueId.parse(workspaceId).getLongValue());
     }
 
     private String format(Instant instant) {

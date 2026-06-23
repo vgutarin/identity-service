@@ -125,7 +125,7 @@ class IdentityWorkspaceServiceTest {
     void update_whenEntityIsNotFound_throwsEntityNotFoundException() {
         var model = workspaceModel(nextLong());
 
-        when(workspaceRepository.findById(model.getUniqueId().value())).thenReturn(Optional.empty());
+        when(workspaceRepository.findById(model.getUniqueId().getLongValue())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.update(model))
                 .isInstanceOf(EntityNotFoundException.class);

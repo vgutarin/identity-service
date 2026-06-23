@@ -55,7 +55,7 @@ public class IdentityWorkspaceService {
     @PreAuthorize("hasRole('OWNER')")
     @Transactional
     public IdentityWorkspace update(IdentityWorkspace workspace) {
-        var uniqueId = workspace.getUniqueId().value();
+        var uniqueId = workspace.getUniqueId().getLongValue();
         var existing = workspaceRepository.findById(uniqueId)
                 .orElseThrow(EntityNotFoundException::new);
 
@@ -111,7 +111,7 @@ public class IdentityWorkspaceService {
     @Transactional
     public IdentityWorkspaceEntity create(IdentityWorkspaceEntity workspace) {
         var saved = create(workspaceMapper.toModel(workspace));
-        return getEntity(saved.getUniqueId().value());
+        return getEntity(saved.getUniqueId().getLongValue());
     }
 
     /**
@@ -138,7 +138,7 @@ public class IdentityWorkspaceService {
     @Transactional
     public IdentityWorkspaceEntity update(IdentityWorkspaceEntity workspace) {
         var saved = update(workspaceMapper.toModel(workspace));
-        return getEntity(saved.getUniqueId().value());
+        return getEntity(saved.getUniqueId().getLongValue());
     }
 
     @Transactional(readOnly = true)

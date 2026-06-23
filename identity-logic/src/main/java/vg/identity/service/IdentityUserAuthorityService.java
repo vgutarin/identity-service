@@ -34,7 +34,7 @@ public class IdentityUserAuthorityService {
     public void loadAuthorities(IdentityUser user) {
         user.setAuthorities(
                 systemRoleRepository.getAllByIdentityPrincipalUniqueId(
-                                user.getUniqueId().value()
+                                user.getUniqueId().getLongValue()
                         ).stream()
                         .map(
                                 e -> toRoleAuthority(e.getRole().name())
@@ -47,7 +47,7 @@ public class IdentityUserAuthorityService {
     @PreAuthorize("hasRole('OWNER')")//TODO vg go over this an use per
     public void assignAuthority(IdentityUser user, IdentityUserSystemRole role) {
         var id = IdentityUserSystemRoleEntityId.builder()
-                .identityPrincipalUniqueId(user.getUniqueId().value())
+                .identityPrincipalUniqueId(user.getUniqueId().getLongValue())
                 .role(role)
                 .build();
         if (systemRoleRepository.existsById(id)) {
@@ -81,7 +81,7 @@ public class IdentityUserAuthorityService {
                 .getId();
 
         var id = IdentityUserResourcePermissionEntityId.builder()
-                .principalUniqueId(user.getUniqueId().value())
+                .principalUniqueId(user.getUniqueId().getLongValue())
                 .resourceUniqueId(resource.getUniqueId())
                 .permissionId(permissionId)
                 .build();
@@ -111,7 +111,7 @@ public class IdentityUserAuthorityService {
         if (permissionEntity.isEmpty()) {
             log.warn(
                     "Cannot revoke resource authority because permission does not exist: principalUniqueId={}, resourceUniqueId={}, permission={}",
-                    user.getUniqueId().value(),
+                    user.getUniqueId().getLongValue(),
                     resource.getUniqueId(),
                     permissionName
             );
@@ -119,7 +119,7 @@ public class IdentityUserAuthorityService {
         }
 
         var id = IdentityUserResourcePermissionEntityId.builder()
-                .principalUniqueId(user.getUniqueId().value())
+                .principalUniqueId(user.getUniqueId().getLongValue())
                 .resourceUniqueId(resource.getUniqueId())
                 .permissionId(permissionEntity.get().getId())
                 .build();
@@ -139,7 +139,7 @@ public class IdentityUserAuthorityService {
     @PreAuthorize("hasRole('OWNER')")
     public List<IdentityUserResourcePermission> findByUserAndResourceType(IdentityUser user, IdentityResourceType resourceType) {
         return switch (resourceType) {
-            case WORKSPACE -> resourcePermissionRepository.findWorkspacePermissionsByPrincipalUniqueId(user.getUniqueId().value());
+            case WORKSPACE -> resourcePermissionRepository.findWorkspacePermissionsByPrincipalUniqueId(user.getUniqueId().getLongValue());
         };
     }
 

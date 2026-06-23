@@ -107,7 +107,7 @@ class IdentityPrincipalServiceTest {
 
         var user = IdentityUser.builder().uniqueId(userId).username(updatedName).build();
 
-        var entityId = userId.value();
+        var entityId = userId.getLongValue();
         var entity = IdentityUserEntity.builder().uniqueId(entityId).build();
         var entitySaved = IdentityUserEntity.builder()
                 .uniqueId(entityId)
