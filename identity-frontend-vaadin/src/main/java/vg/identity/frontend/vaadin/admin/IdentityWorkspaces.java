@@ -1,8 +1,8 @@
 package vg.identity.frontend.vaadin.admin;
 
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
@@ -12,13 +12,11 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.router.PageTitle;
-import com.vaadin.flow.router.RouteParam;
-import com.vaadin.flow.router.RouteParameters;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 import vg.identity.frontend.vaadin.MainView;
@@ -26,13 +24,6 @@ import vg.identity.frontend.vaadin.Role;
 import vg.identity.frontend.vaadin.service.LocalizationService;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.service.IdentityWorkspaceService;
-
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
-import java.util.List;
-import java.util.function.Consumer;
 
 @PageTitle("Workspaces")
 @Route(value = "admin/workspaces", layout = MainView.class)
@@ -42,14 +33,10 @@ public class IdentityWorkspaces extends VerticalLayout {
     private final transient IdentityWorkspaceService workspaceService;
     private final LocalizationService localization;
     private final Grid<IdentityWorkspace> grid = new Grid<>(IdentityWorkspace.class, false);
-    private final DateTimeFormatter dateTimeFormatter;
 
     public IdentityWorkspaces(IdentityWorkspaceService workspaceService, LocalizationService localization) {
         this.workspaceService = workspaceService;
         this.localization = localization;
-        this.dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
-                .withLocale(localization.getCurrentLocale())
-                .withZone(ZoneId.systemDefault());
 
         setSizeFull();
         setPadding(true);
@@ -73,85 +60,36 @@ public class IdentityWorkspaces extends VerticalLayout {
 
     private void configureGrid() {
         grid.setSizeFull();
+        grid.addClassName("clickable-workspaces-grid");
         grid.setEmptyStateText(localization.i18n("No workspaces found"));
 
-        grid.addColumn(workspace -> workspace.getUniqueId() == null ? "" : workspace.getUniqueId())
-                .setHeader(localization.i18n("ID"))
-                .setSortable(true)
-                .setAutoWidth(true)
-                .setFlexGrow(0);
         grid.addColumn(IdentityWorkspace::getName)
                 .setHeader(localization.i18n("Name"))
                 .setSortable(true)
                 .setAutoWidth(true);
-        grid.addColumn(workspace -> format(workspace.getCreatedAt()))
+        grid.addColumn(workspace -> localization.formatDateTime(workspace.getCreatedAt()))
                 .setHeader(localization.i18n("Created"))
                 .setSortable(true)
                 .setComparator(IdentityWorkspace::getCreatedAt)
                 .setAutoWidth(true);
-        grid.addColumn(workspace -> format(workspace.getUpdatedAt()))
+        grid.addColumn(workspace -> localization.formatDateTime(workspace.getUpdatedAt()))
                 .setHeader(localization.i18n("Updated"))
                 .setSortable(true)
                 .setComparator(IdentityWorkspace::getUpdatedAt)
                 .setAutoWidth(true);
-        grid.addComponentColumn(this::actions)
-                .setHeader(localization.i18n("Actions"))
-                .setAutoWidth(true)
-                .setFlexGrow(0);
+        grid.addItemClickListener(event -> UI.getCurrent().navigate(
+                IdentityWorkspaceDetails.class,
+                IdentityWorkspaceDetails.routeParameters(event.getItem())
+        ));
     }
 
-    private HorizontalLayout actions(IdentityWorkspace workspace) {
-        var actions = new HorizontalLayout();
-        actions.setPadding(false);
-        actions.setSpacing(true);
-
-        managementActions().stream()
-                .map(action -> action.button(workspace, localization))
-                .forEach(actions::add);
-
-        var edit = new Button(localization.i18n("Edit"), VaadinIcon.EDIT.create());
-        edit.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
-        edit.addClickListener(event -> openForm(workspace));
-
-        var delete = new Button(localization.i18n("Delete"), VaadinIcon.TRASH.create());
-        delete.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
-        delete.addClickListener(event -> confirmDelete(workspace));
-
-        actions.add(edit, delete);
-        return actions;
-    }
-
-    private List<WorkspaceAction> managementActions() {
-        return List.of(
-                new WorkspaceAction(
-                        localization.i18n("Roles"),
-                        VaadinIcon.USERS,
-                        workspace -> UI.getCurrent().navigate(
-                                IdentityWorkspaceRoles.class,
-                                new RouteParameters(
-                                        new RouteParam("workspaceId", workspace.getUniqueId().toString())
-                                )
-                        )
-                ),
-                new WorkspaceAction(
-                        localization.i18n("Applications"),
-                        VaadinIcon.COG,
-                        workspace -> UI.getCurrent().navigate(
-                                IdentityWorkspaceApplications.class,
-                                new RouteParameters(
-                                        new RouteParam("workspaceId", workspace.getUniqueId().toString())
-                                )
-                        )
-                )
-        );
+    private void refreshGrid() {
+        grid.setItems(workspaceService.getAll());
     }
 
     private void openForm(IdentityWorkspace workspace) {
-        var editing = workspace.getUniqueId() != null;
-        var formWorkspace = editing ? copy(workspace) : workspace;
-
         var dialog = new Dialog();
-        dialog.setHeaderTitle(localization.i18n(editing ? "Edit workspace" : "Create workspace"));
+        dialog.setHeaderTitle(localization.i18n("Create workspace"));
         dialog.setDraggable(true);
 
         var binder = new Binder<>(IdentityWorkspace.class);
@@ -159,16 +97,22 @@ public class IdentityWorkspaces extends VerticalLayout {
         name.setWidthFull();
         name.setRequiredIndicatorVisible(true);
 
+        var description = new TextArea(localization.i18n("Description"));
+        description.setWidthFull();
+
         binder.forField(name)
                 .asRequired(localization.i18n("Name is required"))
                 .withValidator(value -> !value.isBlank(), localization.i18n("Name is required"))
                 .bind(IdentityWorkspace::getName, IdentityWorkspace::setName);
-        binder.readBean(formWorkspace);
+        binder.forField(description)
+                .withNullRepresentation("")
+                .bind(IdentityWorkspace::getDescription, IdentityWorkspace::setDescription);
+        binder.readBean(workspace);
 
-        var form = new FormLayout(name);
+        var form = new FormLayout(name, description);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
 
-        var save = new Button(localization.i18n("Save"), event -> save(dialog, binder, formWorkspace));
+        var save = new Button(localization.i18n("Save"), event -> save(dialog, binder, workspace));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         var cancel = new Button(localization.i18n("Cancel"), event -> dialog.close());
@@ -184,14 +128,10 @@ public class IdentityWorkspaces extends VerticalLayout {
     private void save(Dialog dialog, Binder<IdentityWorkspace> binder, IdentityWorkspace workspace) {
         try {
             binder.writeBean(workspace);
-            if (workspace.getUniqueId() == null) {
-                workspaceService.create(workspace);
-            } else {
-                workspaceService.update(workspace);
-            }
+            var saved = workspaceService.create(workspace);
             dialog.close();
-            refreshGrid();
             notify(localization.i18n("Workspace saved"), NotificationVariant.LUMO_SUCCESS);
+            UI.getCurrent().navigate(IdentityWorkspaceDetails.class, IdentityWorkspaceDetails.routeParameters(saved));
         } catch (ValidationException ignored) {
             notify(localization.i18n("Fix validation errors"), NotificationVariant.LUMO_ERROR);
         } catch (Exception e) {
@@ -199,61 +139,8 @@ public class IdentityWorkspaces extends VerticalLayout {
         }
     }
 
-    private void confirmDelete(IdentityWorkspace workspace) {
-        var dialog = new ConfirmDialog();
-        dialog.setHeader(localization.i18n("Delete workspace"));
-        dialog.setText(localization.i18n("Delete workspace confirmation"));
-        dialog.setCancelable(true);
-        dialog.setCancelText(localization.i18n("Cancel"));
-        dialog.setConfirmText(localization.i18n("Delete"));
-        dialog.setConfirmButtonTheme("error primary");
-        dialog.addConfirmListener(event -> delete(workspace));
-        dialog.open();
-    }
-
-    private void delete(IdentityWorkspace workspace) {
-        try {
-            workspaceService.delete(workspace.getUniqueId());
-            refreshGrid();
-            notify(localization.i18n("Workspace deleted"), NotificationVariant.LUMO_SUCCESS);
-        } catch (Exception e) {
-            notify(localization.i18n(e), NotificationVariant.LUMO_ERROR);
-        }
-    }
-
-    private void refreshGrid() {
-        grid.setItems(workspaceService.getAll());
-    }
-
-    private String format(Instant instant) {
-        return instant == null ? "" : dateTimeFormatter.format(instant);
-    }
-
-    private IdentityWorkspace copy(IdentityWorkspace workspace) {
-        return IdentityWorkspace.builder()
-                .uniqueId(workspace.getUniqueId())
-                .version(workspace.getVersion())
-                .createdAt(workspace.getCreatedAt())
-                .updatedAt(workspace.getUpdatedAt())
-                .name(workspace.getName())
-                .build();
-    }
-
     private void notify(String message, NotificationVariant variant) {
         var notification = Notification.show(message, 3000, Notification.Position.TOP_END);
         notification.addThemeVariants(variant);
-    }
-
-    private record WorkspaceAction(
-            String label,
-            VaadinIcon icon,
-            Consumer<IdentityWorkspace> action
-    ) {
-        private Button button(IdentityWorkspace workspace, LocalizationService localization) {
-            var button = new Button(localization.i18n(label), icon.create());
-            button.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
-            button.addClickListener(event -> action.accept(workspace));
-            return button;
-        }
     }
 }

@@ -64,9 +64,17 @@ body {
   margin: 0;
 }
 
-vaadin-button.workspace-context-button {
+vaadin-button.navigation-back-button {
   --vaadin-button-font-size: var(--aura-font-size-l);
   justify-content: flex-start;
+}
+
+vaadin-grid.clickable-workspaces-grid {
+  --vaadin-grid-row-hover-background-color: var(--vaadin-background-container-strong);
+}
+
+vaadin-grid.clickable-workspaces-grid::part(body-cell) {
+  cursor: pointer;
 }
 
 .login-view {

@@ -213,6 +213,9 @@ databaseChangeLog:
               - column:
                   name: name
                   type: BLOB
+              - column:
+                  name: description
+                  type: BLOB
   - changeSet:
       id: 001-5
       author: vg

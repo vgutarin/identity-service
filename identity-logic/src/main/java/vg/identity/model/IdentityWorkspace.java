@@ -24,4 +24,5 @@ public class IdentityWorkspace implements Identifiable {
     private Instant createdAt;
     private Instant updatedAt;
     private String name;
+    private String description;
 }

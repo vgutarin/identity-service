@@ -1,7 +1,6 @@
 package vg.identity.frontend.vaadin.admin;
 
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -19,13 +18,6 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
-import com.vaadin.flow.router.BeforeEnterEvent;
-import com.vaadin.flow.router.BeforeEnterObserver;
-import com.vaadin.flow.router.PageTitle;
-import com.vaadin.flow.router.Route;
-import jakarta.annotation.security.RolesAllowed;
-import vg.identity.frontend.vaadin.MainView;
-import vg.identity.frontend.vaadin.Role;
 import vg.identity.frontend.vaadin.service.LocalizationService;
 import vg.identity.model.IdentityPermission;
 import vg.identity.model.IdentityRole;
@@ -33,28 +25,22 @@ import vg.identity.model.IdentityWorkspace;
 import vg.identity.service.IdentityPermissionService;
 import vg.identity.service.IdentityRoleService;
 import vg.identity.service.IdentityWorkspaceService;
-import vg.unique.id.model.UniqueId;
 
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 
-@PageTitle("Roles")
-@Route(value = "admin/workspaces/:workspaceId/roles", layout = MainView.class)
-@RolesAllowed(Role.OWNER)
-public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnterObserver {
-
-    private static final String WORKSPACE_ID_PARAMETER = "workspaceId";
+class IdentityWorkspaceRolesTab extends VerticalLayout {
 
     private final transient IdentityWorkspaceService workspaceService;
     private final transient IdentityRoleService roleService;
     private final transient IdentityPermissionService permissionService;
     private final LocalizationService localization;
-    private final HorizontalLayout toolbar = new HorizontalLayout();
+    private final HorizontalLayout actions = new HorizontalLayout();
     private final TreeGrid<RoleTreeItem> grid = new TreeGrid<>();
     private IdentityWorkspace workspace;
 
-    public IdentityWorkspaceRoles(
+    IdentityWorkspaceRolesTab(
             IdentityWorkspaceService workspaceService,
             IdentityRoleService roleService,
             IdentityPermissionService permissionService,
@@ -66,51 +52,33 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
         this.localization = localization;
 
         setSizeFull();
-        setPadding(true);
+        setPadding(false);
         setSpacing(true);
+        setVisible(false);
 
-        configureToolbar();
+        configureActions();
         configureGrid();
 
-        add(toolbar, grid);
+        add(actions, grid);
         expand(grid);
     }
 
-    private void configureToolbar() {
-        toolbar.setWidthFull();
-        toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
-        toolbar.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
-        toolbar.setVisible(false);
+    void setWorkspace(IdentityWorkspace workspace) {
+        this.workspace = workspace;
+        refresh();
     }
 
-    @Override
-    public void beforeEnter(BeforeEnterEvent event) {
-        workspace = event.getRouteParameters()
-                .get(WORKSPACE_ID_PARAMETER)
-                .map(this::loadWorkspace)
-                .orElseThrow();
-        refreshToolbar();
+    void refresh() {
+        refreshActions();
         refreshGrid();
     }
 
-    private void refreshToolbar() {
-        toolbar.removeAll();
-        toolbar.setVisible(workspace != null);
-        if (workspace == null) {
-            return;
-        }
-
-        var workspaceName = new Button(workspace.getName(), VaadinIcon.ARROW_LEFT.create());
-        workspaceName.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        workspaceName.addClassName("workspace-context-button");
-        workspaceName.addClickListener(event -> UI.getCurrent().navigate(IdentityWorkspaces.class));
-
-        var add = new Button(localization.i18n("Add role"), VaadinIcon.PLUS.create());
-        add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        add.addClickListener(event -> openForm(workspace, new IdentityRole()));
-
-        toolbar.add(workspaceName, add);
-        toolbar.expand(workspaceName);
+    private void configureActions() {
+        actions.setWidthFull();
+        actions.setPadding(false);
+        actions.setSpacing(true);
+        actions.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
+        actions.setVisible(false);
     }
 
     private void configureGrid() {
@@ -137,13 +105,27 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
                 .setHeader(localization.i18n("Updated"))
                 .setSortable(true)
                 .setAutoWidth(true);
-        grid.addComponentColumn(this::actions)
+        grid.addComponentColumn(this::rowActions)
                 .setHeader(localization.i18n("Actions"))
                 .setAutoWidth(true)
                 .setFlexGrow(0);
         grid.addSelectionListener(event -> event.getFirstSelectedItem()
                 .filter(RoleTreeItem::expandable)
                 .ifPresent(grid::expand));
+    }
+
+    private void refreshActions() {
+        actions.removeAll();
+        actions.setVisible(workspace != null);
+        if (workspace == null) {
+            return;
+        }
+
+        var add = new Button(localization.i18n("Add role"), VaadinIcon.PLUS.create());
+        add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        add.addClickListener(event -> openForm(new IdentityRole()));
+
+        actions.add(add);
     }
 
     private Component permissionCheckbox(RoleTreeItem item) {
@@ -168,7 +150,7 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
         return checkbox;
     }
 
-    private HorizontalLayout actions(RoleTreeItem item) {
+    private HorizontalLayout rowActions(RoleTreeItem item) {
         if (!item.role()) {
             return new HorizontalLayout();
         }
@@ -176,7 +158,7 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
         var role = item.roleModel();
         var edit = new Button(localization.i18n("Edit"), VaadinIcon.EDIT.create());
         edit.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
-        edit.addClickListener(event -> openForm(item.workspaceModel(), role));
+        edit.addClickListener(event -> openForm(role));
 
         var delete = new Button(localization.i18n("Delete"), VaadinIcon.TRASH.create());
         delete.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
@@ -192,7 +174,7 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
         return layout;
     }
 
-    private void openForm(IdentityWorkspace workspace, IdentityRole role) {
+    private void openForm(IdentityRole role) {
         var editing = role.getId() != null;
         var formRole = editing ? copy(role) : role;
 
@@ -221,7 +203,7 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
         var form = new FormLayout(name, description);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
 
-        var save = new Button(localization.i18n("Save"), event -> save(dialog, binder, workspace, formRole));
+        var save = new Button(localization.i18n("Save"), event -> save(dialog, binder, formRole));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         var cancel = new Button(localization.i18n("Cancel"), event -> dialog.close());
@@ -234,12 +216,7 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
         dialog.open();
     }
 
-    private void save(
-            Dialog dialog,
-            Binder<IdentityRole> binder,
-            IdentityWorkspace workspace,
-            IdentityRole role
-    ) {
+    private void save(Dialog dialog, Binder<IdentityRole> binder, IdentityRole role) {
         try {
             binder.writeBean(role);
 
@@ -281,6 +258,11 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
     }
 
     private void refreshGrid() {
+        if (workspace == null) {
+            grid.setItems(List.of(), RoleTreeItem::children);
+            return;
+        }
+
         var permissions = permissionService.getAll().stream()
                 .map(IdentityPermission::getName)
                 .sorted()
@@ -291,10 +273,6 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
                 .toList();
 
         grid.setItems(roles, RoleTreeItem::children);
-    }
-
-    private IdentityWorkspace loadWorkspace(String workspaceId) {
-        return workspaceService.getById(UniqueId.parse(workspaceId));
     }
 
     private String format(Instant instant) {
@@ -355,10 +333,6 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
                     List.of(),
                     role.getPermissions().contains(permissionName)
             );
-        }
-
-        private IdentityWorkspace workspaceModel() {
-            return workspace;
         }
 
         private IdentityRole roleModel() {

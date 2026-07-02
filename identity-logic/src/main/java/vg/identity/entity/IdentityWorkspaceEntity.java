@@ -56,6 +56,10 @@ public class IdentityWorkspaceEntity implements UniqueIdEntity {
     @Column(columnDefinition = "BLOB")
     private String name;
 
+    @Convert(converter = StringEncryptionConverter.class)
+    @Column(columnDefinition = "BLOB")
+    private String description;
+
     @Override
     public final boolean equals(Object o) {
         if (this == o) return true;

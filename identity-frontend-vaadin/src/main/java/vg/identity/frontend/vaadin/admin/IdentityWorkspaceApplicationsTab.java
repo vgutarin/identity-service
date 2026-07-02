@@ -1,7 +1,6 @@
 package vg.identity.frontend.vaadin.admin;
 
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
@@ -18,37 +17,24 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
-import com.vaadin.flow.router.BeforeEnterEvent;
-import com.vaadin.flow.router.BeforeEnterObserver;
-import com.vaadin.flow.router.PageTitle;
-import com.vaadin.flow.router.Route;
-import jakarta.annotation.security.RolesAllowed;
-import vg.identity.frontend.vaadin.MainView;
-import vg.identity.frontend.vaadin.Role;
 import vg.identity.frontend.vaadin.service.LocalizationService;
 import vg.identity.model.IdentityApplication;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.service.IdentityApplicationService;
 import vg.identity.service.IdentityWorkspaceService;
-import vg.unique.id.model.UniqueId;
 
 import java.time.Instant;
 
-@PageTitle("Applications")
-@Route(value = "admin/workspaces/:workspaceId/applications", layout = MainView.class)
-@RolesAllowed(Role.OWNER)
-public class IdentityWorkspaceApplications extends VerticalLayout implements BeforeEnterObserver {
-
-    private static final String WORKSPACE_ID_PARAMETER = "workspaceId";
+class IdentityWorkspaceApplicationsTab extends VerticalLayout {
 
     private final transient IdentityWorkspaceService workspaceService;
     private final transient IdentityApplicationService applicationService;
     private final LocalizationService localization;
-    private final HorizontalLayout toolbar = new HorizontalLayout();
+    private final HorizontalLayout actions = new HorizontalLayout();
     private final Grid<IdentityApplication> grid = new Grid<>(IdentityApplication.class, false);
     private IdentityWorkspace workspace;
 
-    public IdentityWorkspaceApplications(
+    IdentityWorkspaceApplicationsTab(
             IdentityWorkspaceService workspaceService,
             IdentityApplicationService applicationService,
             LocalizationService localization
@@ -58,51 +44,32 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
         this.localization = localization;
 
         setSizeFull();
-        setPadding(true);
+        setPadding(false);
         setSpacing(true);
 
-        configureToolbar();
+        configureActions();
         configureGrid();
 
-        add(toolbar, grid);
+        add(actions, grid);
         expand(grid);
     }
 
-    private void configureToolbar() {
-        toolbar.setWidthFull();
-        toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
-        toolbar.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
-        toolbar.setVisible(false);
+    void setWorkspace(IdentityWorkspace workspace) {
+        this.workspace = workspace;
+        refresh();
     }
 
-    @Override
-    public void beforeEnter(BeforeEnterEvent event) {
-        workspace = event.getRouteParameters()
-                .get(WORKSPACE_ID_PARAMETER)
-                .map(this::loadWorkspace)
-                .orElseThrow();
-        refreshToolbar();
+    void refresh() {
+        refreshActions();
         refreshGrid();
     }
 
-    private void refreshToolbar() {
-        toolbar.removeAll();
-        toolbar.setVisible(workspace != null);
-        if (workspace == null) {
-            return;
-        }
-
-        var workspaceName = new Button(workspace.getName(), VaadinIcon.ARROW_LEFT.create());
-        workspaceName.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        workspaceName.addClassName("workspace-context-button");
-        workspaceName.addClickListener(event -> UI.getCurrent().navigate(IdentityWorkspaces.class));
-
-        var add = new Button(localization.i18n("Add application"), VaadinIcon.PLUS.create());
-        add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        add.addClickListener(event -> openForm(workspace, new IdentityApplication()));
-
-        toolbar.add(workspaceName, add);
-        toolbar.expand(workspaceName);
+    private void configureActions() {
+        actions.setWidthFull();
+        actions.setPadding(false);
+        actions.setSpacing(true);
+        actions.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
+        actions.setVisible(false);
     }
 
     private void configureGrid() {
@@ -130,16 +97,30 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
                 .setHeader(localization.i18n("Updated"))
                 .setSortable(true)
                 .setAutoWidth(true);
-        grid.addComponentColumn(this::actions)
+        grid.addComponentColumn(this::rowActions)
                 .setHeader(localization.i18n("Actions"))
                 .setAutoWidth(true)
                 .setFlexGrow(0);
     }
 
-    private HorizontalLayout actions(IdentityApplication application) {
+    private void refreshActions() {
+        actions.removeAll();
+        actions.setVisible(workspace != null);
+        if (workspace == null) {
+            return;
+        }
+
+        var add = new Button(localization.i18n("Add application"), VaadinIcon.PLUS.create());
+        add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        add.addClickListener(event -> openForm(new IdentityApplication()));
+
+        actions.add(add);
+    }
+
+    private HorizontalLayout rowActions(IdentityApplication application) {
         var edit = new Button(localization.i18n("Edit"), VaadinIcon.EDIT.create());
         edit.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
-        edit.addClickListener(event -> openForm(workspace, application));
+        edit.addClickListener(event -> openForm(application));
 
         var delete = new Button(localization.i18n("Delete"), VaadinIcon.TRASH.create());
         delete.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
@@ -155,7 +136,7 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
         return layout;
     }
 
-    private void openForm(IdentityWorkspace workspace, IdentityApplication application) {
+    private void openForm(IdentityApplication application) {
         var editing = application.getUniqueId() != null;
         var formApplication = editing ? copy(application) : application;
 
@@ -183,7 +164,7 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
         var form = new FormLayout(name, data);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
 
-        var save = new Button(localization.i18n("Save"), event -> save(dialog, binder, workspace, formApplication));
+        var save = new Button(localization.i18n("Save"), event -> save(dialog, binder, formApplication));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         var cancel = new Button(localization.i18n("Cancel"), event -> dialog.close());
@@ -196,12 +177,7 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
         dialog.open();
     }
 
-    private void save(
-            Dialog dialog,
-            Binder<IdentityApplication> binder,
-            IdentityWorkspace workspace,
-            IdentityApplication application
-    ) {
+    private void save(Dialog dialog, Binder<IdentityApplication> binder, IdentityApplication application) {
         try {
             binder.writeBean(application);
 
@@ -243,17 +219,14 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
     }
 
     private void refreshGrid() {
+        if (workspace == null) {
+            grid.setItems();
+            return;
+        }
+
         var applications = applicationService.findByWorkspaceUniqueId(workspace.getUniqueId());
 
         grid.setItems(applications);
-    }
-
-    private IdentityWorkspace loadWorkspace(String workspaceId) {
-        return workspaceService.getById(UniqueId.parse(workspaceId));
-    }
-
-    private String format(Instant instant) {
-        return localization.formatDateTime(instant);
     }
 
     private IdentityApplication copy(IdentityApplication application) {
@@ -266,6 +239,10 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
                 .name(application.getName())
                 .data(application.getData())
                 .build();
+    }
+
+    private String format(Instant instant) {
+        return localization.formatDateTime(instant);
     }
 
     private void notify(String message, NotificationVariant variant) {
