@@ -27,6 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static vg.test.TestHelper.nextLong;
 import static vg.test.TestHelper.nextString;
+import static vg.test.TestHelper.nextUniqueId;
 
 @ExtendWith(MockitoExtension.class)
 class IdentityWorkspaceServiceTest {
@@ -76,12 +77,12 @@ class IdentityWorkspaceServiceTest {
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(entity));
         when(workspaceMapper.toModel(entity)).thenReturn(model);
 
-        assertThat(service.getById(workspaceId)).isSameAs(model);
+        assertThat(service.getById(new UniqueId(workspaceId))).isSameAs(model);
     }
 
     @Test
     void getById_whenEntityIsNotFound_throwsEntityNotFoundException() {
-        var workspaceId = nextLong();
+        var workspaceId = nextUniqueId();
 
         assertThatThrownBy(() -> service.getById(workspaceId))
                 .isInstanceOf(EntityNotFoundException.class);
@@ -158,14 +159,14 @@ class IdentityWorkspaceServiceTest {
 
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
 
-        service.delete(workspaceId);
+        service.delete(new UniqueId(workspaceId));
 
         verify(workspaceRepository).delete(workspace);
         verify(workspaceRepository).flush();
     }
 
     @Test
-    void addRole_whenWorkspaceExists_createRoleInWorkspace() {
+    void createRole_whenWorkspaceExists_createRoleInWorkspace() {
         var workspaceId = nextLong();
         var workspace = workspaceEntity(workspaceId);
         var role = IdentityRole.builder()
@@ -180,20 +181,20 @@ class IdentityWorkspaceServiceTest {
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
         when(roleService.create(role.getName(), role.getDescription(), workspace)).thenReturn(savedRole);
 
-        assertThat(service.addRole(workspaceId, role)).isSameAs(savedRole);
+        assertThat(service.createRole(new UniqueId(workspaceId), role)).isSameAs(savedRole);
     }
 
     @Test
-    void addRole_whenWorkspaceIsNotFound_throwsEntityNotFoundException() {
+    void createRole_whenWorkspaceIsNotFound_throwsEntityNotFoundException() {
         var workspaceId = nextLong();
         var role = IdentityRole.builder().name(nextString()).build();
 
-        assertThatThrownBy(() -> service.addRole(workspaceId, role))
+        assertThatThrownBy(() -> service.createRole(new UniqueId(workspaceId), role))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test
-    void addApplication_whenWorkspaceExists_createApplicationInWorkspace() {
+    void createApplication_whenWorkspaceExists_createApplicationInWorkspace() {
         var workspaceId = nextLong();
         var workspace = workspaceEntity(workspaceId);
         var application = IdentityApplication.builder()
@@ -208,25 +209,16 @@ class IdentityWorkspaceServiceTest {
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
         when(applicationService.create(application.getName(), application.getData(), workspace)).thenReturn(savedApplication);
 
-        assertThat(service.addApplication(workspaceId, application)).isSameAs(savedApplication);
+        assertThat(service.createApplication(new UniqueId(workspaceId), application)).isSameAs(savedApplication);
     }
 
     @Test
-    void addApplication_whenWorkspaceIsNotFound_throwsEntityNotFoundException() {
+    void createApplication_whenWorkspaceIsNotFound_throwsEntityNotFoundException() {
         var workspaceId = nextLong();
         var application = IdentityApplication.builder().name(nextString()).build();
 
-        assertThatThrownBy(() -> service.addApplication(workspaceId, application))
+        assertThatThrownBy(() -> service.createApplication(new UniqueId(workspaceId), application))
                 .isInstanceOf(EntityNotFoundException.class);
-    }
-
-    @Test
-    void existsById_whenWorkspaceExists_returnsTrue() {
-        var workspaceId = nextLong();
-
-        when(workspaceRepository.existsById(workspaceId)).thenReturn(true);
-
-        assertThat(service.existsById(workspaceId)).isTrue();
     }
 
     private static IdentityWorkspaceEntity workspaceEntity(long id) {

@@ -39,12 +39,13 @@ public class IdentityApplicationStartup {
         createUser("g", "g", null);
         createUser("a", "a", null);
 
+        var owner = userDetailsManager.loadUserByUsername("vg");
         SecurityContextHolder.getContext()
                 .setAuthentication(
                         new PreAuthenticatedAuthenticationToken(
+                                owner,
                                 "vg",
-                                "vg",
-                                userDetailsManager.loadUserByUsername("vg").getAuthorities()
+                                owner.getAuthorities()
                         )
                 );
 

@@ -2,7 +2,6 @@ package vg.identity.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.assertj.core.data.TemporalUnitWithinOffset;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,10 +13,6 @@ import vg.identity.entity.IdentityRoleTemplateEntity;
 import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityRoleTemplate;
 import vg.identity.model.IdentityWorkspace;
-import vg.identity.repository.IdentityPermissionRepository;
-import vg.identity.repository.IdentityRoleRepository;
-import vg.identity.repository.IdentityRoleTemplateRepository;
-import vg.identity.repository.IdentityWorkspaceRepository;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -36,28 +31,12 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
     IdentityRoleTemplateService roleTemplateService;
     @Autowired
     IdentityWorkspaceService workspaceService;
-    @Autowired
-    IdentityRoleRepository roleRepository;
-    @Autowired
-    IdentityRoleTemplateRepository roleTemplateRepository;
-    @Autowired
-    IdentityWorkspaceRepository workspaceRepository;
-    @Autowired
-    IdentityPermissionRepository permissionRepository;
 
     private String name;
 
     @BeforeEach
     void setUp() {
         name = nextString();
-    }
-
-    @AfterEach
-    void cleanUp() {
-        roleRepository.deleteAll();
-        roleTemplateRepository.deleteAll();
-        workspaceRepository.deleteAll();
-        permissionRepository.deleteAll();
     }
 
     @Test
@@ -105,7 +84,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
                         permissionRepository.findByName("app.update").orElseThrow()
                 ))
                 .build();
-        var workspaceEntity = workspaceService.getEntity(workspace.getUniqueId().getLongValue());
+        var workspaceEntity = workspaceRepository.findById(workspace.getUniqueId().getLongValue()).orElseThrow();
 
         var saved = service.createFromTemplate(List.of(templateEntity), workspaceEntity).getFirst();
 
@@ -241,6 +220,6 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
     private IdentityWorkspaceEntity createWorkspaceEntity() {
         var workspace = createWorkspace();
-        return workspaceService.getEntity(workspace.getUniqueId().getLongValue());
+        return workspaceRepository.findById(workspace.getUniqueId().getLongValue()).orElseThrow();
     }
 }

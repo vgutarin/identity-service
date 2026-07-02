@@ -11,7 +11,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @StyleSheet(Aura.STYLESHEET)
 @StyleSheet("styles.css")
 @ColorScheme(ColorScheme.Value.LIGHT_DARK)
-@SpringBootApplication(scanBasePackages = "vg.identity")
+@SpringBootApplication(scanBasePackages = {"vg.identity", "vg.unique.id"})
 @EnableJpaAuditing
 public class FrontendApplication implements AppShellConfigurator {
 

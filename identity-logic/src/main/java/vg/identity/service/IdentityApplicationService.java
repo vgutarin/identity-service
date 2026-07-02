@@ -13,8 +13,10 @@ import vg.identity.mapper.IdentityApplicationMapper;
 import vg.identity.model.IdentityApplication;
 import vg.identity.model.IdentityPrincipalStatus;
 import vg.identity.model.IdentityPrincipalType;
+import vg.identity.model.access.Permission;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
+import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
 import java.util.List;
@@ -28,7 +30,6 @@ public class IdentityApplicationService {
     private final IdentityApplicationMapper applicationMapper;
     private final EncryptionService encryptionService;
 
-    @PreAuthorize("hasRole('OWNER')")
     @Transactional
     IdentityApplication create(String name, String data, IdentityWorkspaceEntity workspace) {
         var principal = createPrincipal(name);
@@ -45,35 +46,31 @@ public class IdentityApplicationService {
         return applicationMapper.toModel(saved);
     }
 
+    @PreAuthorize("@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.READ + "')")
     @Transactional(readOnly = true)
-    public IdentityApplication getById(long uniqueId) {
-        return applicationRepository.findById(uniqueId)
+    public IdentityApplication getById(UniqueId applicationUniqueId) {
+        return applicationRepository.findById(applicationUniqueId.getLongValue())
                 .map(applicationMapper::toModel)
                 .orElseThrow(EntityNotFoundException::new);
     }
 
+    @PreAuthorize("@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.READ + "')")
     @Transactional(readOnly = true)
-    public IdentityApplication findById(long uniqueId) {
-        return applicationRepository.findById(uniqueId)
+    public IdentityApplication findById(UniqueId applicationUniqueId) {
+        return applicationRepository.findById(applicationUniqueId.getLongValue())
                 .map(applicationMapper::toModel)
                 .orElse(null);
     }
 
+    @PreAuthorize("@authorityChecker.hasAuthority(#workspaceUniqueId, '" + Permission.App.READ + "')")
     @Transactional(readOnly = true)
-    public List<IdentityApplication> getAll() {
-        return applicationRepository.findAll().stream()
+    public List<IdentityApplication> findByWorkspaceUniqueId(UniqueId workspaceUniqueId) {
+        return applicationRepository.findByWorkspaceUniqueId(workspaceUniqueId.getLongValue()).stream()
                 .map(applicationMapper::toModel)
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public List<IdentityApplication> findByWorkspaceUniqueId(long workspaceUniqueId) {
-        return applicationRepository.findByWorkspaceUniqueId(workspaceUniqueId).stream()
-                .map(applicationMapper::toModel)
-                .toList();
-    }
-
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("@authorityChecker.hasAuthority(#application.getUniqueId(), '" + Permission.App.UPDATE + "')")
     @Transactional
     public IdentityApplication update(IdentityApplication application) {
         var uniqueId = application.getUniqueId().getLongValue();
@@ -92,10 +89,10 @@ public class IdentityApplicationService {
         return applicationMapper.toModel(saved);
     }
 
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("@authorityChecker.hasAuthority(#uniqueId, '" + Permission.App.DELETE + "')")
     @Transactional
-    public void delete(Long uniqueId) {
-        var existing = applicationRepository.findById(uniqueId)
+    public void delete(UniqueId uniqueId) {
+        var existing = applicationRepository.findById(uniqueId.getLongValue())
                 .orElseThrow(EntityNotFoundException::new);
 
         applicationRepository.delete(existing);

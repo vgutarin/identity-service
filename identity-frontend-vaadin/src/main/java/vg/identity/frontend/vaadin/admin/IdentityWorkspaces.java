@@ -213,7 +213,7 @@ public class IdentityWorkspaces extends VerticalLayout {
 
     private void delete(IdentityWorkspace workspace) {
         try {
-            workspaceService.delete(workspace.getUniqueId().getLongValue());
+            workspaceService.delete(workspace.getUniqueId());
             refreshGrid();
             notify(localization.i18n("Workspace deleted"), NotificationVariant.LUMO_SUCCESS);
         } catch (Exception e) {

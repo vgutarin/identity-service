@@ -19,12 +19,12 @@ import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
-import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.frontend.vaadin.MainView;
 import vg.identity.frontend.vaadin.Role;
 import vg.identity.frontend.vaadin.service.LocalizationService;
 import vg.identity.model.IdentityResourceType;
 import vg.identity.model.IdentityUser;
+import vg.identity.model.IdentityWorkspace;
 import vg.identity.service.IdentityWorkspaceService;
 import vg.identity.service.IdentityUserAuthorityService;
 import vg.identity.service.IdentityPrincipalService;
@@ -111,8 +111,8 @@ public class IdentityUserPermissions extends VerticalLayout {
         resourceType.setItemLabelGenerator(type -> localization.i18n(type.name()));
         resourceType.setWidthFull();
 
-        var resource = new ComboBox<IdentityWorkspaceEntity>(localization.i18n("Resource"));
-        resource.setItemLabelGenerator(IdentityWorkspaceEntity::getName);
+        var resource = new ComboBox<IdentityWorkspace>(localization.i18n("Resource"));
+        resource.setItemLabelGenerator(IdentityWorkspace::getName);
         resource.setWidthFull();
         resource.setRequiredIndicatorVisible(true);
         resource.setEnabled(false);
@@ -132,7 +132,7 @@ public class IdentityUserPermissions extends VerticalLayout {
             resource.setEnabled(event.getValue() != null);
 
             if (event.getValue() == IdentityResourceType.WORKSPACE) {
-                resource.setItems(workspaceService.findAll());
+                resource.setItems(workspaceService.getAll());
             }
             if (event.getValue() != null) {
                 permissions.setItems(event.getValue().getPermissions());

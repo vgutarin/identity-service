@@ -7,11 +7,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import vg.identity.model.IdentityApplication;
+import vg.identity.entity.IdentityApplicationEntity;
+import vg.identity.entity.IdentityWorkspaceEntity;
+import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityRoleAssignmentRepository;
+import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.unique.id.model.UniqueId;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -28,9 +32,9 @@ class AuthorityCheckerTest {
     @Mock
     private IdentityRoleAssignmentRepository roleAssignmentRepository;
     @Mock
-    private IdentityWorkspaceService workspaceService;
+    private IdentityWorkspaceRepository workspaceRepository;
     @Mock
-    private IdentityApplicationService applicationService;
+    private IdentityApplicationRepository applicationRepository;
 
     @InjectMocks
     private AuthorityChecker authorityChecker;
@@ -109,7 +113,7 @@ class AuthorityCheckerTest {
         when(currentUserService.getCurrentUserDetails()).thenReturn(userDetails);
         when(currentUserService.hasRole("OWNER")).thenReturn(true);
 
-        assertThat(authorityChecker.hasAuthority(nextLong(), nextString())).isTrue();
+        assertThat(authorityChecker.hasAuthority(new UniqueId(nextLong()), nextString())).isTrue();
         verifyNoInteractions(roleAssignmentRepository);
     }
 
@@ -121,63 +125,67 @@ class AuthorityCheckerTest {
         when(currentUserService.hasRole("OWNER")).thenReturn(false);
         when(currentUserService.getCurrentUserUniqueId()).thenReturn(null);
 
-        assertThat(authorityChecker.hasAuthority(nextLong(), nextString())).isFalse();
+        assertThat(authorityChecker.hasAuthority(new UniqueId(nextLong()), nextString())).isFalse();
     }
 
     @Test
     void hasAuthority_withWorkspaceScopeAndRepositoryGrantsPermission_returnsTrue() {
         var userDetails = mock(UserDetails.class);
         var userUniqueId = new UniqueId(nextLong());
-        var workspaceId = nextLong();
+        var workspaceUniqueId = new UniqueId(nextLong());
         var permission = nextString();
 
         when(currentUserService.getCurrentUserDetails()).thenReturn(userDetails);
         when(currentUserService.hasRole("OWNER")).thenReturn(false);
         when(currentUserService.getCurrentUserUniqueId()).thenReturn(userUniqueId);
-        when(workspaceService.existsById(workspaceId)).thenReturn(true);
-        when(roleAssignmentRepository.hasPermission(userUniqueId.getLongValue(), List.of(workspaceId), permission)).thenReturn(true);
+        when(workspaceRepository.existsById(workspaceUniqueId.getLongValue())).thenReturn(true);
+        when(
+                roleAssignmentRepository.hasPermission(userUniqueId.getLongValue(), List.of(workspaceUniqueId.getLongValue()), permission)
+        ).thenReturn(true);
 
-        assertThat(authorityChecker.hasAuthority(workspaceId, permission)).isTrue();
+        assertThat(authorityChecker.hasAuthority(workspaceUniqueId, permission)).isTrue();
     }
 
     @Test
     void hasAuthority_withApplicationScopeAndRepositoryGrantsPermissionOnPath_returnsTrue() {
         var userDetails = mock(UserDetails.class);
         var userUniqueId = new UniqueId(nextLong());
-        var applicationId = nextLong();
-        var workspaceId = nextLong();
+        var applicationUniqueId = new UniqueId(nextLong());
+        var workspaceUniqueId = new UniqueId(nextLong());
         var permission = nextString();
 
         when(currentUserService.getCurrentUserDetails()).thenReturn(userDetails);
         when(currentUserService.hasRole("OWNER")).thenReturn(false);
         when(currentUserService.getCurrentUserUniqueId()).thenReturn(userUniqueId);
-        when(workspaceService.existsById(applicationId)).thenReturn(false);
-        when(applicationService.findById(applicationId)).thenReturn(IdentityApplication.builder()
-                .uniqueId(new UniqueId(applicationId))
-                .workspaceUniqueId(workspaceId)
-                .build());
+        when(workspaceRepository.existsById(applicationUniqueId.getLongValue())).thenReturn(false);
+        when(applicationRepository.findById(applicationUniqueId)).thenReturn(Optional.of(IdentityApplicationEntity.builder()
+                .uniqueId(applicationUniqueId.getLongValue())
+                .workspace(IdentityWorkspaceEntity.builder()
+                        .uniqueId(workspaceUniqueId.getLongValue())
+                        .build())
+                .build()));
         when(roleAssignmentRepository.hasPermission(
                 userUniqueId.getLongValue(),
-                List.of(applicationId, workspaceId),
+                List.of(applicationUniqueId.getLongValue(), workspaceUniqueId.getLongValue()),
                 permission
         )).thenReturn(true);
 
-        assertThat(authorityChecker.hasAuthority(applicationId, permission)).isTrue();
+        assertThat(authorityChecker.hasAuthority(applicationUniqueId, permission)).isTrue();
     }
 
     @Test
     void hasAuthority_withScopeAndResourceDoesNotBelongToSupportedScope_returnsFalse() {
         var userDetails = mock(UserDetails.class);
         var userUniqueId = new UniqueId(nextLong());
-        var resourceId = nextLong();
+        var resourceUniqueId = new UniqueId(nextLong());
 
         when(currentUserService.getCurrentUserDetails()).thenReturn(userDetails);
         when(currentUserService.hasRole("OWNER")).thenReturn(false);
         when(currentUserService.getCurrentUserUniqueId()).thenReturn(userUniqueId);
-        when(workspaceService.existsById(resourceId)).thenReturn(false);
-        when(applicationService.findById(resourceId)).thenReturn(null);
+        when(workspaceRepository.existsById(resourceUniqueId.getLongValue())).thenReturn(false);
+        when(applicationRepository.findById(resourceUniqueId)).thenReturn(Optional.empty());
 
-        assertThat(authorityChecker.hasAuthority(resourceId, nextString())).isFalse();
+        assertThat(authorityChecker.hasAuthority(resourceUniqueId, nextString())).isFalse();
         verifyNoInteractions(roleAssignmentRepository);
     }
 }

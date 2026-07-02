@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.model.IdentityPermission;
-import vg.identity.repository.IdentityPermissionRepository;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -21,8 +20,6 @@ import static vg.test.TestHelper.nextString;
 class IdentityPermissionServiceIntegrationTest extends BaseIntegrationTest {
     @Autowired
     IdentityPermissionService service;
-    @Autowired
-    IdentityPermissionRepository permissionRepository;
 
     @Test
     void create_whenValidInput_returnsCreatedPermission() {

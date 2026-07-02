@@ -20,7 +20,8 @@ dependencies {
 	implementation "vg.unique-id:unique-id-jpa-lib:0.0.1-SNAPSHOT"
 
 	runtimeOnly "com.h2database:h2"
-	runtimeOnly "vg.unique-id:unique-id-logic:0.0.1-SNAPSHOT"
+//	runtimeOnly "vg.unique-id:unique-id-logic:0.0.1-SNAPSHOT"
+	runtimeOnly "vg.unique-id:unique-id-rest-client:0.0.1-SNAPSHOT"
 //	runtimeOnly "com.mysql:mysql-connector-j:8.3.0"
 
 	compileOnly "org.projectlombok:lombok"

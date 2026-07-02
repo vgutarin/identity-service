@@ -1,7 +1,6 @@
 package vg.identity.service;
 
 import org.assertj.core.data.TemporalUnitWithinOffset;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,10 +8,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityUser;
-import vg.identity.repository.IdentityPrincipalRepository;
-import vg.identity.repository.IdentityUserChannelRepository;
-import vg.identity.repository.IdentityUserRepository;
-import vg.identity.repository.IdentityUserSystemRoleRepository;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -25,15 +20,6 @@ import static vg.test.TestHelper.nextString;
 class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
-    IdentityUserRepository repository;
-
-    @Autowired
-    IdentityPrincipalRepository principalRepository;
-
-    @Autowired
-    IdentityUserChannelRepository channelRepository;
-
-    @Autowired
     IdentityPrincipalService service;
 
     @Autowired
@@ -41,9 +27,6 @@ class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     EncryptionService encryptionService;
-
-    @Autowired
-    IdentityUserSystemRoleRepository systemRoleRepository;
 
     private String name;
     private String password;
@@ -53,14 +36,6 @@ class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
     void setUp() {
         name = nextString();
         password = nextString();
-    }
-
-    @AfterEach
-    void cleanUp() {
-        systemRoleRepository.deleteAll();
-        channelRepository.deleteAll();
-        repository.deleteAll();
-        principalRepository.deleteAll();
     }
 
     @Test

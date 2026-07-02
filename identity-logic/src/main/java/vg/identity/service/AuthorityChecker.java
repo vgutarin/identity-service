@@ -4,7 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import vg.identity.model.IdentityUserSystemRole;
+import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityRoleAssignmentRepository;
+import vg.identity.repository.IdentityWorkspaceRepository;
+import vg.unique.id.model.UniqueId;
 
 import java.util.Collections;
 import java.util.List;
@@ -15,9 +18,13 @@ import java.util.List;
 public class AuthorityChecker {
 
     private final CurrentUserService userService;
+
+    // AuthorityChecker is invoked by @PreAuthorize expressions on service methods.
+    // Use repositories directly to avoid calling secured services from inside authorization checks,
+    // which can cause circular authorization/service dependencies.
     private final IdentityRoleAssignmentRepository roleAssignmentRepository;
-    private final IdentityWorkspaceService workspaceService;
-    private final IdentityApplicationService applicationService;
+    private final IdentityWorkspaceRepository workspaceRepository;
+    private final IdentityApplicationRepository applicationRepository;
 
     @Deprecated
     public boolean hasResourceAuthority(long resourceUniqueId, String permission) {
@@ -70,7 +77,7 @@ public class AuthorityChecker {
      * @param permission permission to check
      * @return true if the current user has authority withing the given access scope resource
      */
-    public boolean hasAuthority(long accessScopeResourceUniqueId, String permission) {
+    public boolean hasAuthority(UniqueId accessScopeResourceUniqueId, String permission) {
 
         if (hasAuthority(permission)) {
             return true;
@@ -87,7 +94,7 @@ public class AuthorityChecker {
         if (pathToWorkspace.isEmpty()) {
             log.error(
                     "Could not find workspace for accessScopeResourceUniqueId {}. Permission {}",
-                    accessScopeResourceUniqueId,
+                    accessScopeResourceUniqueId.getLongValue(),
                     permission
             );
             return false;
@@ -96,21 +103,22 @@ public class AuthorityChecker {
         return roleAssignmentRepository.hasPermission(currentUserUniqueId.getLongValue(), pathToWorkspace, permission);
     }
 
-    private List<Long> pathToWorkspace(long accessScopeResourceUniqueId) {
+    private List<Long> pathToWorkspace(UniqueId accessScopeResourceUniqueId) {
 
-        if (workspaceService.existsById(accessScopeResourceUniqueId)) {
-            return List.of(accessScopeResourceUniqueId);
+
+        if (workspaceRepository.existsById(accessScopeResourceUniqueId.getLongValue())) {
+            return List.of(accessScopeResourceUniqueId.getLongValue());
         }
 
-        var res = applicationService.findById(accessScopeResourceUniqueId);
+        var res = applicationRepository.findById(accessScopeResourceUniqueId).orElse(null);
         if (null == res) {
             log.warn("Given accessScopeResourceUniqueId {} is neither a workspace not an application.", accessScopeResourceUniqueId);
             return Collections.emptyList();
         }
 
         return List.of(
-                res.getUniqueId().getLongValue(),
-                res.getWorkspaceUniqueId()
+                res.getUniqueId(),
+                res.getWorkspace().getUniqueId()
         );
     }
 }

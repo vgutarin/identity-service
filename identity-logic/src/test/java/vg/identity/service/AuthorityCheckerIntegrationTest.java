@@ -2,7 +2,6 @@ package vg.identity.service;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -18,16 +17,7 @@ import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.model.IdentityPrincipalStatus;
 import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.IdentityUser;
-import vg.identity.repository.IdentityApplicationRepository;
-import vg.identity.repository.IdentityPermissionRepository;
-import vg.identity.repository.IdentityPrincipalRepository;
-import vg.identity.repository.IdentityRoleAssignmentRepository;
-import vg.identity.repository.IdentityRoleRepository;
-import vg.identity.repository.IdentityRoleTemplateRepository;
-import vg.identity.repository.IdentityUserChannelRepository;
-import vg.identity.repository.IdentityUserRepository;
-import vg.identity.repository.IdentityUserSystemRoleRepository;
-import vg.identity.repository.IdentityWorkspaceRepository;
+import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
 import java.util.Locale;
@@ -42,8 +32,6 @@ class AuthorityCheckerIntegrationTest extends BaseIntegrationTest {
     @Autowired
     AuthorityChecker authorityChecker;
     @Autowired
-    IdentityPrincipalService principalService;
-    @Autowired
     UniqueIdService uniqueIdService;
     @Autowired
     EncryptionService encryptionService;
@@ -51,40 +39,6 @@ class AuthorityCheckerIntegrationTest extends BaseIntegrationTest {
     PlatformTransactionManager transactionManager;
     @PersistenceContext
     EntityManager entityManager;
-    @Autowired
-    IdentityRoleAssignmentRepository roleAssignmentRepository;
-    @Autowired
-    IdentityRoleRepository roleRepository;
-    @Autowired
-    IdentityRoleTemplateRepository roleTemplateRepository;
-    @Autowired
-    IdentityPermissionRepository permissionRepository;
-    @Autowired
-    IdentityApplicationRepository applicationRepository;
-    @Autowired
-    IdentityWorkspaceRepository workspaceRepository;
-    @Autowired
-    IdentityUserSystemRoleRepository systemRoleRepository;
-    @Autowired
-    IdentityUserChannelRepository channelRepository;
-    @Autowired
-    IdentityUserRepository userRepository;
-    @Autowired
-    IdentityPrincipalRepository principalRepository;
-
-    @AfterEach
-    void cleanUp() {
-        roleAssignmentRepository.deleteAll();
-        roleRepository.deleteAll();
-        roleTemplateRepository.deleteAll();
-        applicationRepository.deleteAll();
-        workspaceRepository.deleteAll();
-        permissionRepository.deleteAll();
-        systemRoleRepository.deleteAll();
-        channelRepository.deleteAll();
-        userRepository.deleteAll();
-        principalRepository.deleteAll();
-    }
 
     @Test
     @WithMockUser(username = USERNAME, roles = "OWNER")
@@ -95,51 +49,51 @@ class AuthorityCheckerIntegrationTest extends BaseIntegrationTest {
     @Test
     @WithMockUser(username = USERNAME, roles = "OWNER")
     void hasAuthority_withScopeAndUserIsOwner_returnsTrue() {
-        assertThat(authorityChecker.hasAuthority(Long.MAX_VALUE, "anything")).isTrue();
+        assertThat(authorityChecker.hasAuthority(new UniqueId(Long.MAX_VALUE), "anything")).isTrue();
     }
 
     @Test
     @WithMockUser(username = USERNAME, roles = "USER")
     void hasAuthority_withWorkspaceScopeAndUserHasAssignedRolePermissionOnWorkspace_returnsTrue() {
-        var user = createCurrentUser();
+        var user = createIdentityUser(USERNAME);
         var workspace = createWorkspace();
         var permissionName = permissionName();
         var role = createRole(workspace, permissionName);
         assignRole(user, workspace.getUniqueId(), role);
 
-        assertThat(authorityChecker.hasAuthority(workspace.getUniqueId(), permissionName)).isTrue();
+        assertThat(authorityChecker.hasAuthority(new UniqueId(workspace.getUniqueId()), permissionName)).isTrue();
     }
 
     @Test
     @WithMockUser(username = USERNAME, roles = "USER")
     void hasAuthority_withApplicationScopeAndUserHasAssignedRolePermissionOnWorkspace_returnsTrue() {
-        var user = createCurrentUser();
+        var user = createIdentityUser(USERNAME);
         var workspace = createWorkspace();
         var application = createApplication(workspace);
         var permissionName = permissionName();
         var role = createRole(workspace, permissionName);
         assignRole(user, workspace.getUniqueId(), role);
 
-        assertThat(authorityChecker.hasAuthority(application.getUniqueId(), permissionName)).isTrue();
+        assertThat(authorityChecker.hasAuthority(new UniqueId(application.getUniqueId()), permissionName)).isTrue();
     }
 
     @Test
     @WithMockUser(username = USERNAME, roles = "USER")
     void hasAuthority_withApplicationScopeAndUserHasAssignedRolePermissionOnApplication_returnsTrue() {
-        var user = createCurrentUser();
+        var user = createIdentityUser(USERNAME);
         var workspace = createWorkspace();
         var application = createApplication(workspace);
         var permissionName = permissionName();
         var role = createRole(workspace, permissionName);
         assignRole(user, application.getUniqueId(), role);
 
-        assertThat(authorityChecker.hasAuthority(application.getUniqueId(), permissionName)).isTrue();
+        assertThat(authorityChecker.hasAuthority(new UniqueId(application.getUniqueId()), permissionName)).isTrue();
     }
 
     @Test
     @WithMockUser(username = USERNAME, roles = "USER")
     void hasAuthority_withWorkspacePermissionAssignedToOneWorkspace_returnsTrueOnlyForAssignedWorkspaceScope() {
-        var user = createCurrentUser();
+        var user = createIdentityUser(USERNAME);
         var allowedWorkspace = createWorkspace();
         var allowedApplication = createApplication(allowedWorkspace);
         var forbiddenWorkspace = createWorkspace();
@@ -148,16 +102,16 @@ class AuthorityCheckerIntegrationTest extends BaseIntegrationTest {
         var role = createRole(allowedWorkspace, permissionName);
         assignRole(user, allowedWorkspace.getUniqueId(), role);
 
-        assertThat(authorityChecker.hasAuthority(allowedWorkspace.getUniqueId(), permissionName)).isTrue();
-        assertThat(authorityChecker.hasAuthority(allowedApplication.getUniqueId(), permissionName)).isTrue();
-        assertThat(authorityChecker.hasAuthority(forbiddenWorkspace.getUniqueId(), permissionName)).isFalse();
-        assertThat(authorityChecker.hasAuthority(forbiddenApplication.getUniqueId(), permissionName)).isFalse();
+        assertThat(authorityChecker.hasAuthority(new UniqueId(allowedWorkspace.getUniqueId()), permissionName)).isTrue();
+        assertThat(authorityChecker.hasAuthority(new UniqueId(allowedApplication.getUniqueId()), permissionName)).isTrue();
+        assertThat(authorityChecker.hasAuthority(new UniqueId(forbiddenWorkspace.getUniqueId()), permissionName)).isFalse();
+        assertThat(authorityChecker.hasAuthority(new UniqueId(forbiddenApplication.getUniqueId()), permissionName)).isFalse();
     }
 
     @Test
     @WithMockUser(username = USERNAME, roles = "USER")
     void hasAuthority_withApplicationPermissionAssignedToOneApplication_returnsTrueOnlyForAssignedApplicationScope() {
-        var user = createCurrentUser();
+        var user = createIdentityUser(USERNAME);
         var workspace = createWorkspace();
         var allowedApplication = createApplication(workspace);
         var forbiddenApplication = createApplication(workspace);
@@ -165,37 +119,25 @@ class AuthorityCheckerIntegrationTest extends BaseIntegrationTest {
         var role = createRole(workspace, permissionName);
         assignRole(user, allowedApplication.getUniqueId(), role);
 
-        assertThat(authorityChecker.hasAuthority(allowedApplication.getUniqueId(), permissionName)).isTrue();
-        assertThat(authorityChecker.hasAuthority(forbiddenApplication.getUniqueId(), permissionName)).isFalse();
+        assertThat(authorityChecker.hasAuthority(new UniqueId(allowedApplication.getUniqueId()), permissionName)).isTrue();
+        assertThat(authorityChecker.hasAuthority(new UniqueId(forbiddenApplication.getUniqueId()), permissionName)).isFalse();
     }
 
     @Test
     @WithMockUser(username = USERNAME, roles = "USER")
     void hasAuthority_withScopeAndPermissionIsNotAssigned_returnsFalse() {
-        createCurrentUser();
+        createIdentityUser(USERNAME);
         var workspace = createWorkspace();
 
-        assertThat(authorityChecker.hasAuthority(workspace.getUniqueId(), permissionName())).isFalse();
+        assertThat(authorityChecker.hasAuthority(new UniqueId(workspace.getUniqueId()), permissionName())).isFalse();
     }
 
     @Test
     @WithMockUser(username = USERNAME, roles = "USER")
     void hasAuthority_withScopeAndResourceIsUnknown_returnsFalse() {
-        createCurrentUser();
+        createIdentityUser(USERNAME);
 
-        assertThat(authorityChecker.hasAuthority(Long.MAX_VALUE, permissionName())).isFalse();
-    }
-
-    private IdentityUser createCurrentUser() {
-        var existing = principalService.findByUsername(USERNAME);
-        if (existing != null) {
-            return existing;
-        }
-
-        return principalService.create(IdentityUser.builder()
-                .username(USERNAME)
-                .password(nextString())
-                .build());
+        assertThat(authorityChecker.hasAuthority(new UniqueId(Long.MAX_VALUE), permissionName())).isFalse();
     }
 
     private IdentityWorkspaceEntity createWorkspace() {

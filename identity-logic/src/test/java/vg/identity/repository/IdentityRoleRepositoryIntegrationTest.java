@@ -1,6 +1,5 @@
 package vg.identity.repository;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -8,6 +7,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.entity.IdentityRoleEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
+import vg.identity.model.IdentityWorkspace;
 import vg.identity.service.IdentityWorkspaceService;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,17 +18,7 @@ import static vg.test.TestHelper.nextString;
 class IdentityRoleRepositoryIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
-    IdentityRoleRepository roleRepository;
-    @Autowired
-    IdentityWorkspaceRepository workspaceRepository;
-    @Autowired
     IdentityWorkspaceService workspaceService;
-
-    @AfterEach
-    void cleanUp() {
-        roleRepository.deleteAll();
-        workspaceRepository.deleteAll();
-    }
 
     @Test
     void save_whenSameNameIsUsedInDifferentWorkspaces_returnsSavedRoles() {
@@ -67,11 +57,12 @@ class IdentityRoleRepositoryIntegrationTest extends BaseIntegrationTest {
     }
 
     private IdentityWorkspaceEntity createWorkspace() {
-        return workspaceService.create(
-                IdentityWorkspaceEntity.builder()
+        var workspace = workspaceService.create(
+                IdentityWorkspace.builder()
                         .name(nextString())
                         .build()
         );
+        return workspaceRepository.findById(workspace.getUniqueId().getLongValue()).orElseThrow();
     }
 
     private IdentityRoleEntity buildRole(String name, IdentityWorkspaceEntity workspace) {

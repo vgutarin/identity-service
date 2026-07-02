@@ -1,16 +1,25 @@
 package vg.identity.service;
 
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.entity.IdentityWorkspaceEntity;
+import vg.identity.model.IdentityApplication;
+import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityWorkspace;
-import vg.identity.repository.IdentityWorkspaceRepository;
+import vg.identity.model.access.Permission;
 import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
+
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -18,31 +27,59 @@ import static vg.test.TestHelper.nextString;
 
 @WithMockUser(username = "john", roles = "USER")
 class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationTest {
+    private static final String USERNAME = "john";
+
     @Autowired
     IdentityWorkspaceService service;
     @Autowired
-    IdentityWorkspaceRepository workspaceRepository;
-    @Autowired
     UniqueIdService uniqueIdService;
 
-    @AfterEach
-    void cleanUp() {
-        workspaceRepository.deleteAll();
+    @BeforeEach
+    void setUp() {
+        createIdentityUser(USERNAME);
+    }
+
+    @Test
+    void publicMethods_areSecuredWithExpectedPreAuthorizeExpressions() {
+        var expectedExpressions = Map.of(
+                "create(IdentityWorkspace)", "@authorityChecker.hasAuthority('" + Permission.Workspace.CREATE + "')",
+                "createApplication(UniqueId, IdentityApplication)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.App.CREATE + "')",
+                "createRole(UniqueId, IdentityRole)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.Role.CREATE + "')",
+                "delete(UniqueId)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.Workspace.DELETE + "')",
+                "getAll()", "@authorityChecker.hasAuthority('" + Permission.Workspace.READ + "')",
+                "getById(UniqueId)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.Workspace.READ + "')",
+                "update(IdentityWorkspace)", "@authorityChecker.hasAuthority(#workspace.getUniqueId(), '" + Permission.Workspace.UPDATE + "')"
+        );
+
+        var publicMethods = Arrays.stream(IdentityWorkspaceService.class.getMethods())
+                .filter(method -> method.getDeclaringClass().equals(IdentityWorkspaceService.class))
+                .filter(method -> Modifier.isPublic(method.getModifiers()))
+                .collect(Collectors.toMap(this::signature, method -> method));
+
+        assertThat(publicMethods.keySet()).containsExactlyInAnyOrderElementsOf(expectedExpressions.keySet());
+        expectedExpressions.forEach((signature, expectedExpression) -> {
+            var preAuthorize = publicMethods.get(signature).getAnnotation(PreAuthorize.class);
+
+            assertThat(preAuthorize).as(signature).isNotNull();
+            assertThat(preAuthorize.value()).as(signature).isEqualTo(expectedExpression);
+        });
     }
 
     @Test
     void create_whenUserIsNotAdmin_throwsAccessDeniedException() {
+        var count = workspaceRepository.count();
+
         assertThatThrownBy(() -> service.create(buildWorkspace()))
                 .isInstanceOf(AccessDeniedException.class);
 
-        assertThat(workspaceRepository.findAll()).isEmpty();
+        assertThat(workspaceRepository.count()).isEqualTo(count);
     }
 
     @Test
     void getById_whenUserDoesNotHaveResourceAuthority_throwsAccessDeniedException() {
         var saved = saveWorkspace();
 
-        assertThatThrownBy(() -> service.getById(saved.getUniqueId()))
+        assertThatThrownBy(() -> service.getById(new UniqueId(saved.getUniqueId())))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -67,10 +104,35 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
     void delete_whenUserIsNotAdmin_throwsAccessDeniedException() {
         var saved = saveWorkspace();
 
-        assertThatThrownBy(() -> service.delete(saved.getUniqueId()))
+        assertThatThrownBy(() -> service.delete(new UniqueId(saved.getUniqueId())))
                 .isInstanceOf(AccessDeniedException.class);
 
         assertThat(workspaceRepository.findById(saved.getUniqueId())).isPresent();
+    }
+
+    @Test
+    void createRole_whenUserDoesNotHaveRoleCreatePermission_throwsAccessDeniedException() {
+        var saved = saveWorkspace();
+
+        assertThatThrownBy(() -> service.createRole(
+                new UniqueId(saved.getUniqueId()),
+                IdentityRole.builder()
+                        .name(nextString())
+                        .build()
+        )).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void createApplication_whenUserDoesNotHaveAppCreatePermission_throwsAccessDeniedException() {
+        var saved = saveWorkspace();
+
+        assertThatThrownBy(() -> service.createApplication(
+                new UniqueId(saved.getUniqueId()),
+                IdentityApplication.builder()
+                        .name(nextString())
+                        .data(nextString())
+                        .build()
+        )).isInstanceOf(AccessDeniedException.class);
     }
 
     private IdentityWorkspaceEntity saveWorkspace() {
@@ -89,5 +151,12 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
         return IdentityWorkspaceEntity.builder()
                 .name(nextString())
                 .build();
+    }
+
+    private String signature(Method method) {
+        var parameterTypes = Arrays.stream(method.getParameterTypes())
+                .map(Class::getSimpleName)
+                .collect(Collectors.joining(", "));
+        return method.getName() + "(" + parameterTypes + ")";
     }
 }

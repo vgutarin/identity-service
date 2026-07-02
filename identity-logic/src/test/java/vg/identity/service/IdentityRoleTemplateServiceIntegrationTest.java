@@ -2,7 +2,6 @@ package vg.identity.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.assertj.core.data.TemporalUnitWithinOffset;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,8 +9,6 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.model.IdentityRoleTemplate;
-import vg.identity.repository.IdentityPermissionRepository;
-import vg.identity.repository.IdentityRoleTemplateRepository;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -25,22 +22,12 @@ import static vg.test.TestHelper.nextString;
 class IdentityRoleTemplateServiceIntegrationTest extends BaseIntegrationTest {
     @Autowired
     IdentityRoleTemplateService service;
-    @Autowired
-    IdentityRoleTemplateRepository roleTemplateRepository;
-    @Autowired
-    IdentityPermissionRepository permissionRepository;
 
     private String name;
 
     @BeforeEach
     void setUp() {
         name = nextString();
-    }
-
-    @AfterEach
-    void cleanUp() {
-        roleTemplateRepository.deleteAll();
-        permissionRepository.deleteAll();
     }
 
     @Test

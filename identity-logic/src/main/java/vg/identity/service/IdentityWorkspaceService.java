@@ -11,8 +11,10 @@ import vg.identity.mapper.IdentityWorkspaceMapper;
 import vg.identity.model.IdentityApplication;
 import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityWorkspace;
+import vg.identity.model.access.Permission;
 import vg.identity.repository.IdentityRoleTemplateRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
+import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
 import java.util.List;
@@ -27,7 +29,7 @@ public class IdentityWorkspaceService {
     private final IdentityApplicationService applicationService;
     private final IdentityWorkspaceMapper workspaceMapper;
 
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.Workspace.CREATE + "')")
     @Transactional
     public IdentityWorkspace create(IdentityWorkspace workspace) {
         var saved = workspaceRepository.saveWithNewUniqueId(
@@ -39,12 +41,16 @@ public class IdentityWorkspaceService {
         return workspaceMapper.toModel(saved);
     }
 
-    @PreAuthorize("@authorityChecker.hasResourceAuthority(#uniqueId, 'read')")
+    @PreAuthorize("@authorityChecker.hasAuthority(#uniqueId, '" + Permission.Workspace.READ + "')")
     @Transactional(readOnly = true)
-    public IdentityWorkspace getById(long uniqueId) {
-        return workspaceMapper.toModel(getEntity(uniqueId));
+    public IdentityWorkspace getById(UniqueId uniqueId) {
+        return workspaceRepository.findById(uniqueId.getLongValue())
+                .map(workspaceMapper::toModel)
+                .orElseThrow(EntityNotFoundException::new);
     }
 
+
+    @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.Workspace.READ + "')")
     @Transactional(readOnly = true)
     public List<IdentityWorkspace> getAll() {
         return workspaceRepository.findAll().stream()
@@ -52,7 +58,7 @@ public class IdentityWorkspaceService {
                 .toList();
     }
 
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("@authorityChecker.hasAuthority(#workspace.getUniqueId(), '" + Permission.Workspace.UPDATE + "')")
     @Transactional
     public IdentityWorkspace update(IdentityWorkspace workspace) {
         var uniqueId = workspace.getUniqueId().getLongValue();
@@ -70,79 +76,32 @@ public class IdentityWorkspaceService {
         return workspaceMapper.toModel(saved);
     }
 
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("@authorityChecker.hasAuthority(#uniqueId, '" + Permission.Workspace.DELETE + "')")
     @Transactional
-    public void delete(Long uniqueId) {
-        var existing = workspaceRepository.findById(uniqueId)
+    public void delete(UniqueId uniqueId) {
+        var existing = workspaceRepository.findById(uniqueId.getLongValue())
                 .orElseThrow(EntityNotFoundException::new);
 
         workspaceRepository.delete(existing);
         workspaceRepository.flush();
     }
 
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("@authorityChecker.hasAuthority(#uniqueId, '" + Permission.Role.CREATE + "')")
     @Transactional
-    public IdentityRole addRole(Long uniqueId, IdentityRole role) {
-        var workspace = workspaceRepository.findById(uniqueId)
+    public IdentityRole createRole(UniqueId uniqueId, IdentityRole role) {
+        var workspace = workspaceRepository.findById(uniqueId.getLongValue())
                 .orElseThrow(EntityNotFoundException::new);
 
         return roleService.create(role.getName(), role.getDescription(), workspace);
     }
 
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("@authorityChecker.hasAuthority(#uniqueId, '" + Permission.App.CREATE + "')")
     @Transactional
-    public IdentityApplication addApplication(Long uniqueId, IdentityApplication application) {
-        var workspace = workspaceRepository.findById(uniqueId)
+    public IdentityApplication createApplication(UniqueId uniqueId, IdentityApplication application) {
+        var workspace = workspaceRepository.findById(uniqueId.getLongValue())
                 .orElseThrow(EntityNotFoundException::new);
 
         return applicationService.create(application.getName(), application.getData(), workspace);
     }
 
-    @Transactional(readOnly = true)
-    public IdentityWorkspaceEntity getEntity(long uniqueId) {
-        return workspaceRepository.findById(uniqueId)
-                .orElseThrow(EntityNotFoundException::new);
-    }
-
-    /**
-     * Legacy entity adapter for callers that still require JPA resources.
-     */
-    @PreAuthorize("hasRole('OWNER')")
-    @Transactional
-    public IdentityWorkspaceEntity create(IdentityWorkspaceEntity workspace) {
-        var saved = create(workspaceMapper.toModel(workspace));
-        return getEntity(saved.getUniqueId().getLongValue());
-    }
-
-    /**
-     * Legacy entity adapter for callers that still require JPA resources.
-     */
-    @PreAuthorize("@authorityChecker.hasResourceAuthority(#uniqueId, 'read')")
-    @Transactional(readOnly = true)
-    public IdentityWorkspaceEntity get(long uniqueId) {
-        return getEntity(uniqueId);
-    }
-
-    /**
-     * Legacy entity adapter for callers that still require JPA resources.
-     */
-    @Transactional(readOnly = true)
-    public List<IdentityWorkspaceEntity> findAll() {
-        return workspaceRepository.findAll();
-    }
-
-    /**
-     * Legacy entity adapter for callers that still require JPA resources.
-     */
-    @PreAuthorize("hasRole('OWNER')")
-    @Transactional
-    public IdentityWorkspaceEntity update(IdentityWorkspaceEntity workspace) {
-        var saved = update(workspaceMapper.toModel(workspace));
-        return getEntity(saved.getUniqueId().getLongValue());
-    }
-
-    @Transactional(readOnly = true)
-    public boolean existsById(long workspaceId) {
-        return workspaceRepository.existsById(workspaceId);
-    }
 }

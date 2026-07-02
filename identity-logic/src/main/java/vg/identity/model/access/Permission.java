@@ -4,25 +4,12 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 
 public class Permission {
-    static class App {
-        static final String CREATE = "app.create";
-        static final String READ = "app.read";
-        static final String UPDATE = "app.update";
-        static final String DELETE = "app.delete";
 
-        static final String[] ALL = {
-                CREATE,
-                READ,
-                UPDATE,
-                DELETE
-        };
-    }
-
-    static class Workspace {
-        static final String CREATE = "workspace.create";
-        static final String READ = "workspace.read";
-        static final String UPDATE = "workspace.update";
-        static final String DELETE = "workspace.delete";
+    public static class Workspace {
+        public static final String CREATE = "workspace.create";
+        public static final String READ = "workspace.read";
+        public static final String UPDATE = "workspace.update";
+        public static final String DELETE = "workspace.delete";
 
         private final static String[] SELF = {
                 CREATE,
@@ -34,12 +21,41 @@ public class Permission {
         static final String[] ALL = concat(SELF, App.ALL);
     }
 
+    public static class App {
+        public static final String CREATE = "app.create";
+        public static final String READ = "app.read";
+        public static final String UPDATE = "app.update";
+        public static final String DELETE = "app.delete";
+
+        static final String[] ALL = {
+                CREATE,
+                READ,
+                UPDATE,
+                DELETE
+        };
+    }
+
+    public static class Role {
+        public static final String CREATE = "role.create";
+        public static final String READ = "role.read";
+        public static final String UPDATE = "role.update";
+        public static final String DELETE = "role.delete";
+
+        static final String[] ALL = {
+                CREATE,
+                READ,
+                UPDATE,
+                DELETE
+        };
+    }
+
     public static final String[] ALL;
 
     static {
-        assertUniquenessAndCorrectness(App.ALL);
         assertUniquenessAndCorrectness(Workspace.ALL);
-        ALL = Workspace.ALL;
+        assertUniquenessAndCorrectness(App.ALL);
+        assertUniquenessAndCorrectness(Role.ALL);
+        ALL = concat(Workspace.ALL, Role.ALL);
     }
 
     static void assertUniquenessAndCorrectness(String[] values) {

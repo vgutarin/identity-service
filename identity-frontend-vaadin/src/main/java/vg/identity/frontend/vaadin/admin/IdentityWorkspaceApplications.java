@@ -206,7 +206,7 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
             binder.writeBean(application);
 
             if (application.getUniqueId() == null) {
-                workspaceService.addApplication(workspace.getUniqueId().getLongValue(), application);
+                workspaceService.createApplication(workspace.getUniqueId(), application);
             } else {
                 applicationService.update(application);
             }
@@ -234,7 +234,7 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
 
     private void delete(IdentityApplication application) {
         try {
-            applicationService.delete(application.getUniqueId().getLongValue());
+            applicationService.delete(application.getUniqueId());
             refreshGrid();
             notify(localization.i18n("Application deleted"), NotificationVariant.LUMO_SUCCESS);
         } catch (Exception e) {
@@ -243,13 +243,13 @@ public class IdentityWorkspaceApplications extends VerticalLayout implements Bef
     }
 
     private void refreshGrid() {
-        var applications = applicationService.findByWorkspaceUniqueId(workspace.getUniqueId().getLongValue());
+        var applications = applicationService.findByWorkspaceUniqueId(workspace.getUniqueId());
 
         grid.setItems(applications);
     }
 
     private IdentityWorkspace loadWorkspace(String workspaceId) {
-        return workspaceService.getById(UniqueId.parse(workspaceId).getLongValue());
+        return workspaceService.getById(UniqueId.parse(workspaceId));
     }
 
     private String format(Instant instant) {

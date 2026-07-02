@@ -2,7 +2,6 @@ package vg.identity.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.assertj.core.data.TemporalUnitWithinOffset;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,14 +11,7 @@ import vg.identity.BaseIntegrationTest;
 import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityRoleTemplate;
 import vg.identity.model.IdentityWorkspace;
-import vg.identity.repository.IdentityPermissionRepository;
-import vg.identity.repository.IdentityPrincipalRepository;
-import vg.identity.repository.IdentityRoleRepository;
-import vg.identity.repository.IdentityRoleTemplateRepository;
-import vg.identity.repository.IdentityWorkspaceRepository;
-import vg.identity.repository.IdentityUserChannelRepository;
-import vg.identity.repository.IdentityUserRepository;
-import vg.identity.repository.IdentityUserSystemRoleRepository;
+import vg.unique.id.model.UniqueId;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -37,40 +29,12 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     IdentityRoleService roleService;
     @Autowired
     IdentityRoleTemplateService roleTemplateService;
-    @Autowired
-    IdentityWorkspaceRepository workspaceRepository;
-    @Autowired
-    IdentityRoleRepository roleRepository;
-    @Autowired
-    IdentityRoleTemplateRepository roleTemplateRepository;
-    @Autowired
-    IdentityPermissionRepository permissionRepository;
-    @Autowired
-    IdentityUserRepository userRepository;
-    @Autowired
-    IdentityUserChannelRepository channelRepository;
-    @Autowired
-    IdentityUserSystemRoleRepository systemRoleRepository;
-    @Autowired
-    IdentityPrincipalRepository principalRepository;
 
     private String name;
 
     @BeforeEach
     void setUp() {
         name = nextString();
-    }
-
-    @AfterEach
-    void cleanUp() {
-        roleRepository.deleteAll();
-        roleTemplateRepository.deleteAll();
-        workspaceRepository.deleteAll();
-        permissionRepository.deleteAll();
-        systemRoleRepository.deleteAll();
-        channelRepository.deleteAll();
-        userRepository.deleteAll();
-        principalRepository.deleteAll();
     }
 
     @Test
@@ -123,7 +87,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     void getById_whenEntityExists_returnsWorkspace() {
         var saved = service.create(buildWorkspace());
 
-        var found = service.getById(saved.getUniqueId().getLongValue());
+        var found = service.getById(saved.getUniqueId());
 
         assertThat(found.getUniqueId()).isEqualTo(saved.getUniqueId());
         assertThat(found.getName()).isEqualTo(name);
@@ -188,24 +152,24 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     void delete_whenEntityExists_deleteWorkspace() {
         var saved = service.create(buildWorkspace());
 
-        service.delete(saved.getUniqueId().getLongValue());
+        service.delete(saved.getUniqueId());
 
         assertThat(workspaceRepository.findById(saved.getUniqueId().getLongValue())).isEmpty();
     }
 
     @Test
     void delete_whenEntityIsNotFound_throwsEntityNotFoundException() {
-        assertThatThrownBy(() -> service.delete(Long.MAX_VALUE))
+        assertThatThrownBy(() -> service.delete(new UniqueId(Long.MAX_VALUE)))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test
-    void addRole_whenWorkspaceExists_createRoleInWorkspace() {
+    void createRole_whenWorkspaceExists_createRoleInWorkspace() {
         var saved = service.create(buildWorkspace());
         var roleName = nextString();
         var roleDescription = nextString();
 
-        var role = service.addRole(saved.getUniqueId().getLongValue(), IdentityRole.builder()
+        var role = service.createRole(saved.getUniqueId(), IdentityRole.builder()
                 .name(roleName)
                 .description(roleDescription)
                 .permissions(Set.of("workspace.read"))

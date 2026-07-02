@@ -2,6 +2,7 @@ package vg.identity.model.access;
 
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -11,6 +12,26 @@ class PermissionTest {
     void assertUniquenessAndCorrectness_whenCurrentPermissionSetsAreValid_doesNotThrow() {
         assertThatNoException().isThrownBy(() -> Permission.assertUniquenessAndCorrectness(Permission.App.ALL));
         assertThatNoException().isThrownBy(() -> Permission.assertUniquenessAndCorrectness(Permission.Workspace.ALL));
+        assertThatNoException().isThrownBy(() -> Permission.assertUniquenessAndCorrectness(Permission.Role.ALL));
+        assertThatNoException().isThrownBy(() -> Permission.assertUniquenessAndCorrectness(Permission.ALL));
+    }
+
+    @Test
+    void all_whenComparedToHardcodedPermissionList_containsExpectedStablePermissionNames() {
+        assertThat(Permission.ALL).containsExactly(
+                "workspace.create",
+                "workspace.read",
+                "workspace.update",
+                "workspace.delete",
+                "app.create",
+                "app.read",
+                "app.update",
+                "app.delete",
+                "role.create",
+                "role.read",
+                "role.update",
+                "role.delete"
+        );
     }
 
     @Test

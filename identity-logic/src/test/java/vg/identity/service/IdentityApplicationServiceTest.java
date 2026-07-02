@@ -91,14 +91,14 @@ class IdentityApplicationServiceTest {
         when(applicationRepository.findById(id)).thenReturn(Optional.of(entity));
         when(applicationMapper.toModel(entity)).thenReturn(model);
 
-        assertThat(service.getById(id)).isSameAs(model);
+        assertThat(service.getById(new UniqueId(id))).isSameAs(model);
     }
 
     @Test
     void getById_whenEntityIsNotFound_throwsEntityNotFoundException() {
         var id = nextLong();
 
-        assertThatThrownBy(() -> service.getById(id))
+        assertThatThrownBy(() -> service.getById(new UniqueId(id)))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
@@ -111,7 +111,7 @@ class IdentityApplicationServiceTest {
         when(applicationRepository.findById(id)).thenReturn(Optional.of(entity));
         when(applicationMapper.toModel(entity)).thenReturn(model);
 
-        assertThat(service.findById(id)).isSameAs(model);
+        assertThat(service.findById(new UniqueId(id))).isSameAs(model);
     }
 
     @Test
@@ -120,20 +120,7 @@ class IdentityApplicationServiceTest {
 
         when(applicationRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThat(service.findById(id)).isNull();
-    }
-
-    @Test
-    void getAll_whenEntitiesExist_returnsApplications() {
-        var entities = List.of(applicationEntity(1L), applicationEntity(2L));
-        var firstModel = applicationModel(1L);
-        var secondModel = applicationModel(2L);
-
-        when(applicationRepository.findAll()).thenReturn(entities);
-        when(applicationMapper.toModel(entities.get(0))).thenReturn(firstModel);
-        when(applicationMapper.toModel(entities.get(1))).thenReturn(secondModel);
-
-        assertThat(service.getAll()).containsExactly(firstModel, secondModel);
+        assertThat(service.findById(new UniqueId(id))).isNull();
     }
 
     @Test
@@ -147,7 +134,7 @@ class IdentityApplicationServiceTest {
         when(applicationMapper.toModel(entities.get(0))).thenReturn(firstModel);
         when(applicationMapper.toModel(entities.get(1))).thenReturn(secondModel);
 
-        assertThat(service.findByWorkspaceUniqueId(workspaceId)).containsExactly(firstModel, secondModel);
+        assertThat(service.findByWorkspaceUniqueId(new UniqueId(workspaceId))).containsExactly(firstModel, secondModel);
     }
 
     @Test
@@ -211,7 +198,7 @@ class IdentityApplicationServiceTest {
 
         when(applicationRepository.findById(id)).thenReturn(Optional.of(entity));
 
-        service.delete(id);
+        service.delete(new UniqueId(id));
 
         verify(applicationRepository).delete(entity);
         verify(applicationRepository).flush();

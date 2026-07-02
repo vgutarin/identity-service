@@ -16,6 +16,7 @@ import vg.identity.model.IdentityResourceType;
 import vg.identity.model.IdentityUser;
 import vg.identity.model.IdentityUserResourcePermission;
 import vg.identity.model.IdentityUserSystemRole;
+import vg.identity.model.IdentityWorkspace;
 import vg.identity.repository.IdentityPermissionRepository;
 import vg.identity.repository.IdentityUserResourcePermissionRepository;
 import vg.identity.repository.IdentityUserSystemRoleRepository;
@@ -71,6 +72,16 @@ public class IdentityUserAuthorityService {
     @Transactional
     @PreAuthorize("hasRole('OWNER')")
     public void assignResourceAuthority(UniqueIdEntity resource, IdentityUser user, String permission) {
+        assignResourceAuthority(resource.getUniqueId(), user, permission);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('OWNER')")
+    public void assignResourceAuthority(IdentityWorkspace resource, IdentityUser user, String permission) {
+        assignResourceAuthority(resource.getUniqueId().getLongValue(), user, permission);
+    }
+
+    private void assignResourceAuthority(long resourceUniqueId, IdentityUser user, String permission) {
         var permissionName = IdentityPermissionService.normalize(permission);
         var permissionId = permissionRepository.findByName(permissionName)
                 .orElseGet(() -> permissionRepository.save(
@@ -82,7 +93,7 @@ public class IdentityUserAuthorityService {
 
         var id = IdentityUserResourcePermissionEntityId.builder()
                 .principalUniqueId(user.getUniqueId().getLongValue())
-                .resourceUniqueId(resource.getUniqueId())
+                .resourceUniqueId(resourceUniqueId)
                 .permissionId(permissionId)
                 .build();
         if (!resourcePermissionRepository.existsById(id)) {

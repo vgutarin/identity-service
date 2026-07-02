@@ -244,7 +244,7 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
             binder.writeBean(role);
 
             if (role.getId() == null) {
-                workspaceService.addRole(workspace.getUniqueId().getLongValue(), role);
+                workspaceService.createRole(workspace.getUniqueId(), role);
             } else {
                 roleService.update(role);
             }
@@ -294,7 +294,7 @@ public class IdentityWorkspaceRoles extends VerticalLayout implements BeforeEnte
     }
 
     private IdentityWorkspace loadWorkspace(String workspaceId) {
-        return workspaceService.getById(UniqueId.parse(workspaceId).getLongValue());
+        return workspaceService.getById(UniqueId.parse(workspaceId));
     }
 
     private String format(Instant instant) {
