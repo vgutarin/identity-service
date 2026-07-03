@@ -51,8 +51,9 @@ class IdentityApplicationServiceTest {
     @Test
     void create_whenValidInput_returnsCreatedApplication() {
         var name = nextString();
+        var uri = nextString();
         var data = nextString();
-        var nameHash = new byte[]{1, 2, 3};
+        var uriHash = new byte[]{1, 2, 3};
         var workspace = workspace(nextLong());
         var principal = principal(nextLong(), name);
         var savedEntity = applicationEntity(principal.getUniqueId());
@@ -62,11 +63,11 @@ class IdentityApplicationServiceTest {
 
         when(principalRepository.saveWithNewUniqueId(any(IdentityPrincipalEntity.class), eq(uniqueIdService)))
                 .thenReturn(principal);
-        when(encryptionService.canonicalizeAndHash(name)).thenReturn(nameHash);
+        when(encryptionService.hashCaseSensitive(uri)).thenReturn(uriHash);
         when(applicationRepository.save(any(IdentityApplicationEntity.class))).thenReturn(savedEntity);
         when(applicationMapper.toModel(savedEntity)).thenReturn(savedModel);
 
-        assertThat(service.create(name, data, workspace)).isSameAs(savedModel);
+        assertThat(service.create(name, uri, data, workspace)).isSameAs(savedModel);
 
         verify(principalRepository).saveWithNewUniqueId(principalCaptor.capture(), eq(uniqueIdService));
         assertThat(principalCaptor.getValue().getDisplayName()).isEqualTo(name);
@@ -77,7 +78,8 @@ class IdentityApplicationServiceTest {
         assertThat(applicationCaptor.getValue().getUniqueId()).isEqualTo(principal.getUniqueId());
         assertThat(applicationCaptor.getValue().getWorkspace()).isSameAs(workspace);
         assertThat(applicationCaptor.getValue().getName()).isEqualTo(name);
-        assertThat(applicationCaptor.getValue().getNameHash()).isEqualTo(nameHash);
+        assertThat(applicationCaptor.getValue().getUri()).isEqualTo(uri);
+        assertThat(applicationCaptor.getValue().getUriHash()).isEqualTo(uriHash);
         assertThat(applicationCaptor.getValue().getData()).isEqualTo(data);
         verify(applicationRepository).flush();
     }
@@ -140,10 +142,11 @@ class IdentityApplicationServiceTest {
     @Test
     void update_whenEntityExistsAndVersionMatches_returnsUpdatedApplication() {
         var id = nextLong();
-        var nameHash = new byte[]{4, 5, 6};
+        var uriHash = new byte[]{4, 5, 6};
         var model = IdentityApplication.builder()
                 .uniqueId(new UniqueId(id))
                 .name(nextString())
+                .uri(nextString())
                 .data(nextString())
                 .build();
         var existing = applicationEntity(id);
@@ -151,13 +154,13 @@ class IdentityApplicationServiceTest {
         var savedModel = applicationModel(id);
 
         when(applicationRepository.findById(id)).thenReturn(Optional.of(existing));
-        when(encryptionService.canonicalizeAndHash(model.getName())).thenReturn(nameHash);
+        when(encryptionService.canonicalizeAndHash(model.getUri())).thenReturn(uriHash);
         when(applicationRepository.save(existing)).thenReturn(savedEntity);
         when(applicationMapper.toModel(savedEntity)).thenReturn(savedModel);
 
         assertThat(service.update(model)).isSameAs(savedModel);
         verify(applicationMapper).updateEntity(existing, model);
-        assertThat(existing.getNameHash()).isEqualTo(nameHash);
+        assertThat(existing.getUriHash()).isEqualTo(uriHash);
         verify(applicationRepository).flush();
     }
 
@@ -178,11 +181,13 @@ class IdentityApplicationServiceTest {
                 .uniqueId(new UniqueId(id))
                 .version(1)
                 .name(nextString())
+                .uri(nextString())
                 .build();
         var existing = IdentityApplicationEntity.builder()
                 .uniqueId(id)
                 .version(2)
                 .name(nextString())
+                .uri(nextString())
                 .build();
 
         when(applicationRepository.findById(id)).thenReturn(Optional.of(existing));
@@ -209,6 +214,7 @@ class IdentityApplicationServiceTest {
                 .uniqueId(id)
                 .version(0)
                 .name(nextString())
+                .uri(nextString())
                 .build();
     }
 
@@ -216,6 +222,7 @@ class IdentityApplicationServiceTest {
         return IdentityApplication.builder()
                 .uniqueId(new UniqueId(id))
                 .name(nextString())
+                .uri(nextString())
                 .build();
     }
 

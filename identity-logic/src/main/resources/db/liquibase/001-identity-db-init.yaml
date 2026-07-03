@@ -273,11 +273,16 @@ databaseChangeLog:
                   name: version
                   type: INT
               - column:
-                  name: name_hash
+                  name: uri
+                  type: BLOB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: uri_hash
                   type: BINARY(32)
                   constraints:
                     unique: true
-                    uniqueConstraintName: uk_identity_application_name_hash
+                    uniqueConstraintName: uk_identity_application_uri_hash
               - column:
                   name: name
                   type: BLOB

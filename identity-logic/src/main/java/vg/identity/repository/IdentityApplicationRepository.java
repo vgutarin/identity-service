@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface IdentityApplicationRepository extends UniqueIdJpaRepository<IdentityApplicationEntity> {
-    Optional<IdentityApplicationEntity> findByNameHash(byte[] nameHash);
+    Optional<IdentityApplicationEntity> findByUriHash(byte[] uriHash);
 
     List<IdentityApplicationEntity> findByWorkspaceUniqueId(Long workspaceUniqueId);
 }

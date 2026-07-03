@@ -110,6 +110,7 @@ class IdentityApplicationServicePermissionIntegrationTest extends BaseIntegratio
 
     private IdentityApplicationEntity createApplication(IdentityWorkspaceEntity workspace) {
         var name = nextString();
+        var uri = nextString();
         var principal = principalRepository.saveWithNewUniqueId(
                 IdentityPrincipalEntity.builder()
                         .displayName(name)
@@ -124,7 +125,8 @@ class IdentityApplicationServicePermissionIntegrationTest extends BaseIntegratio
                     .principal(entityManager.getReference(IdentityPrincipalEntity.class, principal.getUniqueId()))
                     .workspace(entityManager.getReference(IdentityWorkspaceEntity.class, workspace.getUniqueId()))
                     .name(name)
-                    .nameHash(encryptionService.canonicalizeAndHash(name))
+                    .uri(uri)
+                    .uriHash(encryptionService.hashCaseSensitive(uri))
                     .data(nextString())
                     .build();
 

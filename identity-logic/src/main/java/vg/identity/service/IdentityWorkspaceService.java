@@ -101,7 +101,7 @@ public class IdentityWorkspaceService {
         var workspace = workspaceRepository.findById(uniqueId.getLongValue())
                 .orElseThrow(EntityNotFoundException::new);
 
-        return applicationService.create(application.getName(), application.getData(), workspace);
+        return applicationService.create(application.getName(), application.getUri(), application.getData(), workspace);
     }
 
 }

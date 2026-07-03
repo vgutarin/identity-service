@@ -130,6 +130,7 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
                 new UniqueId(saved.getUniqueId()),
                 IdentityApplication.builder()
                         .name(nextString())
+                        .uri(nextString())
                         .data(nextString())
                         .build()
         )).isInstanceOf(AccessDeniedException.class);

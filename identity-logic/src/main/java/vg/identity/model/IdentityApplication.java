@@ -23,5 +23,6 @@ public class IdentityApplication implements Identifiable {
     private Instant updatedAt;
     private Long workspaceUniqueId;
     private String name;
+    private String uri;
     private String data;
 }

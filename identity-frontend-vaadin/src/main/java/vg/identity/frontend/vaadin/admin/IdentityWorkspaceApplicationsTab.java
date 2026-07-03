@@ -85,6 +85,10 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
                 .setHeader(localization.i18n("Name"))
                 .setSortable(true)
                 .setAutoWidth(true);
+        grid.addColumn(IdentityApplication::getUri)
+                .setHeader(localization.i18n("URI"))
+                .setSortable(true)
+                .setAutoWidth(true);
         grid.addColumn(IdentityApplication::getData)
                 .setHeader(localization.i18n("Data"))
                 .setSortable(true)
@@ -150,6 +154,10 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
         name.setWidthFull();
         name.setRequiredIndicatorVisible(true);
 
+        var uri = new TextField(localization.i18n("URI"));
+        uri.setWidthFull();
+        uri.setRequiredIndicatorVisible(true);
+
         var data = new TextArea(localization.i18n("Data"));
         data.setWidthFull();
 
@@ -157,11 +165,15 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
                 .asRequired(localization.i18n("Name is required"))
                 .withValidator(value -> !value.isBlank(), localization.i18n("Name is required"))
                 .bind(IdentityApplication::getName, IdentityApplication::setName);
+        binder.forField(uri)
+                .asRequired(localization.i18n("URI is required"))
+                .withValidator(value -> !value.isBlank(), localization.i18n("URI is required"))
+                .bind(IdentityApplication::getUri, IdentityApplication::setUri);
         binder.forField(data)
                 .bind(IdentityApplication::getData, IdentityApplication::setData);
         binder.readBean(formApplication);
 
-        var form = new FormLayout(name, data);
+        var form = new FormLayout(name, uri, data);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
 
         var save = new Button(localization.i18n("Save"), event -> save(dialog, binder, formApplication));
@@ -237,6 +249,7 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
                 .updatedAt(application.getUpdatedAt())
                 .workspaceUniqueId(application.getWorkspaceUniqueId())
                 .name(application.getName())
+                .uri(application.getUri())
                 .data(application.getData())
                 .build();
     }

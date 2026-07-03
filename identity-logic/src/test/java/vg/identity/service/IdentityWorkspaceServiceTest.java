@@ -199,6 +199,7 @@ class IdentityWorkspaceServiceTest {
         var workspace = workspaceEntity(workspaceId);
         var application = IdentityApplication.builder()
                 .name(nextString())
+                .uri(nextString())
                 .data(nextString())
                 .build();
         var savedApplication = IdentityApplication.builder()
@@ -207,7 +208,7 @@ class IdentityWorkspaceServiceTest {
                 .build();
 
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
-        when(applicationService.create(application.getName(), application.getData(), workspace)).thenReturn(savedApplication);
+        when(applicationService.create(application.getName(), application.getUri(), application.getData(), workspace)).thenReturn(savedApplication);
 
         assertThat(service.createApplication(new UniqueId(workspaceId), application)).isSameAs(savedApplication);
     }
@@ -215,7 +216,7 @@ class IdentityWorkspaceServiceTest {
     @Test
     void createApplication_whenWorkspaceIsNotFound_throwsEntityNotFoundException() {
         var workspaceId = nextLong();
-        var application = IdentityApplication.builder().name(nextString()).build();
+        var application = IdentityApplication.builder().name(nextString()).uri(nextString()).build();
 
         assertThatThrownBy(() -> service.createApplication(new UniqueId(workspaceId), application))
                 .isInstanceOf(EntityNotFoundException.class);

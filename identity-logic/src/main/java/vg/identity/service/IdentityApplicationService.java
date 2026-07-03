@@ -31,13 +31,14 @@ public class IdentityApplicationService {
     private final EncryptionService encryptionService;
 
     @Transactional
-    IdentityApplication create(String name, String data, IdentityWorkspaceEntity workspace) {
+    IdentityApplication create(String name, String uri, String data, IdentityWorkspaceEntity workspace) {
         var principal = createPrincipal(name);
         var entity = IdentityApplicationEntity.builder()
                 .uniqueId(principal.getUniqueId())
                 .workspace(workspace)
                 .name(name)
-                .nameHash(encryptionService.canonicalizeAndHash(name))
+                .uri(uri)
+                .uriHash(encryptionService.hashCaseSensitive(uri))
                 .data(data)
                 .build();
 
@@ -82,7 +83,7 @@ public class IdentityApplicationService {
         }
 
         applicationMapper.updateEntity(existing, application);
-        existing.setNameHash(encryptionService.canonicalizeAndHash(application.getName()));
+        existing.setUriHash(encryptionService.canonicalizeAndHash(application.getUri()));
 
         var saved = applicationRepository.save(existing);
         applicationRepository.flush();
