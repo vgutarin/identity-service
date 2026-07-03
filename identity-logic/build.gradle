@@ -20,8 +20,10 @@ dependencies {
 
     api "org.bouncycastle:bcprov-jdk18on:${bouncycastle_version}"
     implementation "org.springframework.boot:spring-boot-starter"
+    implementation "org.springframework.boot:spring-boot-starter-mail"
     implementation "org.springframework.boot:spring-boot-starter-security"
     implementation "org.springframework.boot:spring-boot-starter-data-jpa"
+    implementation "org.springframework.boot:spring-boot-starter-validation"
 
     implementation "vg.unique-id:unique-id-jpa-lib:0.0.1-SNAPSHOT"
     implementation "org.liquibase:liquibase-core"
