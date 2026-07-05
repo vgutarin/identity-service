@@ -12,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.javamail.JavaMailSender;
 import vg.identity.EmailProperties;
+import vg.identity.model.EmailMessage;
 
 import java.util.List;
 import java.util.Properties;
@@ -72,13 +73,15 @@ class EmailServiceTest {
         when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage());
 
-        service.sendEmail(EmailService.EmailMessage.builder()
-                .to(List.of("to@example.com"))
-                .cc(List.of("cc@example.com"))
-                .bcc(List.of("bcc@example.com"))
-                .subject("Subject")
-                .body("Body")
-                .build());
+        service.sendEmail(
+                EmailMessage.builder()
+                        .to(List.of("to@example.com"))
+                        .cc(List.of("cc@example.com"))
+                        .bcc(List.of("bcc@example.com"))
+                        .subject("Subject")
+                        .body("Body")
+                        .build()
+        );
 
         var sent = captureSentMessage();
         assertThat(sent.getRecipients(Message.RecipientType.TO)[0].toString()).isEqualTo("to@example.com");

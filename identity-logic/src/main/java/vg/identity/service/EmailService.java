@@ -2,7 +2,6 @@ package vg.identity.service;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.InternetAddress;
-import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -10,10 +9,10 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import vg.identity.EmailProperties;
+import vg.identity.model.EmailMessage;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -142,23 +141,4 @@ public class EmailService {
         return recipients.toArray(String[]::new);
     }
 
-    @Builder
-    public record EmailMessage(
-            Collection<String> to,
-            Collection<String> cc,
-            Collection<String> bcc,
-            String subject,
-            String body,
-            boolean html
-    ) {
-        public EmailMessage {
-            to = emptyIfNull(to);
-            cc = emptyIfNull(cc);
-            bcc = emptyIfNull(bcc);
-        }
-
-        private static Collection<String> emptyIfNull(Collection<String> value) {
-            return value == null ? Collections.emptyList() : value;
-        }
-    }
 }

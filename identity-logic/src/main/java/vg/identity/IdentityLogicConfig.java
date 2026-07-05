@@ -1,11 +1,14 @@
 package vg.identity;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
@@ -13,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.provisioning.UserDetailsManager;
 
+import java.time.Clock;
 import java.util.Map;
 
 @Configuration
@@ -21,6 +25,7 @@ import java.util.Map;
 @EntityScan
 @EnableConfigurationProperties({EncryptionProperties.class, EmailProperties.class})
 @EnableMethodSecurity
+@EnableScheduling
 public class IdentityLogicConfig {
 
     @Bean
@@ -32,6 +37,18 @@ public class IdentityLogicConfig {
                         defaultId, Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8()
                 )
         );
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public Clock clock() {
+        return Clock.systemUTC();
     }
 
 

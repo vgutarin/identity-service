@@ -507,3 +507,56 @@ databaseChangeLog:
                     foreignKeyName: fk_role_permission_to_permission
                     referencedTableName: identity_permission
                     referencedColumnNames: id
+  - changeSet:
+      id: 001-9
+      author: vg
+      changes:
+        - createTable:
+            tableName: identity_command
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_identity_command
+              - column:
+                  name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: command_status
+                  type: SMALLINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: command_type
+                  type: SMALLINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: payload
+                  type: MEDIUMBLOB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: started_at
+                  type: DATETIME
+              - column:
+                  name: completed_at
+                  type: DATETIME
+              - column:
+                  name: error_message
+                  type: MEDIUMBLOB

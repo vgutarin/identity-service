@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.test.context.ActiveProfiles;
 import vg.identity.model.IdentityUser;
 import vg.identity.repository.IdentityApplicationRepository;
+import vg.identity.repository.IdentityCommandRepository;
 import vg.identity.repository.IdentityPermissionRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityRoleAssignmentRepository;
@@ -40,6 +41,8 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
     @Autowired
     protected IdentityApplicationRepository applicationRepository;
     @Autowired
+    protected IdentityCommandRepository commandRepository;
+    @Autowired
     protected IdentityUserSystemRoleRepository systemRoleRepository;
     @Autowired
     protected IdentityUserChannelRepository channelRepository;
@@ -63,6 +66,7 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
 
     @AfterEach
     protected void cleanUp() {
+        commandRepository.deleteAll();
         roleAssignmentRepository.deleteAll();
         resourcePermissionRepository.deleteAll();
         roleRepository.deleteAll();
