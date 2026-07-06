@@ -11,6 +11,7 @@ class PermissionTest {
     @Test
     void assertUniquenessAndCorrectness_whenCurrentPermissionSetsAreValid_doesNotThrow() {
         assertThatNoException().isThrownBy(() -> Permission.assertUniquenessAndCorrectness(Permission.App.ALL));
+        assertThatNoException().isThrownBy(() -> Permission.assertUniquenessAndCorrectness(Permission.User.ALL));
         assertThatNoException().isThrownBy(() -> Permission.assertUniquenessAndCorrectness(Permission.Workspace.ALL));
         assertThatNoException().isThrownBy(() -> Permission.assertUniquenessAndCorrectness(Permission.Role.ALL));
         assertThatNoException().isThrownBy(() -> Permission.assertUniquenessAndCorrectness(Permission.ALL));
@@ -19,6 +20,10 @@ class PermissionTest {
     @Test
     void all_whenComparedToHardcodedPermissionList_containsExpectedStablePermissionNames() {
         assertThat(Permission.ALL).containsExactly(
+                "user.create",
+                "user.read",
+                "user.update",
+                "user.delete",
                 "workspace.create",
                 "workspace.read",
                 "workspace.update",

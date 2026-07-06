@@ -3,56 +3,56 @@ package vg.identity.service;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vg.identity.entity.IdentityPrincipalEntity;
-import vg.identity.entity.IdentityUserChannelEntity;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.mapper.IdentityUserMapper;
-import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityPrincipalStatus;
 import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.IdentityUser;
+import vg.identity.model.access.Permission;
 import vg.identity.repository.IdentityPrincipalRepository;
-import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
+import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
-import java.util.UUID;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @RequiredArgsConstructor
 @Service
-public class IdentityPrincipalService implements IdentityUserService {
+public class IdentityUserServiceImpl implements IdentityUserService {
     private static final String GUEST = "guest";
 
     private final UniqueIdService uniqueIdService;
     private final IdentityPrincipalRepository principalRepository;
     private final IdentityUserRepository repository;
-    private final IdentityUserChannelRepository identityChannelRepository;
     private final IdentityUserMapper mapper;
     private final PasswordEncoder passwordEncoder;
     private final EncryptionService encryptionService;
 
     private IdentityUser guest;
 
+    @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.User.READ + "')")
     public IdentityUser findByUsername(String username) {
-        return repository.findByUsernameHash(encryptionService.canonicalizeAndHash(username))
+        return findEntityByUsername(username)
                 .map(mapper::toModel)
                 .orElse(null);
     }
 
+    @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.User.READ + "')")
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('OWNER')")
     public List<IdentityUser> findAll() {
         return repository.findAll().stream()
                 .map(mapper::toModel)
                 .toList();
     }
 
+    //TODO delete
     @Transactional
     public synchronized IdentityUser getGuest() {
         if (null == guest) {
@@ -61,9 +61,9 @@ public class IdentityPrincipalService implements IdentityUserService {
         return guest;
     }
 
+    @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.User.CREATE + "')")
     @Transactional
     @Override
-    //TODO check permissions
     public IdentityUser create(IdentityUser user) {
         if (null != user.getPassword()) {
             user.setPassword(passwordEncoder.encode(user.getPassword()));
@@ -74,9 +74,9 @@ public class IdentityPrincipalService implements IdentityUserService {
         return mapper.toModel(entity);
     }
 
+    @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.User.UPDATE + "')")
     @Transactional
     @Override
-    //TODO check permissions
     public IdentityUser update(IdentityUser user) {
         var entity = repository.findById(user.getUniqueId()).orElse(null);
 
@@ -99,32 +99,11 @@ public class IdentityPrincipalService implements IdentityUserService {
         return user;
     }
 
-    @Transactional
-    public IdentityUser get(IdentityChannelType channelType, String channelUserId) {
-        var channelUserIdHash = encryptionService.hashCaseSensitive(channelUserId);
-        var channelEntity = identityChannelRepository.findByChannelTypeAndChannelUserIdHash(channelType, channelUserIdHash)
+    UniqueId findUniqueIdByUsername(String username) {
+        return findEntityByUsername(username)
+                .map(mapper::toModel)
+                .map(IdentityUser::getUniqueId)
                 .orElse(null);
-
-        if (channelEntity != null) {
-            return mapper.toModel(channelEntity.getIdentityUser());
-        }
-
-        var newChannelEntity = IdentityUserChannelEntity.builder()
-                .identityUser(
-                        newEntity(
-                                IdentityUser.builder()
-                                        .username("user_" + UUID.randomUUID())
-                                        .build()
-                        )
-                )
-                .channelType(channelType)
-                .channelUserId(channelUserId)
-                .channelUserIdHash(channelUserIdHash)
-                .data("{}")
-                .build();
-
-        identityChannelRepository.saveWithNewUniqueId(newChannelEntity, uniqueIdService);
-        return mapper.toModel(newChannelEntity.getIdentityUser());
     }
 
     private IdentityUserEntity newEntity(IdentityUser user) {
@@ -142,5 +121,9 @@ public class IdentityPrincipalService implements IdentityUserService {
                 .type(IdentityPrincipalType.USER)
                 .build();
         return principalRepository.saveWithNewUniqueId(principal, uniqueIdService);
+    }
+
+    private Optional<IdentityUserEntity> findEntityByUsername(String username) {
+        return repository.findByUsernameHash(encryptionService.canonicalizeAndHash(username));
     }
 }

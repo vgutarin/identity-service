@@ -14,7 +14,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class CurrentUserServiceImpl implements CurrentUserService {
 
-    private final IdentityPrincipalService principalService;
+    private final IdentityUserServiceImpl principalService;
 
     @Override
     public UserDetails getCurrentUserDetails() {
@@ -27,13 +27,13 @@ public class CurrentUserServiceImpl implements CurrentUserService {
     }
 
     @Override
-    public UniqueId getCurrentUserUniqueId() {
+    public UniqueId findCurrentUserUniqueId() {
         var currentUserDetails = getCurrentUserDetails();
         var guest = principalService.getGuest();
         if (guest == currentUserDetails) {
             return guest.getUniqueId();
         }
-        return  principalService.findByUsername(currentUserDetails.getUsername()).getUniqueId();
+        return principalService.findUniqueIdByUsername(currentUserDetails.getUsername());
     }
 
     @Override

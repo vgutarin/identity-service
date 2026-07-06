@@ -8,14 +8,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import vg.identity.model.IdentityUser;
 import vg.identity.service.IdentityUserService;
-import vg.identity.service.IdentityPrincipalService;
+import vg.identity.service.IdentityUserServiceImpl;
 
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("user")
 public class IdentityUserController implements IdentityUserService {
 
-    private final IdentityPrincipalService logic;
+    private final IdentityUserServiceImpl logic;
 
     @Override
     @PostMapping("create")

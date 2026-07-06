@@ -16,13 +16,13 @@ class IdentityUserAuthorityServiceIntegrationTest extends BaseIntegrationTest {
     @Autowired
     IdentityUserAuthorityService authorityService;
     @Autowired
-    IdentityPrincipalService principalService;
+    IdentityUserServiceImpl userService;
     @Autowired
     IdentityWorkspaceService workspaceService;
 
     @Test
     void findByUserAndResourceType_whenResourceTypeIsWorkspace_returnsPermissionsWithResourceAndPermissionNames() {
-        var user = principalService.create(IdentityUser.builder()
+        var user = userService.create(IdentityUser.builder()
                 .username(nextString())
                 .password(nextString())
                 .build());

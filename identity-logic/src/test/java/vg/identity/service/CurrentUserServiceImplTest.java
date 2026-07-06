@@ -25,7 +25,7 @@ import static org.mockito.Mockito.when;
 class CurrentUserServiceImplTest {
 
     @Mock
-    private IdentityPrincipalService principalService;
+    private IdentityUserServiceImpl principalService;
 
     @InjectMocks
     private CurrentUserServiceImpl currentUserService;

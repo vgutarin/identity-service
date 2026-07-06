@@ -5,8 +5,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
-import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityUser;
 
 import java.time.Instant;
@@ -16,17 +16,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static vg.test.TestHelper.nextString;
 
-
-class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
+@WithMockUser(username = "test-user", authorities = "ROLE_OWNER")
+class IdentityUserServiceIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
-    IdentityPrincipalService service;
+    IdentityUserServiceImpl service;
 
     @Autowired
     PasswordEncoder passwordEncoder;
-
-    @Autowired
-    EncryptionService encryptionService;
 
     private String name;
     private String password;
@@ -148,48 +145,6 @@ class IdentityPrincipalServiceIntegrationTest extends BaseIntegrationTest {
         assertThatThrownBy(
                 () -> service.create(duplicate)
         ).isInstanceOf(Exception.class);
-    }
-
-    @Test
-    void getByChannel_whenUserDoesNotExist_returnsNewUser() {
-        var channelType = IdentityChannelType.TELEGRAM_USER;
-        var channelUserId = nextString();
-
-        var user = service.get(channelType, channelUserId);
-
-        assertThat(user).isNotNull();
-        assertThat(user.getUsername()).startsWith("user_");
-        assertThat(user.getUniqueId()).isNotNull();
-
-        // Check if channel was created
-        var channel = channelRepository.findByChannelTypeAndChannelUserIdHash(
-                channelType, encryptionService.hashCaseSensitive(channelUserId)
-        ).orElse(null);
-        assertThat(channel).isNotNull();
-        assertThat(channel.getIdentityUser().getUniqueId()).isEqualTo(user.getUniqueId().getLongValue());
-    }
-
-    @Test
-    void getByChannel_whenUserExists_returnsUser() {
-        var channelType = IdentityChannelType.TELEGRAM_USER;
-        var channelUserId = nextString();
-
-        var firstUser = service.get(channelType, channelUserId);
-        var secondUser = service.get(channelType, channelUserId);
-
-        assertThat(secondUser.getUniqueId()).isEqualTo(firstUser.getUniqueId());
-        assertThat(secondUser.getUsername()).isEqualTo(firstUser.getUsername());
-    }
-
-    @Test
-    void getByChannel_whenChannelUserIdCaseDiffers_returnsDifferentUsers() {
-        var channelType = IdentityChannelType.TELEGRAM_USER;
-        var channelUserId = "SomeUser";
-
-        var firstUser = service.get(channelType, channelUserId);
-        var secondUser = service.get(channelType, channelUserId.toLowerCase());
-
-        assertThat(secondUser.getUniqueId()).isNotEqualTo(firstUser.getUniqueId());
     }
 
     private IdentityUser buildModel() {

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
@@ -17,13 +18,15 @@ import vg.identity.model.access.Permission;
 
 import java.util.List;
 
+import static vg.identity.model.IdentityUserSystemRole.OWNER;
+
 @Slf4j
 @RequiredArgsConstructor
 @Component
 public class IdentityApplicationStartup {
 
     private final UserDetailsManager userDetailsManager;
-    private final IdentityPrincipalService principalService;
+    private final IdentityUserServiceImpl principalService;
     private final IdentityUserAuthorityService authorityService;
     private final IdentityWorkspaceService workspaceService;
     private final IdentityPermissionService permissionService;
@@ -32,22 +35,13 @@ public class IdentityApplicationStartup {
     @EventListener(ApplicationStartedEvent.class)
     public void onApplicationReady() {
         log.info("Identity application started");
+        setCurrentUserAsOwner();
         userDetailsManager.createUser(
                 principalService.getGuest()
         );
         createUser("vg", "vg", IdentityUserSystemRole.OWNER);
         createUser("g", "g", null);
         createUser("a", "a", null);
-
-        var owner = userDetailsManager.loadUserByUsername("vg");
-        SecurityContextHolder.getContext()
-                .setAuthentication(
-                        new PreAuthenticatedAuthenticationToken(
-                                owner,
-                                "vg",
-                                owner.getAuthorities()
-                        )
-                );
 
         for(var permission : Permission.ALL) {
             permissionService.create(IdentityPermission.builder().name(permission).build());
@@ -72,6 +66,24 @@ public class IdentityApplicationStartup {
         );
 
         SecurityContextHolder.clearContext();
+    }
+
+    public static void setCurrentUserAsOwner() {
+        var authorities = List.of(
+                new SimpleGrantedAuthority(
+                        IdentityUserAuthorityService.normalizeRoleName(OWNER.name())
+                )
+        );
+        var authentication = new PreAuthenticatedAuthenticationToken(
+                IdentityUser.builder()
+                        .username("owner")
+                        .password("psw")
+                        .authorities(authorities)
+                        .build(),
+                "psw",
+                authorities
+        );
+        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 
     private void createUser(String username, String psw, IdentityUserSystemRole role) {

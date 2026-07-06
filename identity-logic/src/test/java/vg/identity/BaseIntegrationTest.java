@@ -8,6 +8,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.test.context.ActiveProfiles;
+import vg.identity.entity.IdentityPrincipalEntity;
+import vg.identity.mapper.IdentityUserMapper;
+import vg.identity.model.IdentityPrincipalStatus;
+import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.IdentityUser;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityCommandRepository;
@@ -21,8 +25,9 @@ import vg.identity.repository.IdentityUserRepository;
 import vg.identity.repository.IdentityUserResourcePermissionRepository;
 import vg.identity.repository.IdentityUserSystemRoleRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
-import vg.identity.service.IdentityPrincipalService;
+import vg.identity.service.EncryptionService;
 import vg.test.containers.starters.Mysql8ContainerStarter;
+import vg.unique.id.service.UniqueIdService;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -61,7 +66,11 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
     @Autowired
     protected IdentityPrincipalRepository principalRepository;
     @Autowired
-    protected IdentityPrincipalService principalService;
+    private UniqueIdService uniqueIdService;
+    @Autowired
+    private IdentityUserMapper identityUserMapper;
+    @Autowired
+    private EncryptionService encryptionService;
 
 
     @AfterEach
@@ -81,15 +90,22 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
     }
 
     protected IdentityUser createIdentityUser(String username) {
-        var existing = principalService.findByUsername(username);
-        if (existing != null) {
-            return existing;
+        var usernameHash = encryptionService.canonicalizeAndHash(username);
+        var existing = userRepository.findByUsernameHash(usernameHash);
+        if (existing.isPresent()) {
+            return identityUserMapper.toModel(existing.get());
         }
 
-        return principalService.create(IdentityUser.builder()
+        var user = IdentityUser.builder()
                 .username(username)
                 .password(nextString())
-                .build());
+                .build();
+
+        var principal = createPrincipal(user);
+        var userEntity = identityUserMapper.toEntity(user);
+        userEntity.setUniqueId(principal.getUniqueId());
+        userEntity.setUsernameHash(usernameHash);
+        return identityUserMapper.toModel(userRepository.save(userEntity));
     }
 
     protected static Clock clock = Clock.fixed(
@@ -102,5 +118,15 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
         public Clock clock() {
             return clock;
         }
+    }
+
+
+    private IdentityPrincipalEntity createPrincipal(IdentityUser user) {
+        var principal = IdentityPrincipalEntity.builder()
+                .displayName(user.getUsername())
+                .status(IdentityPrincipalStatus.ACTIVE)
+                .type(IdentityPrincipalType.USER)
+                .build();
+        return principalRepository.saveWithNewUniqueId(principal, uniqueIdService);
     }
 }

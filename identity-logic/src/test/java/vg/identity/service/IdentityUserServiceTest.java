@@ -35,15 +35,14 @@ import static vg.test.TestHelper.nextString;
 import static vg.test.TestHelper.nextUniqueId;
 
 @ExtendWith(MockitoExtension.class)
-class IdentityPrincipalServiceTest {
+class IdentityUserServiceTest {
     @Mock
     UniqueIdService uniqueIdService;
     @Mock
     IdentityPrincipalRepository principalRepository;
     @Mock
     IdentityUserRepository repository;
-    @Mock
-    IdentityUserChannelRepository communicationChannelRepository;
+
     @Mock
     IdentityUserMapper mapper;
     @Mock
@@ -52,7 +51,7 @@ class IdentityPrincipalServiceTest {
     EncryptionService encryptionService;
 
     @InjectMocks
-    IdentityPrincipalService service;
+    IdentityUserServiceImpl service;
 
     @Test
     void create_whenValidInput_returnsCreatedUser() {
@@ -166,64 +165,6 @@ class IdentityPrincipalServiceTest {
         when(repository.findByUsernameHash(hash)).thenReturn(Optional.empty());
 
         assertThat(service.findByUsername(username)).isNull();
-    }
-
-    @Test
-    void get_whenUserExists_returnsUser() {
-        var channelType = IdentityChannelType.TELEGRAM_USER;
-        var channelUserId = nextString();
-        var hash = new byte[]{4, 5, 6};
-        var userEntity = entity(1L);
-        var channelEntity = IdentityUserChannelEntity.builder()
-                .identityUser(userEntity)
-                .build();
-        var model = model(1L);
-
-        when(encryptionService.hashCaseSensitive(channelUserId)).thenReturn(hash);
-        when(communicationChannelRepository.findByChannelTypeAndChannelUserIdHash(channelType, hash))
-                .thenReturn(Optional.of(channelEntity));
-        when(mapper.toModel(userEntity)).thenReturn(model);
-
-        assertThat(service.get(channelType, channelUserId)).isSameAs(model);
-    }
-
-    @Test
-    void get_whenUserDoesNotExist_returnsNewUser() {
-        var channelType = IdentityChannelType.TELEGRAM_USER;
-        var channelUserId = nextString();
-        var channelUserIdHash = new byte[]{1};
-        var usernameHash = new byte[]{2};
-
-        when(encryptionService.hashCaseSensitive(channelUserId)).thenReturn(channelUserIdHash);
-        when(communicationChannelRepository.findByChannelTypeAndChannelUserIdHash(channelType, channelUserIdHash))
-                .thenReturn(Optional.empty());
-
-        var userEntity = new IdentityUserEntity();
-        var userModel = model(1L);
-        var principalSaved = IdentityPrincipalEntity.builder().uniqueId(1L).build();
-
-        when(mapper.toEntity(any(IdentityUser.class))).thenReturn(userEntity);
-        when(encryptionService.canonicalizeAndHash(any())).thenReturn(usernameHash);
-        when(principalRepository.saveWithNewUniqueId(any(IdentityPrincipalEntity.class), eq(uniqueIdService)))
-                .thenReturn(principalSaved);
-        when(repository.save(userEntity)).thenReturn(userEntity);
-        when(mapper.toModel(userEntity)).thenReturn(userModel);
-
-        var channelEntityCaptor = ArgumentCaptor.forClass(IdentityUserChannelEntity.class);
-
-        var result = service.get(channelType, channelUserId);
-
-        assertThat(result).isSameAs(userModel);
-
-        verify(communicationChannelRepository).saveWithNewUniqueId(channelEntityCaptor.capture(), eq(uniqueIdService));
-
-        var savedChannel = channelEntityCaptor.getValue();
-        assertThat(savedChannel.getChannelType()).isEqualTo(channelType);
-        assertThat(savedChannel.getChannelUserId()).isEqualTo(channelUserId);
-        assertThat(savedChannel.getChannelUserIdHash()).isEqualTo(channelUserIdHash);
-        assertThat(savedChannel.getIdentityUser()).isSameAs(userEntity);
-        assertThat(userEntity.getUniqueId()).isEqualTo(principalSaved.getUniqueId());
-        assertThat(userEntity.getUsernameHash()).isEqualTo(usernameHash);
     }
 
     private static IdentityUser model(long id) {

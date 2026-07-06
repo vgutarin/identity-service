@@ -5,20 +5,32 @@ import java.util.stream.Collectors;
 
 public class Permission {
 
+    public static class User {
+        public static final String CREATE = "user.create";
+        public static final String READ = "user.read";
+        public static final String UPDATE = "user.update";
+        public static final String DELETE = "user.delete";
+
+        static final String[] ALL = {
+                CREATE,
+                READ,
+                UPDATE,
+                DELETE
+        };
+    }
+
     public static class Workspace {
         public static final String CREATE = "workspace.create";
         public static final String READ = "workspace.read";
         public static final String UPDATE = "workspace.update";
         public static final String DELETE = "workspace.delete";
 
-        private final static String[] SELF = {
+        static final String[] ALL = {
                 CREATE,
                 READ,
                 UPDATE,
                 DELETE
         };
-
-        static final String[] ALL = concat(SELF, App.ALL);
     }
 
     public static class App {
@@ -52,10 +64,17 @@ public class Permission {
     public static final String[] ALL;
 
     static {
+        assertUniquenessAndCorrectness(User.ALL);
         assertUniquenessAndCorrectness(Workspace.ALL);
         assertUniquenessAndCorrectness(App.ALL);
         assertUniquenessAndCorrectness(Role.ALL);
-        ALL = concat(Workspace.ALL, Role.ALL);
+        ALL = concat(
+                User.ALL,
+                Workspace.ALL,
+                App.ALL,
+                Role.ALL
+        );
+        assertUniquenessAndCorrectness(ALL);
     }
 
     static void assertUniquenessAndCorrectness(String[] values) {
