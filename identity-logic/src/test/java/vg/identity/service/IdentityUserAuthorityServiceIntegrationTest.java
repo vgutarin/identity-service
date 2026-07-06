@@ -16,7 +16,7 @@ class IdentityUserAuthorityServiceIntegrationTest extends BaseIntegrationTest {
     @Autowired
     IdentityUserAuthorityService authorityService;
     @Autowired
-    IdentityUserServiceImpl userService;
+    IdentityUserService userService;
     @Autowired
     IdentityWorkspaceService workspaceService;
 

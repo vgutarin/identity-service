@@ -14,7 +14,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class CurrentUserServiceImpl implements CurrentUserService {
 
-    private final IdentityUserServiceImpl userService;
+    private final IdentityUserService userService;
 
     @Override
     public UserDetails findCurrentUserDetails() {

@@ -25,7 +25,7 @@ class IdentityUserServicePermissionIntegrationTest extends BaseIntegrationTest {
     private static final String USERNAME = "john";
 
     @Autowired
-    IdentityUserServiceImpl service;
+    IdentityUserService service;
 
     @BeforeEach
     void setUp() {
@@ -41,8 +41,8 @@ class IdentityUserServicePermissionIntegrationTest extends BaseIntegrationTest {
                 "findAll()", "@authorityChecker.hasAuthority('" + Permission.User.READ + "')"
         );
 
-        var publicMethods = Arrays.stream(IdentityUserServiceImpl.class.getMethods())
-                .filter(method -> method.getDeclaringClass().equals(IdentityUserServiceImpl.class))
+        var publicMethods = Arrays.stream(IdentityUserService.class.getMethods())
+                .filter(method -> method.getDeclaringClass().equals(IdentityUserService.class))
                 .filter(method -> Modifier.isPublic(method.getModifiers()))
                 .collect(Collectors.toMap(this::signature, method -> method));
 

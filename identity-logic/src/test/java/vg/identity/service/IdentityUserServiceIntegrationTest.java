@@ -20,7 +20,7 @@ import static vg.test.TestHelper.nextString;
 class IdentityUserServiceIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
-    IdentityUserServiceImpl service;
+    IdentityUserService service;
 
     @Autowired
     PasswordEncoder passwordEncoder;

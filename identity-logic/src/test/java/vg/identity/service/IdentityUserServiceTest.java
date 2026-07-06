@@ -48,7 +48,7 @@ class IdentityUserServiceTest {
     EncryptionService encryptionService;
 
     @InjectMocks
-    IdentityUserServiceImpl service;
+    IdentityUserService service;
 
     @Test
     void create_whenValidInput_returnsCreatedUser() {

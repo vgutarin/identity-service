@@ -26,7 +26,7 @@ import static vg.identity.model.IdentityUserSystemRole.OWNER;
 public class IdentityApplicationStartup {
 
     private final UserDetailsManager userDetailsManager;
-    private final IdentityUserServiceImpl principalService;
+    private final IdentityUserService userService;
     private final IdentityUserAuthorityService authorityService;
     private final IdentityWorkspaceService workspaceService;
     private final IdentityPermissionService permissionService;
@@ -86,7 +86,7 @@ public class IdentityApplicationStartup {
 
     private void createUser(String username, String psw, IdentityUserSystemRole role) {
 
-        var user = principalService.create(
+        var user = userService.create(
                 IdentityUser.builder()
                         .username(username)
                         .password(psw)

@@ -5,8 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-import vg.unique.id.Identifiable;
 import vg.unique.id.model.UniqueId;
 
 import java.time.Instant;
@@ -21,7 +19,7 @@ import java.util.Collection;
 @AllArgsConstructor
 @Data
 @Builder
-public class IdentityUser implements Identifiable, UserDetails {
+public class IdentityUser implements IdentityPrincipal {
 
     private UniqueId uniqueId;
 

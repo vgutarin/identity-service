@@ -25,7 +25,7 @@ import java.util.Optional;
 @Slf4j
 @RequiredArgsConstructor
 @Service
-public class IdentityUserServiceImpl implements IdentityUserService {
+public class IdentityUserService {
 
     private final UniqueIdService uniqueIdService;
     private final IdentityPrincipalRepository principalRepository;
@@ -51,7 +51,6 @@ public class IdentityUserServiceImpl implements IdentityUserService {
 
     @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.User.CREATE + "')")
     @Transactional
-    @Override
     public IdentityUser create(IdentityUser user) {
         if (null != user.getPassword()) {
             user.setPassword(passwordEncoder.encode(user.getPassword()));
@@ -64,7 +63,6 @@ public class IdentityUserServiceImpl implements IdentityUserService {
 
     @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.User.UPDATE + "')")
     @Transactional
-    @Override
     public IdentityUser update(IdentityUser user) {
         var entity = repository.findById(user.getUniqueId()).orElse(null);
 
