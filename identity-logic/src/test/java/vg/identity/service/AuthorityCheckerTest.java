@@ -69,7 +69,6 @@ class AuthorityCheckerTest {
         when(userDetails.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority("123:write")));
         when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
 
-        // Then
         assertThat(
                 authorityChecker.hasResourceAuthority(123L, "read")
         ).isFalse();

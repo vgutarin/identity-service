@@ -12,6 +12,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import vg.unique.id.Identifiable;
+import vg.unique.id.model.UniqueId;
 
 import java.util.List;
 
@@ -45,78 +47,151 @@ class CurrentUserServiceImplTest {
     }
 
     @Test
-    void hasRole_whenUserHasRole_returnsTrue() {
-        // Given
-        var role = "ADMIN";
-        var expectedAuthority = "ROLE_ADMIN";
+    void findCurrentUserDetails_whenAuthenticated_returnsUserDetails() {
         var userDetails = mock(UserDetails.class);
-        
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
         when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(userDetails.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority(expectedAuthority)));
 
-        // When
+        var result = currentUserService.findCurrentUserDetails();
+
+        assertThat(result).isEqualTo(userDetails);
+    }
+
+    @Test
+    void findCurrentUserDetails_whenNotAuthenticated_returnsNull() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(false);
+
+        var result = currentUserService.findCurrentUserDetails();
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void findCurrentUserDetails_whenNoAuthentication_returnsNull() {
+        when(securityContext.getAuthentication()).thenReturn(null);
+
+        var result = currentUserService.findCurrentUserDetails();
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void findCurrentUserDetails_whenPrincipalIsNotUserDetails_returnsNull() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn("anonymousUser");
+
+        var result = currentUserService.findCurrentUserDetails();
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void findCurrentUserUniqueId_whenPrincipalIsIdentifiable_returnsUniqueId() {
+        var uniqueId = new UniqueId(123L);
+        var identifiableUserDetails = mock(IdentifiableUserDetails.class);
+        when(identifiableUserDetails.getUniqueId()).thenReturn(uniqueId);
+
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(identifiableUserDetails);
+
+        var result = currentUserService.findCurrentUserUniqueId();
+
+        assertThat(result).isEqualTo(uniqueId);
+    }
+
+    @Test
+    void findCurrentUserUniqueId_whenPrincipalIsNotIdentifiable_returnsUniqueIdFromUserService() {
+        var uniqueId = new UniqueId(123L);
+        var username = "john";
+        var userDetails = mock(UserDetails.class);
+        when(userDetails.getUsername()).thenReturn(username);
+
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(userDetails);
+        when(userService.findUniqueIdByUsername(username)).thenReturn(uniqueId);
+
+        var result = currentUserService.findCurrentUserUniqueId();
+
+        assertThat(result).isEqualTo(uniqueId);
+    }
+
+    @Test
+    void findCurrentUserUniqueId_whenNotAuthenticated_returnsNull() {
+        when(securityContext.getAuthentication()).thenReturn(null);
+
+        var result = currentUserService.findCurrentUserUniqueId();
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void hasRole_whenAuthenticationHasRole_returnsTrue() {
+        var role = "ADMIN";
+        var expectedAuthority = "ROLE_ADMIN";
+
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority(expectedAuthority)));
+
         var result = currentUserService.hasRole(role);
 
-        // Then
         assertThat(result).isTrue();
     }
 
     @Test
-    void hasRole_whenUserHasRole_returnsTrueWithPrefix() {
-        // Given
+    void hasRole_whenAuthenticationHasRole_returnsTrueWithPrefix() {
         var role = "ROLE_ADMIN";
         var expectedAuthority = "ROLE_ADMIN";
-        var userDetails = mock(UserDetails.class);
         
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(userDetails.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority(expectedAuthority)));
+        when(authentication.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority(expectedAuthority)));
 
-        // When
         var result = currentUserService.hasRole(role);
 
-        // Then
         assertThat(result).isTrue();
     }
 
     @Test
-    void hasRole_whenUserDoesNotHaveRole_returnsFalse() {
-        // Given
+    void hasRole_whenAuthenticationDoesNotHaveRole_returnsFalse() {
         var role = "ADMIN";
-        var userDetails = mock(UserDetails.class);
         
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(userDetails.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        when(authentication.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority("ROLE_USER")));
 
-        // When
         var result = currentUserService.hasRole(role);
 
-        // Then
         assertThat(result).isFalse();
     }
 
     @Test
     void hasRole_whenRoleCaseDiffers_returnsTrue() {
-        // Given
         var role = "admin";
         var expectedAuthority = "ROLE_ADMIN";
-        var userDetails = mock(UserDetails.class);
         
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(userDetails.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority(expectedAuthority)));
+        when(authentication.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority(expectedAuthority)));
 
-        // When
         var result = currentUserService.hasRole(role);
 
-        // Then
         assertThat(result).isTrue();
     }
 
+    @Test
+    void hasRole_whenNotAuthenticated_returnsFalse() {
+        when(securityContext.getAuthentication()).thenReturn(null);
+
+        var result = currentUserService.hasRole("ADMIN");
+
+        assertThat(result).isFalse();
+    }
+
+    private interface IdentifiableUserDetails extends UserDetails, Identifiable {}
 }
