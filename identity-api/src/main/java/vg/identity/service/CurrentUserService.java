@@ -4,7 +4,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import vg.unique.id.model.UniqueId;
 
 public interface CurrentUserService {
-    UserDetails getCurrentUserDetails();
-    UniqueId getCurrentUserUniqueId();
+    UserDetails findCurrentUserDetails();
+    UniqueId findCurrentUserUniqueId();
     boolean hasRole(String role);
 }

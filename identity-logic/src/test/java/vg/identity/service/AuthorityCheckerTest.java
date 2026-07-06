@@ -45,7 +45,7 @@ class AuthorityCheckerTest {
         var permission = " Read ";
         var userDetails = mock(UserDetails.class);
         when(userDetails.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority("123:read")));
-        when(currentUserService.getCurrentUserDetails()).thenReturn(userDetails);
+        when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
 
         assertThat(
                 authorityChecker.hasResourceAuthority(resourceUniqueId, permission)
@@ -56,7 +56,7 @@ class AuthorityCheckerTest {
     void hasResourceAuthority_whenUserIsOwner_returnsTrue() {
         var userDetails = mock(UserDetails.class);
         when(userDetails.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority("ROLE_OWNER")));
-        when(currentUserService.getCurrentUserDetails()).thenReturn(userDetails);
+        when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
 
         assertThat(
                 authorityChecker.hasResourceAuthority(123L, "read")
@@ -67,7 +67,7 @@ class AuthorityCheckerTest {
     void hasResourceAuthority_whenUserDoesNotHaveResourceAuthority_returnsFalse() {
         var userDetails = mock(UserDetails.class);
         when(userDetails.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority("123:write")));
-        when(currentUserService.getCurrentUserDetails()).thenReturn(userDetails);
+        when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
 
         // Then
         assertThat(
@@ -79,7 +79,7 @@ class AuthorityCheckerTest {
     void hasAuthority_whenCurrentUserDetailsAreMissing_returnsFalse() {
         var permission = nextString();
 
-        when(currentUserService.getCurrentUserDetails()).thenReturn(null);
+        when(currentUserService.findCurrentUserDetails()).thenReturn(null);
 
         assertThat(authorityChecker.hasAuthority(permission)).isFalse();
     }
@@ -89,7 +89,7 @@ class AuthorityCheckerTest {
         var permission = nextString();
         var userDetails = mock(UserDetails.class);
 
-        when(currentUserService.getCurrentUserDetails()).thenReturn(userDetails);
+        when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
         when(currentUserService.hasRole("OWNER")).thenReturn(true);
 
         assertThat(authorityChecker.hasAuthority(permission)).isTrue();
@@ -100,7 +100,7 @@ class AuthorityCheckerTest {
         var permission = nextString();
         var userDetails = mock(UserDetails.class);
 
-        when(currentUserService.getCurrentUserDetails()).thenReturn(userDetails);
+        when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
         when(currentUserService.hasRole("OWNER")).thenReturn(false);
 
         assertThat(authorityChecker.hasAuthority(permission)).isFalse();
@@ -110,7 +110,7 @@ class AuthorityCheckerTest {
     void hasAuthority_withScopeAndUserIsOwner_returnsTrue() {
         var userDetails = mock(UserDetails.class);
 
-        when(currentUserService.getCurrentUserDetails()).thenReturn(userDetails);
+        when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
         when(currentUserService.hasRole("OWNER")).thenReturn(true);
 
         assertThat(authorityChecker.hasAuthority(new UniqueId(nextLong()), nextString())).isTrue();
@@ -121,9 +121,9 @@ class AuthorityCheckerTest {
     void hasAuthority_withScopeAndCurrentUserUniqueIdIsMissing_returnsFalse() {
         var userDetails = mock(UserDetails.class);
 
-        when(currentUserService.getCurrentUserDetails()).thenReturn(userDetails);
+        when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
         when(currentUserService.hasRole("OWNER")).thenReturn(false);
-        when(currentUserService.getCurrentUserUniqueId()).thenReturn(null);
+        when(currentUserService.findCurrentUserUniqueId()).thenReturn(null);
 
         assertThat(authorityChecker.hasAuthority(new UniqueId(nextLong()), nextString())).isFalse();
     }
@@ -135,9 +135,9 @@ class AuthorityCheckerTest {
         var workspaceUniqueId = new UniqueId(nextLong());
         var permission = nextString();
 
-        when(currentUserService.getCurrentUserDetails()).thenReturn(userDetails);
+        when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
         when(currentUserService.hasRole("OWNER")).thenReturn(false);
-        when(currentUserService.getCurrentUserUniqueId()).thenReturn(userUniqueId);
+        when(currentUserService.findCurrentUserUniqueId()).thenReturn(userUniqueId);
         when(workspaceRepository.existsById(workspaceUniqueId.getLongValue())).thenReturn(true);
         when(
                 roleAssignmentRepository.hasPermission(userUniqueId.getLongValue(), List.of(workspaceUniqueId.getLongValue()), permission)
@@ -154,9 +154,9 @@ class AuthorityCheckerTest {
         var workspaceUniqueId = new UniqueId(nextLong());
         var permission = nextString();
 
-        when(currentUserService.getCurrentUserDetails()).thenReturn(userDetails);
+        when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
         when(currentUserService.hasRole("OWNER")).thenReturn(false);
-        when(currentUserService.getCurrentUserUniqueId()).thenReturn(userUniqueId);
+        when(currentUserService.findCurrentUserUniqueId()).thenReturn(userUniqueId);
         when(workspaceRepository.existsById(applicationUniqueId.getLongValue())).thenReturn(false);
         when(applicationRepository.findById(applicationUniqueId)).thenReturn(Optional.of(IdentityApplicationEntity.builder()
                 .uniqueId(applicationUniqueId.getLongValue())
@@ -179,9 +179,9 @@ class AuthorityCheckerTest {
         var userUniqueId = new UniqueId(nextLong());
         var resourceUniqueId = new UniqueId(nextLong());
 
-        when(currentUserService.getCurrentUserDetails()).thenReturn(userDetails);
+        when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
         when(currentUserService.hasRole("OWNER")).thenReturn(false);
-        when(currentUserService.getCurrentUserUniqueId()).thenReturn(userUniqueId);
+        when(currentUserService.findCurrentUserUniqueId()).thenReturn(userUniqueId);
         when(workspaceRepository.existsById(resourceUniqueId.getLongValue())).thenReturn(false);
         when(applicationRepository.findById(resourceUniqueId)).thenReturn(Optional.empty());
 

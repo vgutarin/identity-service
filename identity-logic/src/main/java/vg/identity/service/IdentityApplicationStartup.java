@@ -36,9 +36,7 @@ public class IdentityApplicationStartup {
     public void onApplicationReady() {
         log.info("Identity application started");
         setCurrentUserAsOwner();
-        userDetailsManager.createUser(
-                principalService.getGuest()
-        );
+
         createUser("vg", "vg", IdentityUserSystemRole.OWNER);
         createUser("g", "g", null);
         createUser("a", "a", null);

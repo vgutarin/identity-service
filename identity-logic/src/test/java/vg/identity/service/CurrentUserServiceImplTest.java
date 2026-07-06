@@ -12,9 +12,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import vg.identity.model.IdentityUser;
 
-import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,7 +23,7 @@ import static org.mockito.Mockito.when;
 class CurrentUserServiceImplTest {
 
     @Mock
-    private IdentityUserServiceImpl principalService;
+    private IdentityUserServiceImpl userService;
 
     @InjectMocks
     private CurrentUserServiceImpl currentUserService;
@@ -94,41 +92,6 @@ class CurrentUserServiceImplTest {
         when(authentication.isAuthenticated()).thenReturn(true);
         when(authentication.getPrincipal()).thenReturn(userDetails);
         when(userDetails.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority("ROLE_USER")));
-
-        // When
-        var result = currentUserService.hasRole(role);
-
-        // Then
-        assertThat(result).isFalse();
-    }
-
-    @Test
-    void hasRole_whenGuestHasRole_returnsTrue() {
-        // Given
-        var role = "GUEST";
-        var expectedAuthority = "ROLE_GUEST";
-        var guestDetails = mock(IdentityUser.class);
-        
-        when(securityContext.getAuthentication()).thenReturn(null);
-        when(principalService.getGuest()).thenReturn(guestDetails);
-        when(guestDetails.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority(expectedAuthority)));
-
-        // When
-        var result = currentUserService.hasRole(role);
-
-        // Then
-        assertThat(result).isTrue();
-    }
-
-    @Test
-    void hasRole_whenGuestDoesNotHaveRole_returnsFalse() {
-        // Given
-        var role = "ADMIN";
-        var guestDetails = mock(IdentityUser.class);
-        
-        when(securityContext.getAuthentication()).thenReturn(null);
-        when(principalService.getGuest()).thenReturn(guestDetails);
-        when(guestDetails.getAuthorities()).thenAnswer(invocation -> Collections.emptyList());
 
         // When
         var result = currentUserService.hasRole(role);

@@ -26,7 +26,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Service
 public class IdentityUserServiceImpl implements IdentityUserService {
-    private static final String GUEST = "guest";
 
     private final UniqueIdService uniqueIdService;
     private final IdentityPrincipalRepository principalRepository;
@@ -34,8 +33,6 @@ public class IdentityUserServiceImpl implements IdentityUserService {
     private final IdentityUserMapper mapper;
     private final PasswordEncoder passwordEncoder;
     private final EncryptionService encryptionService;
-
-    private IdentityUser guest;
 
     @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.User.READ + "')")
     public IdentityUser findByUsername(String username) {
@@ -50,15 +47,6 @@ public class IdentityUserServiceImpl implements IdentityUserService {
         return repository.findAll().stream()
                 .map(mapper::toModel)
                 .toList();
-    }
-
-    //TODO delete
-    @Transactional
-    public synchronized IdentityUser getGuest() {
-        if (null == guest) {
-            guest = create(IdentityUser.builder().username(GUEST).password(GUEST).build());
-        }
-        return guest;
     }
 
     @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.User.CREATE + "')")

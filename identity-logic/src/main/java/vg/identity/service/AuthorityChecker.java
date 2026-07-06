@@ -29,7 +29,7 @@ public class AuthorityChecker {
     @Deprecated
     public boolean hasResourceAuthority(long resourceUniqueId, String permission) {
 
-        var currentUserDetails = userService.getCurrentUserDetails();
+        var currentUserDetails = userService.findCurrentUserDetails();
         if (currentUserDetails == null) {
             return false;
         }
@@ -56,7 +56,7 @@ public class AuthorityChecker {
      */
     public boolean hasAuthority(String permission) {
 
-        var currentUserDetails = userService.getCurrentUserDetails();
+        var currentUserDetails = userService.findCurrentUserDetails();
         if (currentUserDetails == null) {
             return false;
         }
@@ -83,7 +83,7 @@ public class AuthorityChecker {
             return true;
         }
 
-        var currentUserUniqueId = userService.getCurrentUserUniqueId();
+        var currentUserUniqueId = userService.findCurrentUserUniqueId();
         if (currentUserUniqueId == null) {
             return false;
         }

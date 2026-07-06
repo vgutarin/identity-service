@@ -14,31 +14,30 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class CurrentUserServiceImpl implements CurrentUserService {
 
-    private final IdentityUserServiceImpl principalService;
+    private final IdentityUserServiceImpl userService;
 
     @Override
-    public UserDetails getCurrentUserDetails() {
+    public UserDetails findCurrentUserDetails() {
         return Optional.of(SecurityContextHolder.getContext())
                 .map(SecurityContext::getAuthentication)
                 .filter(Authentication::isAuthenticated)
                 .map(Authentication::getPrincipal)
                 .map(UserDetails.class::cast)
-                .orElse(principalService.getGuest());
+                .orElse(null);
     }
 
     @Override
     public UniqueId findCurrentUserUniqueId() {
-        var currentUserDetails = getCurrentUserDetails();
-        var guest = principalService.getGuest();
-        if (guest == currentUserDetails) {
-            return guest.getUniqueId();
+        var currentUserDetails = findCurrentUserDetails();
+        if (null == currentUserDetails) {
+            return null;
         }
-        return principalService.findUniqueIdByUsername(currentUserDetails.getUsername());
+        return userService.findUniqueIdByUsername(currentUserDetails.getUsername());
     }
 
     @Override
     public boolean hasRole(String role) {
-        var currentUserDetails = getCurrentUserDetails();
+        var currentUserDetails = findCurrentUserDetails();
         var normalizedRole = IdentityUserAuthorityService.normalizeRoleName(role);
         return currentUserDetails != null && currentUserDetails.getAuthorities().stream()
                 .anyMatch(grantedAuthority -> normalizedRole.equals(grantedAuthority.getAuthority()));
