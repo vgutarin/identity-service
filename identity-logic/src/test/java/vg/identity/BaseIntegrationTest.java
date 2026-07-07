@@ -21,6 +21,7 @@ import vg.identity.repository.IdentityRoleAssignmentRepository;
 import vg.identity.repository.IdentityRoleRepository;
 import vg.identity.repository.IdentityRoleTemplateRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
+import vg.identity.repository.IdentityUserChannelVerificationRepository;
 import vg.identity.repository.IdentityUserRepository;
 import vg.identity.repository.IdentityUserResourcePermissionRepository;
 import vg.identity.repository.IdentityUserSystemRoleRepository;
@@ -52,6 +53,8 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
     @Autowired
     protected IdentityUserChannelRepository channelRepository;
     @Autowired
+    protected IdentityUserChannelVerificationRepository channelVerificationRepository;
+    @Autowired
     protected IdentityUserRepository userRepository;
     @Autowired
     protected IdentityRoleTemplateRepository roleTemplateRepository;
@@ -78,6 +81,7 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
         commandRepository.deleteAll();
         roleAssignmentRepository.deleteAll();
         resourcePermissionRepository.deleteAll();
+        channelVerificationRepository.deleteAll();
         roleRepository.deleteAll();
         roleTemplateRepository.deleteAll();
         applicationRepository.deleteAll();

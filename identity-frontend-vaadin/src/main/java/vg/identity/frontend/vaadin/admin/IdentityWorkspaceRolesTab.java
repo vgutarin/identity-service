@@ -27,6 +27,7 @@ import vg.identity.service.IdentityRoleService;
 import vg.identity.service.IdentityWorkspaceService;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 
@@ -100,10 +101,12 @@ class IdentityWorkspaceRolesTab extends VerticalLayout {
         grid.addColumn(item -> format(item.createdAt()))
                 .setHeader(localization.i18n("Created"))
                 .setSortable(true)
+                .setComparator(Comparator.comparing(RoleTreeItem::createdAt, Comparator.nullsLast(Comparator.naturalOrder())))
                 .setAutoWidth(true);
         grid.addColumn(item -> format(item.updatedAt()))
                 .setHeader(localization.i18n("Updated"))
                 .setSortable(true)
+                .setComparator(Comparator.comparing(RoleTreeItem::updatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
                 .setAutoWidth(true);
         grid.addComponentColumn(this::rowActions)
                 .setHeader(localization.i18n("Actions"))

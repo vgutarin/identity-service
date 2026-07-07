@@ -12,9 +12,11 @@ public interface IdentityUserMapper {
     IdentityUser toModel(IdentityUserEntity src);
 
     @Mapping(target = "principal", ignore = true)
+    @Mapping(target = "workspaces", ignore = true)
     IdentityUserEntity toEntity(IdentityUser src);
 
     @Mapping(target = "principal", ignore = true)
+    @Mapping(target = "workspaces", ignore = true)
     void updateEntity(@MappingTarget IdentityUserEntity entity, IdentityUser user);
 
     void updateModel(@MappingTarget IdentityUser user, IdentityUserEntity entity);

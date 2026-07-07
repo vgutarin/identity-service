@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -21,7 +22,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import vg.unique.id.jpa.UniqueIdEntity;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 import static vg.utils.HibernateHelper.effectiveClass;
 
@@ -69,6 +72,10 @@ public class IdentityUserEntity implements UniqueIdEntity {
     @Column(nullable = false)
     @LastModifiedDate
     private Instant updatedAt;
+
+    @Builder.Default
+    @ManyToMany(mappedBy = "users")
+    private Set<IdentityWorkspaceEntity> workspaces = new HashSet<>();
 
     @Override
     public final boolean equals(Object o) {

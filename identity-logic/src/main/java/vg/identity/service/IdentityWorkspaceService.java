@@ -1,15 +1,18 @@
 package vg.identity.service;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.constraints.Email;
 import lombok.RequiredArgsConstructor;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityWorkspaceMapper;
 import vg.identity.model.IdentityApplication;
 import vg.identity.model.IdentityRole;
+import vg.identity.model.IdentityUser;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.model.access.Permission;
 import vg.identity.repository.IdentityRoleTemplateRepository;
@@ -21,12 +24,14 @@ import java.util.List;
 
 @RequiredArgsConstructor
 @Service
+@Validated
 public class IdentityWorkspaceService {
     private final UniqueIdService uniqueIdService;
     private final IdentityWorkspaceRepository workspaceRepository;
     private final IdentityRoleTemplateRepository roleTemplateRepository;
     private final IdentityRoleService roleService;
     private final IdentityApplicationService applicationService;
+    private final IdentityUserService userService;
     private final IdentityWorkspaceMapper workspaceMapper;
 
     @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.Workspace.CREATE + "')")
@@ -102,6 +107,32 @@ public class IdentityWorkspaceService {
                 .orElseThrow(EntityNotFoundException::new);
 
         return applicationService.create(application.getName(), application.getUri(), application.getData(), workspace);
+    }
+
+    @PreAuthorize("@authorityChecker.hasAuthority(#uniqueId, '" + Permission.User.CREATE + "')")
+    @Transactional
+    public IdentityWorkspace addUser(UniqueId uniqueId, @Email String email) {
+        var workspace = workspaceRepository.findById(uniqueId.getLongValue())
+                .orElseThrow(EntityNotFoundException::new);
+
+        var user = userService.getOrCreateEntityByUsername(email);
+        workspace.getUsers().add(user);
+        user.getWorkspaces().add(workspace);
+
+        var saved = workspaceRepository.save(workspace);
+        workspaceRepository.flush();
+        return workspaceMapper.toModel(saved);
+    }
+
+    @PreAuthorize("@authorityChecker.hasAuthority(#uniqueId, '" + Permission.User.READ + "')")
+    @Transactional(readOnly = true)
+    public List<IdentityUser> getUsers(UniqueId uniqueId) {
+        var workspace = workspaceRepository.findById(uniqueId.getLongValue())
+                .orElseThrow(EntityNotFoundException::new);
+
+        return workspace.getUsers().stream()
+                .map(userService::toModel)
+                .toList();
     }
 
 }

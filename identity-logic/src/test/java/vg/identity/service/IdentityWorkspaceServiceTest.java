@@ -7,6 +7,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import vg.identity.entity.IdentityUserEntity;
 import vg.identity.entity.IdentityRoleTemplateEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityWorkspaceMapper;
@@ -41,6 +42,8 @@ class IdentityWorkspaceServiceTest {
     IdentityRoleService roleService;
     @Mock
     IdentityApplicationService applicationService;
+    @Mock
+    IdentityUserService userService;
     @Mock
     IdentityWorkspaceMapper workspaceMapper;
 
@@ -219,6 +222,36 @@ class IdentityWorkspaceServiceTest {
         var application = IdentityApplication.builder().name(nextString()).uri(nextString()).build();
 
         assertThatThrownBy(() -> service.createApplication(new UniqueId(workspaceId), application))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void addUser_whenWorkspaceExists_addsExistingOrCreatedUserToWorkspace() {
+        var workspaceId = nextLong();
+        var email = "john@example.com";
+        var workspace = workspaceEntity(workspaceId);
+        var user = IdentityUserEntity.builder()
+                .uniqueId(nextLong())
+                .build();
+        var savedWorkspace = workspaceEntity(workspaceId);
+        var model = workspaceModel(workspaceId);
+
+        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
+        when(userService.getOrCreateEntityByUsername(email)).thenReturn(user);
+        when(workspaceRepository.save(workspace)).thenReturn(savedWorkspace);
+        when(workspaceMapper.toModel(savedWorkspace)).thenReturn(model);
+
+        assertThat(service.addUser(new UniqueId(workspaceId), email)).isSameAs(model);
+        assertThat(workspace.getUsers()).contains(user);
+        assertThat(user.getWorkspaces()).contains(workspace);
+        verify(workspaceRepository).flush();
+    }
+
+    @Test
+    void addUser_whenWorkspaceIsNotFound_throwsEntityNotFoundException() {
+        var workspaceId = nextLong();
+
+        assertThatThrownBy(() -> service.addUser(new UniqueId(workspaceId), "john@example.com"))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 

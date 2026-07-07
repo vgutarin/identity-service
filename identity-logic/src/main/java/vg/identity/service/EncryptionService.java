@@ -12,9 +12,9 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.Locale;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -38,7 +38,7 @@ public class EncryptionService {
             throw new IllegalStateException("BLIND_INDEX_SALT is not configured!");
         }
         this.secretKeyToEncrypt = deriveKey(properties.getSecret(), properties.getSalt());
-        this.secretKeyToHash = new SecretKeySpec(properties.getSalt().getBytes(StandardCharsets.UTF_8), HASH_ALGORITHM);
+        this.secretKeyToHash = new SecretKeySpec(properties.getSalt().getBytes(UTF_8), HASH_ALGORITHM);
     }
 
     public byte[] encode(String src) {
@@ -87,7 +87,7 @@ public class EncryptionService {
         try {
             var mac = Mac.getInstance(HASH_ALGORITHM);
             mac.init(secretKeyToHash);
-            return mac.doFinal(input.getBytes(StandardCharsets.UTF_8));
+            return mac.doFinal(input.getBytes(UTF_8));
         } catch (Exception e) {
             throw new RuntimeException("Error during hash generating", e);
         }
@@ -97,7 +97,7 @@ public class EncryptionService {
         if (input == null) {
             return null;
         }
-        return hash(input.toLowerCase().trim());
+        return hash(canonicalize(input));
     }
 
     public byte[] hashCaseSensitive(String input) {
@@ -105,6 +105,13 @@ public class EncryptionService {
             return null;
         }
         return hash(input);
+    }
+
+    String canonicalize(String input) {
+        if (input == null) {
+            return null;
+        }
+        return input.toLowerCase(Locale.ROOT).trim();
     }
 
     private static SecretKey deriveKey(String secret, String salt) {

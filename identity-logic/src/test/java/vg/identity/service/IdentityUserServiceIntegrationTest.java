@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
+import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityUser;
 
 import java.time.Instant;
@@ -14,6 +15,7 @@ import java.time.temporal.ChronoUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static vg.test.TestHelper.nextLong;
 import static vg.test.TestHelper.nextString;
 
 @WithMockUser(username = "test-user", authorities = "ROLE_OWNER")
@@ -24,6 +26,8 @@ class IdentityUserServiceIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     PasswordEncoder passwordEncoder;
+    @Autowired
+    EncryptionService encryptionService;
 
     private String name;
     private String password;
@@ -145,6 +149,37 @@ class IdentityUserServiceIntegrationTest extends BaseIntegrationTest {
         assertThatThrownBy(
                 () -> service.create(duplicate)
         ).isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void create_whenUsernameIsEmail_createsAttachedEmailChannel() {
+        var email = "user" + nextLong() + "@example.com";
+        var user = service.create(IdentityUser.builder()
+                .username(email)
+                .password(password)
+                .build());
+
+        var channel = channelRepository.findByChannelTypeAndChannelUserIdHash(
+                IdentityChannelType.EMAIL,
+                encryptionService.hashCaseSensitive(encryptionService.canonicalize(email))
+        ).orElseThrow();
+
+        assertThat(channel.getIdentityUser()).isNotNull();
+        assertThat(channel.getIdentityUser().getUniqueId()).isEqualTo(user.getUniqueId().getLongValue());
+    }
+
+    @Test
+    void getOrCreateEntityByUsername_whenUserDoesNotExistAndUsernameIsEmail_createsUserWithAttachedEmailChannel() {
+        var email = "user" + nextLong() + "@example.com";
+
+        var entity = service.getOrCreateEntityByUsername(email);
+
+        var channel = channelRepository.findByChannelTypeAndChannelUserIdHash(
+                IdentityChannelType.EMAIL,
+                encryptionService.hashCaseSensitive(encryptionService.canonicalize(email))
+        ).orElseThrow();
+        assertThat(channel.getIdentityUser()).isNotNull();
+        assertThat(channel.getIdentityUser().getUniqueId()).isEqualTo(entity.getUniqueId());
     }
 
     private IdentityUser buildModel() {

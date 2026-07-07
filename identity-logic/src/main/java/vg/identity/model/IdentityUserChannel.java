@@ -16,11 +16,16 @@ import java.time.Instant;
 public class IdentityUserChannel implements Identifiable {
     private UniqueId uniqueId;
     private int version;
-    private Long identityUserUniqueId;
+    private UniqueId identityUserUniqueId;
     private IdentityChannelType channelType;
     private String channelUserId;
     private byte[] channelUserIdHash;
     private String data;
     private Instant createdAt;
     private Instant updatedAt;
+    private Instant verifiedAt;
+
+    public boolean isVerified() {
+        return verifiedAt != null;
+    }
 }

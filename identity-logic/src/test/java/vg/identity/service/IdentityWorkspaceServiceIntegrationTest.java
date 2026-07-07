@@ -1,10 +1,12 @@
 package vg.identity.service;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.ConstraintViolationException;
 import org.assertj.core.data.TemporalUnitWithinOffset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
@@ -15,10 +17,12 @@ import vg.unique.id.model.UniqueId;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static vg.test.TestHelper.nextLong;
 import static vg.test.TestHelper.nextString;
 
 @WithMockUser(username = "john", roles = "OWNER")
@@ -29,6 +33,8 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     IdentityRoleService roleService;
     @Autowired
     IdentityRoleTemplateService roleTemplateService;
+    @Autowired
+    JdbcTemplate jdbcTemplate;
 
     private String name;
 
@@ -187,9 +193,81 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
                 });
     }
 
+    @Test
+    void workspaceUsers_whenUserIsAdded_persistsManyToManyRelation() {
+        var workspace = service.create(buildWorkspace());
+        var user = createIdentityUser(nextString());
+        var userEntity = userRepository.findById(user.getUniqueId().getLongValue()).orElseThrow();
+        var workspaceEntity = workspaceRepository.findById(workspace.getUniqueId().getLongValue()).orElseThrow();
+        workspaceEntity.setUsers(new HashSet<>(Set.of(userEntity)));
+
+        workspaceRepository.saveAndFlush(workspaceEntity);
+
+        var relationCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM identity_workspace_user
+                        WHERE workspace_unique_id = ? AND user_unique_id = ?
+                        """,
+                Long.class,
+                workspace.getUniqueId().getLongValue(),
+                user.getUniqueId().getLongValue()
+        );
+        assertThat(relationCount).isEqualTo(1);
+    }
+
+    @Test
+    void addUser_whenUserExists_attachesUserToWorkspace() {
+        var workspace = service.create(buildWorkspace());
+        var email = "user" + nextLong() + "@example.com";
+        var user = createIdentityUser(email);
+
+        var updated = service.addUser(workspace.getUniqueId(), email);
+
+        assertThat(updated.getUniqueId()).isEqualTo(workspace.getUniqueId());
+        assertThat(workspaceUserRelationCount(workspace.getUniqueId().getLongValue(), user.getUniqueId().getLongValue()))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void addUser_whenUserDoesNotExist_createsUserAndAttachesToWorkspace() {
+        var workspace = service.create(buildWorkspace());
+        var email = "user" + nextLong() + "@example.com";
+
+        service.addUser(workspace.getUniqueId(), email);
+
+        var user = userRepository.findAll().stream()
+                .filter(entity -> email.equals(entity.getUsername()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(workspaceUserRelationCount(workspace.getUniqueId().getLongValue(), user.getUniqueId()))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void addUser_whenEmailIsInvalid_throwsConstraintViolationException() {
+        var workspace = service.create(buildWorkspace());
+
+        assertThatThrownBy(() -> service.addUser(workspace.getUniqueId(), "not-an-email"))
+                .isInstanceOf(ConstraintViolationException.class);
+    }
+
     private IdentityWorkspace buildWorkspace() {
         return IdentityWorkspace.builder()
                 .name(name)
                 .build();
+    }
+
+    private Long workspaceUserRelationCount(long workspaceUniqueId, long userUniqueId) {
+        return jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM identity_workspace_user
+                        WHERE workspace_unique_id = ? AND user_unique_id = ?
+                        """,
+                Long.class,
+                workspaceUniqueId,
+                userUniqueId
+        );
     }
 }

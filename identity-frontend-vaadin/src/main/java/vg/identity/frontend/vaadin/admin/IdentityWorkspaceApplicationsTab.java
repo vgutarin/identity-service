@@ -76,11 +76,6 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
         grid.setSizeFull();
         grid.setEmptyStateText(localization.i18n("No applications found"));
 
-        grid.addColumn(application -> application.getUniqueId() == null ? "" : application.getUniqueId())
-                .setHeader(localization.i18n("ID"))
-                .setSortable(true)
-                .setAutoWidth(true)
-                .setFlexGrow(0);
         grid.addColumn(IdentityApplication::getName)
                 .setHeader(localization.i18n("Name"))
                 .setSortable(true)
@@ -96,10 +91,12 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
         grid.addColumn(application -> format(application.getCreatedAt()))
                 .setHeader(localization.i18n("Created"))
                 .setSortable(true)
+                .setComparator(IdentityApplication::getCreatedAt)
                 .setAutoWidth(true);
         grid.addColumn(application -> format(application.getUpdatedAt()))
                 .setHeader(localization.i18n("Updated"))
                 .setSortable(true)
+                .setComparator(IdentityApplication::getUpdatedAt)
                 .setAutoWidth(true);
         grid.addComponentColumn(this::rowActions)
                 .setHeader(localization.i18n("Actions"))

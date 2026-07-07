@@ -6,6 +6,9 @@ import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
@@ -19,7 +22,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import vg.unique.id.jpa.UniqueIdEntity;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 import static vg.utils.HibernateHelper.effectiveClass;
 
@@ -59,6 +64,15 @@ public class IdentityWorkspaceEntity implements UniqueIdEntity {
     @Convert(converter = StringEncryptionConverter.class)
     @Column(columnDefinition = "BLOB")
     private String description;
+
+    @Builder.Default
+    @ManyToMany
+    @JoinTable(
+            name = "identity_workspace_user",
+            joinColumns = @JoinColumn(name = "workspace_unique_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_unique_id")
+    )
+    private Set<IdentityUserEntity> users = new HashSet<>();
 
     @Override
     public final boolean equals(Object o) {

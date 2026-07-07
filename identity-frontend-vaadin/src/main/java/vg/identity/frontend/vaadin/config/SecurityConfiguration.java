@@ -1,6 +1,7 @@
 package vg.identity.frontend.vaadin.config;
 
 import com.vaadin.flow.spring.security.VaadinSecurityConfigurer;
+import org.springframework.boot.security.autoconfigure.web.servlet.PathRequest;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,6 +9,7 @@ import org.springframework.security.authentication.AuthenticationEventPublisher;
 import org.springframework.security.authentication.DefaultAuthenticationEventPublisher;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import vg.identity.frontend.vaadin.auth.LoginView;
 
@@ -37,7 +39,11 @@ public class SecurityConfiguration {
         // VaadinSecurityConfigurer.vaadin() as it adds final anyRequest matcher
         http.authorizeHttpRequests(auth -> {
             auth.requestMatchers("/admin-only/**").hasAnyRole("admin")
-                .requestMatchers("/public/**").permitAll();
+                .requestMatchers(
+                        "/channel/verify",
+                        "/channel/verify/**",
+                        "/public/**"
+                ).permitAll();
         });
 
         http.with(VaadinSecurityConfigurer.vaadin(), configurer -> {

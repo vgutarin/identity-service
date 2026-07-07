@@ -42,12 +42,14 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
     @Test
     void publicMethods_areSecuredWithExpectedPreAuthorizeExpressions() {
         var expectedExpressions = Map.of(
+                "addUser(UniqueId, String)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.User.CREATE + "')",
                 "create(IdentityWorkspace)", "@authorityChecker.hasAuthority('" + Permission.Workspace.CREATE + "')",
                 "createApplication(UniqueId, IdentityApplication)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.App.CREATE + "')",
                 "createRole(UniqueId, IdentityRole)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.Role.CREATE + "')",
                 "delete(UniqueId)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.Workspace.DELETE + "')",
                 "getAll()", "@authorityChecker.hasAuthority('" + Permission.Workspace.READ + "')",
                 "getById(UniqueId)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.Workspace.READ + "')",
+                "getUsers(UniqueId)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.User.READ + "')",
                 "update(IdentityWorkspace)", "@authorityChecker.hasAuthority(#workspace.getUniqueId(), '" + Permission.Workspace.UPDATE + "')"
         );
 
@@ -134,6 +136,22 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
                         .data(nextString())
                         .build()
         )).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void addUser_whenUserDoesNotHaveUserCreatePermission_throwsAccessDeniedException() {
+        var saved = saveWorkspace();
+
+        assertThatThrownBy(() -> service.addUser(new UniqueId(saved.getUniqueId()), "john@example.com"))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void getUsers_whenUserDoesNotHaveUserReadPermission_throwsAccessDeniedException() {
+        var saved = saveWorkspace();
+
+        assertThatThrownBy(() -> service.getUsers(new UniqueId(saved.getUniqueId())))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     private IdentityWorkspaceEntity saveWorkspace() {

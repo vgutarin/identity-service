@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static vg.test.TestHelper.nextLong;
@@ -46,6 +47,10 @@ class IdentityUserServiceTest {
     PasswordEncoder passwordEncoder;
     @Mock
     EncryptionService encryptionService;
+    @Mock
+    IdentityUserChannelService channelService;
+    @Mock
+    EmailService emailService;
 
     @InjectMocks
     IdentityUserService service;
@@ -92,6 +97,36 @@ class IdentityUserServiceTest {
         assertThat(principalCaptor.getValue().getStatus()).isEqualTo(IdentityPrincipalStatus.ACTIVE);
         assertThat(principalCaptor.getValue().getType()).isEqualTo(IdentityPrincipalType.USER);
         verify(repository).flush();
+        verify(channelService, never()).createEmailChannel(any(String.class), any(IdentityUserEntity.class));
+    }
+
+    @Test
+    void create_whenUsernameIsEmail_createsAttachedEmailChannel() {
+        var username = "john@example.com";
+        var usernameHash = new byte[]{1, 2, 3};
+        var modelToSave = IdentityUser.builder().username(username).build();
+        var modelSaved = model(1L);
+        var entityToSave = IdentityUserEntity.builder().uniqueId(null).username(username).build();
+        var entitySaved = entity(1L);
+        entitySaved.setUsername(username);
+        var principalSaved = IdentityPrincipalEntity.builder()
+                .uniqueId(1L)
+                .displayName(username)
+                .status(IdentityPrincipalStatus.ACTIVE)
+                .type(IdentityPrincipalType.USER)
+                .build();
+
+        when(encryptionService.canonicalizeAndHash(username)).thenReturn(usernameHash);
+        when(mapper.toEntity(modelToSave)).thenReturn(entityToSave);
+        when(principalRepository.saveWithNewUniqueId(any(IdentityPrincipalEntity.class), eq(uniqueIdService)))
+                .thenReturn(principalSaved);
+        when(repository.save(entityToSave)).thenReturn(entitySaved);
+        when(emailService.validateEmail(username)).thenReturn(true);
+        when(mapper.toModel(entitySaved)).thenReturn(modelSaved);
+
+        assertThat(service.create(modelToSave)).isSameAs(modelSaved);
+
+        verify(channelService).createEmailChannel(username, entitySaved);
     }
 
     @Test
@@ -164,6 +199,45 @@ class IdentityUserServiceTest {
         assertThat(service.findByUsername(username)).isNull();
     }
 
+    @Test
+    void getOrCreateEntityByUsername_whenUserExists_returnsUser() {
+        var username = "john@example.com";
+        var hash = new byte[]{1, 2, 3};
+        var user = entity(1L);
+
+        when(encryptionService.canonicalizeAndHash(username)).thenReturn(hash);
+        when(repository.findByUsernameHash(hash)).thenReturn(Optional.of(user));
+
+        assertThat(service.getOrCreateEntityByUsername(username)).isSameAs(user);
+        verify(channelService, never()).createEmailChannel(any(String.class), any(IdentityUserEntity.class));
+    }
+
+    @Test
+    void getOrCreateEntityByUsername_whenUserDoesNotExistAndUsernameIsEmail_createsUserWithAttachedEmailChannel() {
+        var username = "john@example.com";
+        var hash = new byte[]{1, 2, 3};
+        var entityToSave = IdentityUserEntity.builder().uniqueId(null).build();
+        var entitySaved = entity(1L);
+        entitySaved.setUsername(username);
+        var principalSaved = IdentityPrincipalEntity.builder()
+                .uniqueId(1L)
+                .displayName(username)
+                .status(IdentityPrincipalStatus.ACTIVE)
+                .type(IdentityPrincipalType.USER)
+                .build();
+
+        when(encryptionService.canonicalizeAndHash(username)).thenReturn(hash);
+        when(repository.findByUsernameHash(hash)).thenReturn(Optional.empty());
+        when(mapper.toEntity(any(IdentityUser.class))).thenReturn(entityToSave);
+        when(principalRepository.saveWithNewUniqueId(any(IdentityPrincipalEntity.class), eq(uniqueIdService)))
+                .thenReturn(principalSaved);
+        when(repository.save(entityToSave)).thenReturn(entitySaved);
+        when(emailService.validateEmail(username)).thenReturn(true);
+
+        assertThat(service.getOrCreateEntityByUsername(username)).isSameAs(entitySaved);
+        verify(channelService).createEmailChannel(username, entitySaved);
+    }
+
     private static IdentityUser model(long id) {
         return IdentityUser.builder().uniqueId(new UniqueId(id)).build();
     }
@@ -171,4 +245,5 @@ class IdentityUserServiceTest {
     private static IdentityUserEntity entity(long id) {
         return IdentityUserEntity.builder().uniqueId(id).build();
     }
+
 }

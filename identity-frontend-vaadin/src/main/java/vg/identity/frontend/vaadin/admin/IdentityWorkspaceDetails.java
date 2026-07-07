@@ -31,6 +31,7 @@ import vg.identity.frontend.vaadin.MainView;
 import vg.identity.frontend.vaadin.Role;
 import vg.identity.frontend.vaadin.service.LocalizationService;
 import vg.identity.model.IdentityWorkspace;
+import vg.identity.service.EmailService;
 import vg.identity.service.IdentityApplicationService;
 import vg.identity.service.IdentityPermissionService;
 import vg.identity.service.IdentityRoleService;
@@ -43,6 +44,10 @@ import vg.unique.id.model.UniqueId;
 public class IdentityWorkspaceDetails extends VerticalLayout implements BeforeEnterObserver {
 
     private static final String WORKSPACE_ID_PARAMETER = "workspaceId";
+    private static final String TAB_PARAMETER = "tab";
+    private static final String APPLICATIONS_TAB = "applications";
+    private static final String ROLES_TAB = "roles";
+    private static final String USERS_TAB = "users";
 
     private final transient IdentityWorkspaceService workspaceService;
     private final LocalizationService localization;
@@ -54,21 +59,26 @@ public class IdentityWorkspaceDetails extends VerticalLayout implements BeforeEn
     private final Tabs managementTabs = new Tabs();
     private final IdentityWorkspaceApplicationsTab applicationsContent;
     private final IdentityWorkspaceRolesTab rolesContent;
+    private final IdentityWorkspaceUsersTab usersContent;
     private Tab applicationsTab;
     private Tab rolesTab;
+    private Tab usersTab;
     private IdentityWorkspace workspace;
+    private String selectedManagementTab = APPLICATIONS_TAB;
 
     public IdentityWorkspaceDetails(
             IdentityWorkspaceService workspaceService,
             IdentityApplicationService applicationService,
             IdentityRoleService roleService,
             IdentityPermissionService permissionService,
+            EmailService emailService,
             LocalizationService localization
     ) {
         this.workspaceService = workspaceService;
         this.localization = localization;
         applicationsContent = new IdentityWorkspaceApplicationsTab(workspaceService, applicationService, localization);
         rolesContent = new IdentityWorkspaceRolesTab(workspaceService, roleService, permissionService, localization);
+        usersContent = new IdentityWorkspaceUsersTab(workspaceService, emailService, localization);
 
         setSizeFull();
         setPadding(true);
@@ -78,8 +88,8 @@ public class IdentityWorkspaceDetails extends VerticalLayout implements BeforeEn
         configureDetails();
         configureManagementTabs();
 
-        add(toolbar, name, detailsLayout(), managementTabs, applicationsContent, rolesContent);
-        expand(applicationsContent, rolesContent);
+        add(toolbar, name, detailsLayout(), managementTabs, applicationsContent, rolesContent, usersContent);
+        expand(applicationsContent, rolesContent, usersContent);
     }
 
     @Override
@@ -88,6 +98,11 @@ public class IdentityWorkspaceDetails extends VerticalLayout implements BeforeEn
                 .get(WORKSPACE_ID_PARAMETER)
                 .map(this::loadWorkspace)
                 .orElseThrow();
+        selectedManagementTab = event.getLocation()
+                .getQueryParameters()
+                .getSingleParameter(TAB_PARAMETER)
+                .filter(this::isValidTab)
+                .orElse(APPLICATIONS_TAB);
         refresh();
     }
 
@@ -107,11 +122,18 @@ public class IdentityWorkspaceDetails extends VerticalLayout implements BeforeEn
     private void configureManagementTabs() {
         applicationsTab = new Tab(localization.i18n("Applications"));
         rolesTab = new Tab(localization.i18n("Roles"));
+        usersTab = new Tab(localization.i18n("Users"));
 
-        managementTabs.add(applicationsTab, rolesTab);
+        managementTabs.add(applicationsTab, rolesTab, usersTab);
         managementTabs.setWidthFull();
         managementTabs.setSelectedTab(applicationsTab);
-        managementTabs.addSelectedChangeListener(event -> updateSelectedTabContent());
+        managementTabs.addSelectedChangeListener(event -> {
+            selectedManagementTab = selectedTabKey();
+            updateSelectedTabContent();
+            if (event.isFromClient()) {
+                updateSelectedTabUrl();
+            }
+        });
     }
 
     private FormLayout detailsLayout() {
@@ -129,6 +151,7 @@ public class IdentityWorkspaceDetails extends VerticalLayout implements BeforeEn
         refreshManagementTabs();
         applicationsContent.setWorkspace(workspace);
         rolesContent.setWorkspace(workspace);
+        usersContent.setWorkspace(workspace);
         name.setText(workspace.getName());
         description.setValue(workspace.getDescription() == null ? "" : workspace.getDescription());
         description.setPlaceholder(localization.i18n("No description"));
@@ -157,19 +180,59 @@ public class IdentityWorkspaceDetails extends VerticalLayout implements BeforeEn
     }
 
     private void refreshManagementTabs() {
-        managementTabs.setSelectedTab(applicationsTab);
+        managementTabs.setSelectedTab(tabFor(selectedManagementTab));
         updateSelectedTabContent();
     }
 
     private void updateSelectedTabContent() {
         var applicationsSelected = managementTabs.getSelectedTab() == applicationsTab;
+        var rolesSelected = managementTabs.getSelectedTab() == rolesTab;
+        var usersSelected = managementTabs.getSelectedTab() == usersTab;
 
         applicationsContent.setVisible(applicationsSelected);
-        rolesContent.setVisible(!applicationsSelected);
+        rolesContent.setVisible(rolesSelected);
+        usersContent.setVisible(usersSelected);
 
-        if (!applicationsSelected) {
+        if (rolesSelected) {
             rolesContent.refresh();
         }
+        if (usersSelected) {
+            usersContent.refresh();
+        }
+    }
+
+    private boolean isValidTab(String tab) {
+        return APPLICATIONS_TAB.equals(tab)
+                || ROLES_TAB.equals(tab)
+                || USERS_TAB.equals(tab);
+    }
+
+    private Tab tabFor(String tab) {
+        return switch (tab) {
+            case ROLES_TAB -> rolesTab;
+            case USERS_TAB -> usersTab;
+            default -> applicationsTab;
+        };
+    }
+
+    private String selectedTabKey() {
+        if (managementTabs.getSelectedTab() == rolesTab) {
+            return ROLES_TAB;
+        }
+        if (managementTabs.getSelectedTab() == usersTab) {
+            return USERS_TAB;
+        }
+        return APPLICATIONS_TAB;
+    }
+
+    private void updateSelectedTabUrl() {
+        UI.getCurrent().getPage().executeJs(
+                "const url = new URL(window.location.href);"
+                        + "url.searchParams.set($0, $1);"
+                        + "window.history.replaceState(null, '', url);",
+                TAB_PARAMETER,
+                selectedManagementTab
+        );
     }
 
     private void openForm(IdentityWorkspace target) {

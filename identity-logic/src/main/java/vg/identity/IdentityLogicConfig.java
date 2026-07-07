@@ -23,7 +23,11 @@ import java.util.Map;
 @ComponentScan
 @EnableJpaRepositories
 @EntityScan
-@EnableConfigurationProperties({EncryptionProperties.class, EmailProperties.class})
+@EnableConfigurationProperties({
+        EncryptionProperties.class,
+        EmailProperties.class,
+        IdentityUserChannelVerificationProperties.class
+})
 @EnableMethodSecurity
 @EnableScheduling
 public class IdentityLogicConfig {

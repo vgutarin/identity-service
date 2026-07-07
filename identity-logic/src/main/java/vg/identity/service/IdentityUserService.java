@@ -33,6 +33,8 @@ public class IdentityUserService {
     private final IdentityUserMapper mapper;
     private final PasswordEncoder passwordEncoder;
     private final EncryptionService encryptionService;
+    private final IdentityUserChannelService channelService;
+    private final EmailService emailService;
 
     @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.User.READ + "')")
     public IdentityUser findByUsername(String username) {
@@ -56,9 +58,7 @@ public class IdentityUserService {
             user.setPassword(passwordEncoder.encode(user.getPassword()));
         }
 
-        var entity = newEntity(user);
-        repository.flush();
-        return mapper.toModel(entity);
+        return mapper.toModel(newEntity(user));
     }
 
     @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.User.UPDATE + "')")
@@ -92,12 +92,34 @@ public class IdentityUserService {
                 .orElse(null);
     }
 
+    IdentityUserEntity getOrCreateEntityByUsername(String username) {
+        return findEntityByUsername(
+                username
+        ).orElseGet(() ->
+                newEntity(
+                        IdentityUser.builder()
+                                .username(username)
+                                .build()
+                )
+        );
+    }
+
+    IdentityUser toModel(IdentityUserEntity entity) {
+        return mapper.toModel(entity);
+    }
+
     private IdentityUserEntity newEntity(IdentityUser user) {
         var principal = createPrincipal(user);
         var userEntity = mapper.toEntity(user);
         userEntity.setUniqueId(principal.getUniqueId());
         userEntity.setUsernameHash(encryptionService.canonicalizeAndHash(user.getUsername()));
-        return repository.save(userEntity);
+        userEntity = repository.save(userEntity);
+        repository.flush();
+        if (emailService.validateEmail(userEntity.getUsername())) {
+            channelService.createEmailChannel(userEntity.getUsername(), userEntity);
+        }
+        return userEntity;
+
     }
 
     private IdentityPrincipalEntity createPrincipal(IdentityUser user) {

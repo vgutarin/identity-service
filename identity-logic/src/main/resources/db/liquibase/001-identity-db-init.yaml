@@ -137,8 +137,9 @@ databaseChangeLog:
               - column:
                   name: data
                   type: MEDIUMBLOB
-                  constraints:
-                    nullable: false
+              - column:
+                  name: verified_at
+                  type: DATETIME
               - column:
                   name: created_at
                   type: DATETIME
@@ -153,6 +154,37 @@ databaseChangeLog:
             tableName: identity_user_channel
             columnNames: channel_type, channel_user_id_hash
             constraintName: unq_identity_user_channel_user_id
+  - changeSet:
+      id: 001-2-1
+      author: vg
+      changes:
+        - createTable:
+            tableName: identity_user_channel_verification
+            columns:
+              - column:
+                  name: id
+                  type: BINARY(16)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_identity_user_channel_verification
+              - column:
+                  name: identity_user_channel_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_identity_user_channel_verification_to_channel
+                    referencedTableName: identity_user_channel
+                    referencedColumnNames: unique_id
+              - column:
+                  name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expire_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
   - changeSet:
       id: 001-3
       author: vg
@@ -216,6 +248,33 @@ databaseChangeLog:
               - column:
                   name: description
                   type: BLOB
+  - changeSet:
+      id: 001-4-1
+      author: vg
+      changes:
+        - createTable:
+            tableName: identity_workspace_user
+            columns:
+              - column:
+                  name: workspace_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_workspace_user
+                    foreignKeyName: fk_identity_workspace_user_to_workspace
+                    referencedTableName: identity_workspace
+                    referencedColumnNames: unique_id
+              - column:
+                  name: user_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_workspace_user
+                    foreignKeyName: fk_identity_workspace_user_to_user
+                    referencedTableName: identity_user
+                    referencedColumnNames: unique_id
   - changeSet:
       id: 001-5
       author: vg
