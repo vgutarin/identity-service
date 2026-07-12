@@ -1,7 +1,10 @@
 package vg.identity.entity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -13,6 +16,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import vg.identity.model.IdentityActionType;
+import vg.identity.model.IdentityPrincipalType;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -25,18 +30,34 @@ import static vg.utils.HibernateHelper.effectiveClass;
 @Getter
 @Setter
 @Builder
-@Table(name = "identity_user_channel_verification")
+@Table(name = "identity_action_token")
 @Entity
-public class IdentityUserChannelVerificationEntity {
+public class IdentityActionTokenEntity {
 
     @Id
     @JdbcTypeCode(SqlTypes.BINARY)
     @Column(columnDefinition = "BINARY(16)")
     private UUID id;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "identity_user_channel_unique_id", nullable = false)
+    @Enumerated(EnumType.ORDINAL)
+    @Column(nullable = false, updatable = false)
+    private IdentityActionType actionType;
+
+    @Enumerated(EnumType.ORDINAL)
+    @Column(updatable = false)
+    private IdentityPrincipalType principalType;
+
+    @ManyToOne
+    @JoinColumn(name = "principal_unique_id", updatable = false)
+    private IdentityPrincipalEntity principal;
+
+    @ManyToOne
+    @JoinColumn(name = "identity_user_channel_unique_id", updatable = false)
     private IdentityUserChannelEntity identityUserChannel;
+
+    @Convert(converter = StringEncryptionConverter.class)
+    @Column(columnDefinition = "BLOB", updatable = false)
+    private String payload;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
@@ -49,7 +70,7 @@ public class IdentityUserChannelVerificationEntity {
         if (this == o) return true;
         if (o == null) return false;
         if (effectiveClass(this) != effectiveClass(o)) return false;
-        var that = (IdentityUserChannelVerificationEntity) o;
+        var that = (IdentityActionTokenEntity) o;
         return getId() != null && Objects.equals(getId(), that.getId());
     }
 

@@ -6,6 +6,8 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import vg.identity.entity.IdentityApplicationEntity;
 import vg.identity.entity.IdentityPrincipalEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
@@ -14,38 +16,66 @@ import vg.identity.model.IdentityApplication;
 import vg.identity.model.IdentityPrincipalStatus;
 import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.access.Permission;
+import vg.identity.model.application.TelegramBot;
+import vg.identity.model.application.TelegramBotWithUrl;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
+import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URL;
 import java.util.List;
+import java.util.Locale;
 
 @RequiredArgsConstructor
 @Service
 public class IdentityApplicationService {
+    private static final String TELEGRAM_BOT_BASE_URI = "https://t.me/";
+
     private final UniqueIdService uniqueIdService;
     private final IdentityApplicationRepository applicationRepository;
     private final IdentityPrincipalRepository principalRepository;
+    private final IdentityWorkspaceRepository workspaceRepository;
     private final IdentityApplicationMapper applicationMapper;
     private final EncryptionService encryptionService;
+    private final ObjectMapper objectMapper;
+    private final TelegramService telegramService;
 
+    @PreAuthorize("@authorityChecker.hasAuthority(#workspaceUniqueId, '" + Permission.App.CREATE + "')")
     @Transactional
-    IdentityApplication create(String name, String uri, String data, IdentityWorkspaceEntity workspace) {
-        var principal = createPrincipal(name);
-        var entity = IdentityApplicationEntity.builder()
-                .uniqueId(principal.getUniqueId())
-                .workspace(workspace)
-                .name(name)
-                .uri(uri)
-                .uriHash(encryptionService.hashCaseSensitive(uri))
-                .data(data)
-                .build();
+    public IdentityApplication createTelegramBotApplication(UniqueId workspaceUniqueId, String name, TelegramBot telegramBot) {
+        var workspace = getWorkspaceEntity(workspaceUniqueId);
+        var botUsername = telegramService.getUsername(telegramBot);
 
-        var saved = applicationRepository.save(entity);
+        return create(name, URI.create(telegramBotUri(botUsername)), toJson(telegramBot), workspace);
+    }
+
+    @PreAuthorize("@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.UPDATE + "')")
+    @Transactional
+    public IdentityApplication updateTelegramBotApplication(UniqueId applicationUniqueId, int version, String name, TelegramBot telegramBot) {
+        var existing = applicationRepository.findById(applicationUniqueId)
+                .orElseThrow(EntityNotFoundException::new);
+
+        if (existing.getVersion() != version) {
+            throw new ObjectOptimisticLockingFailureException(IdentityApplicationEntity.class, applicationUniqueId);
+        }
+
+        var botUsername = telegramService.getUsername(telegramBot);
+        var uri = telegramBotUri(botUsername);
+
+        existing.setName(name);
+        existing.setUri(uri);
+        existing.setUriHash(hashUri(uri));
+        existing.setPayload(toJson(telegramBot));
+
+        var saved = applicationRepository.save(existing);
         applicationRepository.flush();
         return applicationMapper.toModel(saved);
     }
+
 
     @PreAuthorize("@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.READ + "')")
     @Transactional(readOnly = true)
@@ -63,6 +93,27 @@ public class IdentityApplicationService {
                 .orElse(null);
     }
 
+    /**
+     * Resolves a Telegram bot application by its bot username, returning both the public URL used to open
+     * the bot and the {@link TelegramBot} needed to validate its callback, or {@code null} if no matching
+     * application exists.
+     * <p>
+     * Intentionally unsecured: it runs in the pre-authentication login flow, before any principal exists.
+     * Callers rendering the bot link for an authenticated user must enforce their own authorization.
+     */
+    @Transactional(readOnly = true)
+    TelegramBotWithUrl findTelegramBotByUsername(String botUsername) {
+        var uri = telegramBotUri(botUsername);
+        return applicationRepository.findByUriHash(hashUri(uri))
+                .map(entity ->
+                        new TelegramBotWithUrl(
+                                toUrl(entity.getUri()),
+                                fromJson(entity.getPayload())
+                        )
+                )
+                .orElse(null);
+    }
+
     @PreAuthorize("@authorityChecker.hasAuthority(#workspaceUniqueId, '" + Permission.App.READ + "')")
     @Transactional(readOnly = true)
     public List<IdentityApplication> findByWorkspaceUniqueId(UniqueId workspaceUniqueId) {
@@ -74,7 +125,7 @@ public class IdentityApplicationService {
     @PreAuthorize("@authorityChecker.hasAuthority(#application.getUniqueId(), '" + Permission.App.UPDATE + "')")
     @Transactional
     public IdentityApplication update(IdentityApplication application) {
-        var uniqueId = application.getUniqueId().getLongValue();
+        var uniqueId = application.getUniqueId();
         var existing = applicationRepository.findById(uniqueId)
                 .orElseThrow(EntityNotFoundException::new);
 
@@ -83,7 +134,7 @@ public class IdentityApplicationService {
         }
 
         applicationMapper.updateEntity(existing, application);
-        existing.setUriHash(encryptionService.canonicalizeAndHash(application.getUri()));
+        existing.setUriHash(hashUri(application.getUri()));
 
         var saved = applicationRepository.save(existing);
         applicationRepository.flush();
@@ -98,6 +149,65 @@ public class IdentityApplicationService {
 
         applicationRepository.delete(existing);
         applicationRepository.flush();
+    }
+
+
+    @Transactional
+    IdentityApplication create(String name, URI uri, String payload, IdentityWorkspaceEntity workspace) {
+        var uriString = uri.toString();
+        var principal = createPrincipal(name);
+        var entity = IdentityApplicationEntity.builder()
+                .uniqueId(principal.getUniqueId())
+                .workspace(workspace)
+                .name(name)
+                .uri(uriString)
+                .uriHash(hashUri(uriString))
+                .payload(payload)
+                .build();
+
+        var saved = applicationRepository.save(entity);
+        applicationRepository.flush();
+        return applicationMapper.toModel(saved);
+    }
+
+    private String telegramBotUri(String botUsername) {
+        // Telegram bot usernames are case-insensitive (t.me/MyBot == t.me/mybot), so normalize to
+        // lower case before building/hashing the URI. This keeps the stored value and the lookup key
+        // consistent and prevents the same bot from being registered twice under different casing.
+        return TELEGRAM_BOT_BASE_URI + botUsername.toLowerCase(Locale.ROOT);
+    }
+
+    private URL toUrl(String uri) {
+        try {
+            return URI.create(uri).toURL();
+        } catch (MalformedURLException e) {
+            throw new IllegalArgumentException("Invalid Telegram bot URL", e);
+        }
+    }
+
+    private byte[] hashUri(String uri) {
+        return encryptionService.hashCaseSensitive(uri);
+    }
+
+    private IdentityWorkspaceEntity getWorkspaceEntity(UniqueId workspaceUniqueId) {
+        return workspaceRepository.findById(workspaceUniqueId)
+                .orElseThrow(() -> new EntityNotFoundException("exception.workspace.notFound"));
+    }
+
+    private String toJson(TelegramBot telegramBot) {
+        try {
+            return objectMapper.writeValueAsString(telegramBot);
+        } catch (JacksonException e) {
+            throw new IllegalArgumentException("Cannot serialize Telegram bot", e);
+        }
+    }
+
+    private TelegramBot fromJson(String payload) {
+        try {
+            return objectMapper.readValue(payload, TelegramBot.class);
+        } catch (JacksonException e) {
+            throw new IllegalArgumentException("Cannot deserialize Telegram bot", e);
+        }
     }
 
     private IdentityPrincipalEntity createPrincipal(String name) {

@@ -71,7 +71,7 @@ public class IdentityApplicationEntity implements UniqueIdEntity {
 
     @Convert(converter = StringEncryptionConverter.class)
     @Column(columnDefinition = "MEDIUMBLOB")
-    private String data;
+    private String payload;
 
     @Override
     public final boolean equals(Object o) {

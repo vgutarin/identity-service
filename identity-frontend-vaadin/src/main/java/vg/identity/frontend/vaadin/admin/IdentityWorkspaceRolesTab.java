@@ -4,12 +4,9 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
-import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -19,6 +16,8 @@ import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import vg.identity.frontend.vaadin.service.LocalizationService;
+import vg.identity.frontend.vaadin.ui.Dialogs;
+import vg.identity.frontend.vaadin.ui.Notifications;
 import vg.identity.model.IdentityPermission;
 import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityWorkspace;
@@ -144,10 +143,10 @@ class IdentityWorkspaceRolesTab extends VerticalLayout {
                         : roleService.removePermission(item.roleId(), item.permissionName());
                 item.updateRole(updated);
                 item.setGranted(event.getValue());
-                notify(localization.i18n("Role saved"), NotificationVariant.LUMO_SUCCESS);
+                Notifications.success(localization.i18n("Role saved"));
             } catch (Exception e) {
                 checkbox.setValue(item.granted());
-                notify(localization.i18n(e), NotificationVariant.LUMO_ERROR);
+                Notifications.error(localization.i18n(e));
             }
         });
         return checkbox;
@@ -211,11 +210,8 @@ class IdentityWorkspaceRolesTab extends VerticalLayout {
 
         var cancel = new Button(localization.i18n("Cancel"), event -> dialog.close());
 
-        var footer = new HorizontalLayout(cancel, save);
-        footer.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
-
         dialog.add(new VerticalLayout(form));
-        dialog.getFooter().add(footer);
+        dialog.getFooter().add(Dialogs.footer(cancel, save));
         dialog.open();
     }
 
@@ -230,33 +226,30 @@ class IdentityWorkspaceRolesTab extends VerticalLayout {
             }
             dialog.close();
             refreshGrid();
-            notify(localization.i18n("Role saved"), NotificationVariant.LUMO_SUCCESS);
+            Notifications.success(localization.i18n("Role saved"));
         } catch (ValidationException ignored) {
-            notify(localization.i18n("Fix validation errors"), NotificationVariant.LUMO_ERROR);
+            Notifications.error(localization.i18n("Fix validation errors"));
         } catch (Exception e) {
-            notify(localization.i18n(e), NotificationVariant.LUMO_ERROR);
+            Notifications.error(localization.i18n(e));
         }
     }
 
     private void confirmDelete(IdentityRole role) {
-        var dialog = new ConfirmDialog();
-        dialog.setHeader(localization.i18n("Delete role"));
-        dialog.setText(localization.i18n("Delete role confirmation"));
-        dialog.setCancelable(true);
-        dialog.setCancelText(localization.i18n("Cancel"));
-        dialog.setConfirmText(localization.i18n("Delete"));
-        dialog.setConfirmButtonTheme("error primary");
-        dialog.addConfirmListener(event -> delete(role));
-        dialog.open();
+        Dialogs.confirmDelete(
+                localization,
+                "Delete role",
+                "Delete role confirmation",
+                () -> delete(role)
+        );
     }
 
     private void delete(IdentityRole role) {
         try {
             roleService.delete(role.getId());
             refreshGrid();
-            notify(localization.i18n("Role deleted"), NotificationVariant.LUMO_SUCCESS);
+            Notifications.success(localization.i18n("Role deleted"));
         } catch (Exception e) {
-            notify(localization.i18n(e), NotificationVariant.LUMO_ERROR);
+            Notifications.error(localization.i18n(e));
         }
     }
 
@@ -293,11 +286,6 @@ class IdentityWorkspaceRolesTab extends VerticalLayout {
                 .workspaceUniqueId(role.getWorkspaceUniqueId())
                 .permissions(new HashSet<>(role.getPermissions()))
                 .build();
-    }
-
-    private void notify(String message, NotificationVariant variant) {
-        var notification = Notification.show(message, 3000, Notification.Position.TOP_END);
-        notification.addThemeVariants(variant);
     }
 
     private static class RoleTreeItem {

@@ -4,12 +4,9 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
-import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -24,6 +21,8 @@ import jakarta.annotation.security.RolesAllowed;
 import vg.identity.frontend.vaadin.MainView;
 import vg.identity.frontend.vaadin.Role;
 import vg.identity.frontend.vaadin.service.LocalizationService;
+import vg.identity.frontend.vaadin.ui.Dialogs;
+import vg.identity.frontend.vaadin.ui.Notifications;
 import vg.identity.model.IdentityPermission;
 import vg.identity.model.IdentityRoleTemplate;
 import vg.identity.service.IdentityPermissionService;
@@ -118,10 +117,10 @@ public class IdentityRoleTemplates extends VerticalLayout {
                         : roleTemplateService.removePermission(item.templateId(), item.permissionName());
                 item.updateTemplate(updated);
                 item.setGranted(event.getValue());
-                notify(localization.i18n("Role template saved"), NotificationVariant.LUMO_SUCCESS);
+                Notifications.success(localization.i18n("Role template saved"));
             } catch (Exception e) {
                 checkbox.setValue(item.granted());
-                notify(localization.i18n(e), NotificationVariant.LUMO_ERROR);
+                Notifications.error(localization.i18n(e));
             }
         });
         return checkbox;
@@ -181,11 +180,8 @@ public class IdentityRoleTemplates extends VerticalLayout {
 
         var cancel = new Button(localization.i18n("Cancel"), event -> dialog.close());
 
-        var footer = new HorizontalLayout(cancel, save);
-        footer.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
-
         dialog.add(new VerticalLayout(form));
-        dialog.getFooter().add(footer);
+        dialog.getFooter().add(Dialogs.footer(cancel, save));
         dialog.open();
     }
 
@@ -204,33 +200,30 @@ public class IdentityRoleTemplates extends VerticalLayout {
             }
             dialog.close();
             refreshGrid();
-            notify(localization.i18n("Role template saved"), NotificationVariant.LUMO_SUCCESS);
+            Notifications.success(localization.i18n("Role template saved"));
         } catch (ValidationException ignored) {
-            notify(localization.i18n("Fix validation errors"), NotificationVariant.LUMO_ERROR);
+            Notifications.error(localization.i18n("Fix validation errors"));
         } catch (Exception e) {
-            notify(localization.i18n(e), NotificationVariant.LUMO_ERROR);
+            Notifications.error(localization.i18n(e));
         }
     }
 
     private void confirmDelete(IdentityRoleTemplate template) {
-        var dialog = new ConfirmDialog();
-        dialog.setHeader(localization.i18n("Delete role template"));
-        dialog.setText(localization.i18n("Delete role template confirmation"));
-        dialog.setCancelable(true);
-        dialog.setCancelText(localization.i18n("Cancel"));
-        dialog.setConfirmText(localization.i18n("Delete"));
-        dialog.setConfirmButtonTheme("error primary");
-        dialog.addConfirmListener(event -> delete(template));
-        dialog.open();
+        Dialogs.confirmDelete(
+                localization,
+                "Delete role template",
+                "Delete role template confirmation",
+                () -> delete(template)
+        );
     }
 
     private void delete(IdentityRoleTemplate template) {
         try {
             roleTemplateService.delete(template.getId());
             refreshGrid();
-            notify(localization.i18n("Role template deleted"), NotificationVariant.LUMO_SUCCESS);
+            Notifications.success(localization.i18n("Role template deleted"));
         } catch (Exception e) {
-            notify(localization.i18n(e), NotificationVariant.LUMO_ERROR);
+            Notifications.error(localization.i18n(e));
         }
     }
 
@@ -265,11 +258,6 @@ public class IdentityRoleTemplates extends VerticalLayout {
                 .description(template.getDescription())
                 .permissions(new HashSet<>(template.getPermissions()))
                 .build();
-    }
-
-    private void notify(String message, NotificationVariant variant) {
-        var notification = Notification.show(message, 3000, Notification.Position.TOP_END);
-        notification.addThemeVariants(variant);
     }
 
     private static class RoleTemplateTreeItem {

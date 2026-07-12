@@ -1,15 +1,15 @@
 package vg.identity.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.ObjectMapper;
+import vg.identity.model.EmailMessage;
 import vg.identity.model.IdentityCommand;
 import vg.identity.model.IdentityCommandStatus;
 import vg.identity.model.IdentityCommandType;
-import vg.identity.model.EmailMessage;
 
 import java.util.List;
 

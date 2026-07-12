@@ -20,7 +20,7 @@ public class IdentityUserChannel implements Identifiable {
     private IdentityChannelType channelType;
     private String channelUserId;
     private byte[] channelUserIdHash;
-    private String data;
+    private String payload;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant verifiedAt;

@@ -1,14 +1,16 @@
 package vg.identity.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import tools.jackson.databind.ObjectMapper;
 import vg.identity.BaseIntegrationTest;
-import vg.identity.IdentityUserChannelVerificationProperties;
+import vg.identity.IdentityActionTokenProperties;
 import vg.identity.model.EmailMessage;
+import vg.identity.model.IdentityActionType;
 import vg.identity.model.IdentityCommandStatus;
 import vg.identity.model.IdentityCommandType;
+import vg.identity.model.IdentityPrincipalType;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -16,37 +18,42 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static vg.test.TestHelper.nextString;
 
-class IdentityUserChannelVerificationServiceIntegrationTest extends BaseIntegrationTest {
+class IdentityActionTokenServiceIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
-    private IdentityUserChannelVerificationService service;
+    private IdentityActionTokenService service;
     @Autowired
     private IdentityUserChannelService channelService;
     @Autowired
-    private IdentityUserChannelVerificationProperties properties;
+    private IdentityActionTokenProperties properties;
     @Autowired
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
-        properties.setLinkPrefix("https://example.com/verify/");
+        cleanUp();
+        properties.setVerifyEmailBaseUrl("https://example.com/verify/");
         properties.setExpiresIn(Duration.ofHours(2));
         properties.setRequestCooldown(Duration.ofMinutes(5));
     }
 
     @Test
-    void verify_whenEmailChannelProvided_createsVerificationAndEnqueuesEmail() throws Exception {
+    void confirm_whenEmailChannelProvided_createsVerificationAndEnqueuesEmail() throws Exception {
         var user = createIdentityUser("john" + nextString());
         var userEntity = userRepository.findById(user.getUniqueId().getLongValue()).orElseThrow();
         var channel = channelService.createEmailChannel("john@example.com", userEntity);
 
-        service.verify(channel);
+        service.confirm(channel);
 
-        var verifications = channelVerificationRepository.findAll();
+        var verifications = actionTokenRepository.findAll();
         assertThat(verifications).hasSize(1);
         var verification = verifications.getFirst();
         assertThat(verification.getId()).isNotNull();
+        assertThat(verification.getActionType()).isEqualTo(IdentityActionType.CONFIRM_EMAIL);
+        assertThat(verification.getPrincipalType()).isEqualTo(IdentityPrincipalType.USER);
+        assertThat(verification.getPrincipal().getUniqueId()).isEqualTo(user.getUniqueId().getLongValue());
         assertThat(verification.getIdentityUserChannel().getUniqueId()).isEqualTo(channel.getUniqueId().getLongValue());
+        assertThat(verification.getPayload()).isNull();
         assertThat(verification.getCreatedAt()).isNotNull();
         assertThat(verification.getExpireAt()).isEqualTo(verification.getCreatedAt().plus(Duration.ofHours(2)));
 
@@ -63,28 +70,28 @@ class IdentityUserChannelVerificationServiceIntegrationTest extends BaseIntegrat
     }
 
     @Test
-    void verify_whenVerificationWasRequestedInsideCooldown_doesNotCreateVerificationAndDoesNotEnqueueEmail() {
+    void confirm_whenVerificationWasRequestedInsideCooldown_doesNotCreateVerificationAndDoesNotEnqueueEmail() {
         var user = createIdentityUser("john" + nextString());
         var userEntity = userRepository.findById(user.getUniqueId().getLongValue()).orElseThrow();
         var channel = channelService.createEmailChannel("john@example.com", userEntity);
 
-        service.verify(channel);
-        service.verify(channel);
+        service.confirm(channel);
+        service.confirm(channel);
 
-        assertThat(channelVerificationRepository.findAll()).hasSize(1);
+        assertThat(actionTokenRepository.findAll()).hasSize(1);
         assertThat(commandRepository.findAll()).hasSize(1);
     }
 
     @Test
-    void verifyById_whenVerificationExistsAndIsNotExpired_setsChannelVerifiedAtAndReturnsTrue() {
+    void confirmEmail_whenVerificationExistsAndIsNotExpired_setsChannelVerifiedAtAndReturnsTrue() {
         var user = createIdentityUser("john" + nextString());
         var userEntity = userRepository.findById(user.getUniqueId().getLongValue()).orElseThrow();
         var channel = channelService.createEmailChannel("john@example.com", userEntity);
-        service.verify(channel);
-        var verification = channelVerificationRepository.findAll().getFirst();
+        service.confirm(channel);
+        var verification = actionTokenRepository.findAll().getFirst();
 
-        assertThat(service.verify(verification.getId())).isTrue();
-        assertThat(service.verify(UUID.randomUUID())).isFalse();
+        assertThat(service.confirmEmail(verification.getId()).success()).isTrue();
+        assertThat(service.confirmEmail(UUID.randomUUID()).success()).isFalse();
 
         var channelEntity = channelRepository.findById(channel.getUniqueId().getLongValue()).orElseThrow();
         assertThat(channelEntity.getVerifiedAt()).isNotNull();

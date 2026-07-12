@@ -29,7 +29,7 @@ public interface IdentityUserChannelMapper {
     @Mapping(target = "identityUser", ignore = true)
     @Mapping(target = "channelUserId", ignore = true)
     @Mapping(target = "channelUserIdHash", ignore = true)
-    @Mapping(target = "data", ignore = true)
+    @Mapping(target = "payload", ignore = true)
     @Mapping(target = "verifiedAt", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

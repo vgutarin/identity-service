@@ -40,11 +40,20 @@ public class SecurityConfiguration {
         http.authorizeHttpRequests(auth -> {
             auth.requestMatchers("/admin-only/**").hasAnyRole("admin")
                 .requestMatchers(
-                        "/channel/verify",
-                        "/channel/verify/**",
-                        "/public/**"
+                        "/verify/**",
+                        "/public/**",
+                        "/h2-console",
+                        "/h2-console/**"
                 ).permitAll();
         });
+
+        http.csrf(csrf -> csrf
+                .ignoringRequestMatchers(PathRequest.toH2Console())
+        );
+
+        http.headers(headers -> headers
+                .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
+        );
 
         http.with(VaadinSecurityConfigurer.vaadin(), configurer -> {
             // This is important to register your login view to the

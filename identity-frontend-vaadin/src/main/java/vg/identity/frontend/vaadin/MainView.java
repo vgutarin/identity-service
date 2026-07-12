@@ -1,7 +1,6 @@
 package vg.identity.frontend.vaadin;
 
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.button.Button;
@@ -12,7 +11,6 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.sidenav.SideNav;
 import com.vaadin.flow.component.sidenav.SideNavItem;
 import com.vaadin.flow.router.AfterNavigationEvent;
@@ -27,8 +25,7 @@ import vg.identity.frontend.vaadin.admin.IdentityUserPermissions;
 import vg.identity.frontend.vaadin.admin.IdentityUsers;
 import vg.identity.frontend.vaadin.admin.IdentityUsersChannels;
 import vg.identity.frontend.vaadin.service.LocalizationService;
-
-import java.util.Locale;
+import vg.identity.frontend.vaadin.ui.LocalePicker;
 
 @PermitAll
 public class MainView extends AppLayout implements AfterNavigationObserver {
@@ -71,7 +68,7 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
         layout.add(viewTitle);
         layout.expand(viewTitle);
 
-        layout.add(createLocalePicker());
+        layout.add(new LocalePicker(localization));
 
         layout.add(
                 authContext.getAuthenticatedUser(UserDetails.class)
@@ -99,26 +96,6 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
         //layout.add(new Image("images/user.svg", "Avatar"));
 
         return layout;
-    }
-
-    private Select<Locale> createLocalePicker() {
-        var localePicker = new Select<Locale>();
-        localePicker.addClassName("locale-picker");
-        localePicker.setLabel(localization.i18n("Language"));
-        localePicker.setItems(localization.getProvidedLocales());
-        localePicker.setItemLabelGenerator(this::localeName);
-        localePicker.setValue(localization.getCurrentLocale());
-        localePicker.addValueChangeListener(event -> {
-            if (event.isFromClient() && null != event.getValue()) {
-                localization.setCurrentLocale(event.getValue());
-                UI.getCurrent().getPage().reload();
-            }
-        });
-        return localePicker;
-    }
-
-    private String localeName(Locale locale) {
-        return localization.i18n("locale." + locale.toLanguageTag());
     }
 
     private Component createDrawerContent(SideNav menu) {

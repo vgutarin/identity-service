@@ -1,6 +1,5 @@
 package vg.identity;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
@@ -15,6 +14,8 @@ import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.provisioning.UserDetailsManager;
+import org.springframework.web.client.RestClient;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
 import java.util.Map;
@@ -26,7 +27,7 @@ import java.util.Map;
 @EnableConfigurationProperties({
         EncryptionProperties.class,
         EmailProperties.class,
-        IdentityUserChannelVerificationProperties.class
+        IdentityActionTokenProperties.class
 })
 @EnableMethodSecurity
 @EnableScheduling
@@ -53,6 +54,12 @@ public class IdentityLogicConfig {
     @ConditionalOnMissingBean
     public Clock clock() {
         return Clock.systemUTC();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RestClient.Builder restClientBuilder() {
+        return RestClient.builder();
     }
 
 

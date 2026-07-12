@@ -168,7 +168,7 @@ class AuthorityCheckerIntegrationTest extends BaseIntegrationTest {
                     .name(name)
                     .uri(uri)
                     .uriHash(encryptionService.hashCaseSensitive(uri))
-                    .data(nextString())
+                    .payload(nextString())
                     .build();
 
             entityManager.persist(entity);

@@ -3,31 +3,30 @@ package vg.identity.frontend.vaadin.admin;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import vg.identity.frontend.vaadin.service.LocalizationService;
+import vg.identity.frontend.vaadin.ui.Dialogs;
+import vg.identity.frontend.vaadin.ui.Notifications;
 import vg.identity.model.IdentityApplication;
 import vg.identity.model.IdentityWorkspace;
+import vg.identity.model.application.TelegramBot;
 import vg.identity.service.IdentityApplicationService;
-import vg.identity.service.IdentityWorkspaceService;
 
 import java.time.Instant;
+import java.util.function.Consumer;
 
 class IdentityWorkspaceApplicationsTab extends VerticalLayout {
 
-    private final transient IdentityWorkspaceService workspaceService;
     private final transient IdentityApplicationService applicationService;
     private final LocalizationService localization;
     private final HorizontalLayout actions = new HorizontalLayout();
@@ -35,11 +34,9 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
     private IdentityWorkspace workspace;
 
     IdentityWorkspaceApplicationsTab(
-            IdentityWorkspaceService workspaceService,
             IdentityApplicationService applicationService,
             LocalizationService localization
     ) {
-        this.workspaceService = workspaceService;
         this.applicationService = applicationService;
         this.localization = localization;
 
@@ -84,10 +81,6 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
                 .setHeader(localization.i18n("URI"))
                 .setSortable(true)
                 .setAutoWidth(true);
-        grid.addColumn(IdentityApplication::getData)
-                .setHeader(localization.i18n("Data"))
-                .setSortable(true)
-                .setAutoWidth(true);
         grid.addColumn(application -> format(application.getCreatedAt()))
                 .setHeader(localization.i18n("Created"))
                 .setSortable(true)
@@ -111,9 +104,9 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
             return;
         }
 
-        var add = new Button(localization.i18n("Add application"), VaadinIcon.PLUS.create());
+        var add = new Button(localization.i18n("Add Telegram bot"), VaadinIcon.PLUS.create());
         add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        add.addClickListener(event -> openForm(new IdentityApplication()));
+        add.addClickListener(event -> openTelegramBotForm());
 
         actions.add(add);
     }
@@ -121,7 +114,7 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
     private HorizontalLayout rowActions(IdentityApplication application) {
         var edit = new Button(localization.i18n("Edit"), VaadinIcon.EDIT.create());
         edit.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
-        edit.addClickListener(event -> openForm(application));
+        edit.addClickListener(event -> openEditForm(application));
 
         var delete = new Button(localization.i18n("Delete"), VaadinIcon.TRASH.create());
         delete.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
@@ -137,93 +130,101 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
         return layout;
     }
 
-    private void openForm(IdentityApplication application) {
-        var editing = application.getUniqueId() != null;
-        var formApplication = editing ? copy(application) : application;
+    private void openTelegramBotForm() {
+        openBotDialog(localization.i18n("Add Telegram bot"), new TelegramBotForm(), formBot ->
+                applicationService.createTelegramBotApplication(
+                        workspace.getUniqueId(),
+                        formBot.getName(),
+                        TelegramBot.builder()
+                                .token(formBot.getBotToken())
+                                .build()
+                ));
+    }
 
+    private void openEditForm(IdentityApplication application) {
+        var formBot = new TelegramBotForm();
+        formBot.setName(application.getName());
+
+        openBotDialog(localization.i18n("Edit Telegram bot"), formBot, form ->
+                applicationService.updateTelegramBotApplication(
+                        application.getUniqueId(),
+                        application.getVersion(),
+                        form.getName(),
+                        TelegramBot.builder()
+                                .token(form.getBotToken())
+                                .build()
+                ));
+    }
+
+    private void openBotDialog(String title, TelegramBotForm formBot, Consumer<TelegramBotForm> onSave) {
         var dialog = new Dialog();
-        dialog.setHeaderTitle(localization.i18n(editing ? "Edit application" : "Create application"));
+        dialog.setHeaderTitle(title);
         dialog.setDraggable(true);
         dialog.setWidth("640px");
 
-        var binder = new Binder<>(IdentityApplication.class);
+        var binder = new Binder<>(TelegramBotForm.class);
         var name = new TextField(localization.i18n("Name"));
         name.setWidthFull();
         name.setRequiredIndicatorVisible(true);
 
-        var uri = new TextField(localization.i18n("URI"));
-        uri.setWidthFull();
-        uri.setRequiredIndicatorVisible(true);
-
-        var data = new TextArea(localization.i18n("Data"));
-        data.setWidthFull();
+        var botToken = new PasswordField(localization.i18n("Bot token"));
+        botToken.setWidthFull();
+        botToken.setRequiredIndicatorVisible(true);
+        botToken.setHelperText(localization.i18n("Telegram bot token helper"));
 
         binder.forField(name)
                 .asRequired(localization.i18n("Name is required"))
                 .withValidator(value -> !value.isBlank(), localization.i18n("Name is required"))
-                .bind(IdentityApplication::getName, IdentityApplication::setName);
-        binder.forField(uri)
-                .asRequired(localization.i18n("URI is required"))
-                .withValidator(value -> !value.isBlank(), localization.i18n("URI is required"))
-                .bind(IdentityApplication::getUri, IdentityApplication::setUri);
-        binder.forField(data)
-                .bind(IdentityApplication::getData, IdentityApplication::setData);
-        binder.readBean(formApplication);
+                .bind(TelegramBotForm::getName, TelegramBotForm::setName);
+        binder.forField(botToken)
+                .asRequired(localization.i18n("Bot token is required"))
+                .withValidator(value -> !value.isBlank(), localization.i18n("Bot token is required"))
+                .bind(TelegramBotForm::getBotToken, TelegramBotForm::setBotToken);
+        binder.readBean(formBot);
 
-        var form = new FormLayout(name, uri, data);
+        var form = new FormLayout(name, botToken);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
 
-        var save = new Button(localization.i18n("Save"), event -> save(dialog, binder, formApplication));
+        var save = new Button(localization.i18n("Save"), event -> saveBot(dialog, binder, formBot, onSave));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         var cancel = new Button(localization.i18n("Cancel"), event -> dialog.close());
 
-        var footer = new HorizontalLayout(cancel, save);
-        footer.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
-
         dialog.add(new VerticalLayout(form));
-        dialog.getFooter().add(footer);
+        dialog.getFooter().add(Dialogs.footer(cancel, save));
         dialog.open();
     }
 
-    private void save(Dialog dialog, Binder<IdentityApplication> binder, IdentityApplication application) {
+    private void saveBot(Dialog dialog, Binder<TelegramBotForm> binder, TelegramBotForm formBot, Consumer<TelegramBotForm> onSave) {
         try {
-            binder.writeBean(application);
-
-            if (application.getUniqueId() == null) {
-                workspaceService.createApplication(workspace.getUniqueId(), application);
-            } else {
-                applicationService.update(application);
-            }
+            binder.writeBean(formBot);
+            onSave.accept(formBot);
             dialog.close();
             refreshGrid();
-            notify(localization.i18n("Application saved"), NotificationVariant.LUMO_SUCCESS);
+            Notifications.success(localization.i18n("Application saved"));
         } catch (ValidationException ignored) {
-            notify(localization.i18n("Fix validation errors"), NotificationVariant.LUMO_ERROR);
+            Notifications.error(localization.i18n("Fix validation errors"));
         } catch (Exception e) {
-            notify(localization.i18n(e), NotificationVariant.LUMO_ERROR);
+            Notifications.error(localization.i18n(e));
         }
     }
 
     private void confirmDelete(IdentityApplication application) {
-        var dialog = new ConfirmDialog();
-        dialog.setHeader(localization.i18n("Delete application"));
-        dialog.setText(localization.i18n("Delete application confirmation"));
-        dialog.setCancelable(true);
-        dialog.setCancelText(localization.i18n("Cancel"));
-        dialog.setConfirmText(localization.i18n("Delete"));
-        dialog.setConfirmButtonTheme("error primary");
-        dialog.addConfirmListener(event -> delete(application));
-        dialog.open();
+        Dialogs.confirmDelete(
+                localization,
+                "Delete application",
+                "Delete application confirmation",
+                () -> delete(application)
+        );
     }
 
     private void delete(IdentityApplication application) {
         try {
             applicationService.delete(application.getUniqueId());
             refreshGrid();
-            notify(localization.i18n("Application deleted"), NotificationVariant.LUMO_SUCCESS);
+            Notifications.success(localization.i18n("Application deleted"));
         } catch (Exception e) {
-            notify(localization.i18n(e), NotificationVariant.LUMO_ERROR);
+            Notifications.error(localization.i18n(e));
         }
     }
 
@@ -238,25 +239,28 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
         grid.setItems(applications);
     }
 
-    private IdentityApplication copy(IdentityApplication application) {
-        return IdentityApplication.builder()
-                .uniqueId(application.getUniqueId())
-                .version(application.getVersion())
-                .createdAt(application.getCreatedAt())
-                .updatedAt(application.getUpdatedAt())
-                .workspaceUniqueId(application.getWorkspaceUniqueId())
-                .name(application.getName())
-                .uri(application.getUri())
-                .data(application.getData())
-                .build();
-    }
-
     private String format(Instant instant) {
         return localization.formatDateTime(instant);
     }
 
-    private void notify(String message, NotificationVariant variant) {
-        var notification = Notification.show(message, 3000, Notification.Position.TOP_END);
-        notification.addThemeVariants(variant);
+    private static class TelegramBotForm {
+        private String name;
+        private String botToken;
+
+        private String getName() {
+            return name;
+        }
+
+        private void setName(String name) {
+            this.name = name;
+        }
+
+        private String getBotToken() {
+            return botToken;
+        }
+
+        private void setBotToken(String botToken) {
+            this.botToken = botToken;
+        }
     }
 }

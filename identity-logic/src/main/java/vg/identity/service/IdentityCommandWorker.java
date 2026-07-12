@@ -1,13 +1,14 @@
 package vg.identity.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import vg.identity.model.IdentityCommand;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import vg.identity.model.EmailMessage;
+import vg.identity.model.IdentityCommand;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -34,21 +35,21 @@ public class IdentityCommandWorker {
         }
     }
 
-    void process(IdentityCommand command) throws JsonProcessingException {
+    void process(IdentityCommand command) throws JacksonException {
         switch (command.commandStatus()) {
             case RUNNING -> processRunning(command);
             default -> throw new IllegalStateException("Unsupported command status: " + command.commandStatus());
         }
     }
 
-    private void processRunning(IdentityCommand command) throws JsonProcessingException {
+    private void processRunning(IdentityCommand command) throws JacksonException {
         switch (command.commandType()) {
             case SEND_EMAIL -> sendEmail(command);
             default -> throw new IllegalArgumentException("Unsupported command type: " + command.commandType());
         }
     }
 
-    private void sendEmail(IdentityCommand command) throws JsonProcessingException {
+    private void sendEmail(IdentityCommand command) throws JacksonException {
         emailService.sendEmail(
                 objectMapper.readValue(command.payload(), EmailMessage.class)
         );

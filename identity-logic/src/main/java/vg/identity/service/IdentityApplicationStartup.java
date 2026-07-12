@@ -15,6 +15,7 @@ import vg.identity.model.IdentityUser;
 import vg.identity.model.IdentityUserSystemRole;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.model.access.Permission;
+import vg.identity.model.application.TelegramBot;
 
 import java.util.List;
 
@@ -29,6 +30,7 @@ public class IdentityApplicationStartup {
     private final IdentityUserService userService;
     private final IdentityUserAuthorityService authorityService;
     private final IdentityWorkspaceService workspaceService;
+    private final IdentityApplicationService applicationService;
     private final IdentityPermissionService permissionService;
     private final IdentityRoleTemplateService roleTemplateService;
 
@@ -38,8 +40,7 @@ public class IdentityApplicationStartup {
         setCurrentUserAsOwner();
 
         createUser("vg", "vg", IdentityUserSystemRole.OWNER);
-        createUser("g", "g", null);
-        createUser("a", "a", null);
+        createUser("app.vgutarin@gmail.com", "g", null);
 
         for(var permission : Permission.ALL) {
             permissionService.create(IdentityPermission.builder().name(permission).build());
@@ -57,7 +58,18 @@ public class IdentityApplicationStartup {
             roleTemplateService.addPermission(template.getId(), Permission.ALL[i++]);
         }
 
-        List.of("Workspace1", "Workspace2", "Workspace3", "Workspace4", "Workspace5").forEach(workspaceName ->
+        workspaceService.create(
+                IdentityWorkspace.builder().name("System").build()
+        );
+//        applicationService.createTelegramBotApplication(
+//                system.getUniqueId(),
+//                "System",
+//                TelegramBot.builder()
+//                        .token("system-bot-token")
+//                        .build()
+//        );
+
+        List.of("Workspace1", "Workspace2").forEach(workspaceName ->
                 workspaceService.create(
                         IdentityWorkspace.builder().name(workspaceName).build()
                 )

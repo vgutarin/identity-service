@@ -63,7 +63,7 @@ public class IdentityUserEntity implements UniqueIdEntity {
 
     @Convert(converter = StringEncryptionConverter.class)
     @Column(columnDefinition = "MEDIUMBLOB")
-    private String data;
+    private String payload;
 
     @Column(nullable = false, updatable = false)
     @CreatedDate

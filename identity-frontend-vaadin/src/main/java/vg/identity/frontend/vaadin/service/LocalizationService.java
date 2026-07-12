@@ -7,6 +7,7 @@ import com.vaadin.flow.server.VaadinSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -33,7 +34,6 @@ public class LocalizationService implements I18NProvider {
             DEFAULT_LOCALE,
             Locale.ENGLISH
     );
-
     private final MessageSource messageSource;
 
     public LocalizationService(MessageSource messageSource) {
@@ -74,14 +74,16 @@ public class LocalizationService implements I18NProvider {
     }
 
     public String i18n(Exception e) {
-        var simpleName = "exception." + e.getClass().getSimpleName();
-        var result = i18n(simpleName);
-        if (!simpleName.equals(result)) {
-            return result;
+        var key = toKey(e);
+        if (key != null) {
+            var result = i18n(key);
+            if (!key.equals(result)) {
+                return result;
+            }
         }
 
         log.warn("Cannot find i18n", e);
-        return i18n("exception.unknown");
+        return i18n("unknown.error");
     }
 
     public String i18n(String key) {
@@ -141,5 +143,17 @@ public class LocalizationService implements I18NProvider {
         return locale;
     }
 
+
+    private String toKey(Exception e) {
+        if (null == e) {
+            return null;
+        }
+
+        if (e instanceof OptimisticLockingFailureException) {
+            return "exception.optimisticLocking";
+        }
+
+        return e.getMessage();
+    }
 
 }

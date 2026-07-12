@@ -20,6 +20,7 @@ import vg.identity.model.IdentityPrincipalStatus;
 import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.IdentityUser;
 import vg.identity.model.access.Permission;
+import vg.identity.model.application.TelegramBot;
 import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
@@ -51,11 +52,13 @@ class IdentityApplicationServicePermissionIntegrationTest extends BaseIntegratio
     @Test
     void publicMethods_areSecuredWithExpectedPreAuthorizeExpressions() {
         var expectedExpressions = Map.of(
+                "createTelegramBotApplication(UniqueId, String, TelegramBot)", "@authorityChecker.hasAuthority(#workspaceUniqueId, '" + Permission.App.CREATE + "')",
                 "delete(UniqueId)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.App.DELETE + "')",
                 "findById(UniqueId)", "@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.READ + "')",
                 "findByWorkspaceUniqueId(UniqueId)", "@authorityChecker.hasAuthority(#workspaceUniqueId, '" + Permission.App.READ + "')",
                 "getById(UniqueId)", "@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.READ + "')",
-                "update(IdentityApplication)", "@authorityChecker.hasAuthority(#application.getUniqueId(), '" + Permission.App.UPDATE + "')"
+                "update(IdentityApplication)", "@authorityChecker.hasAuthority(#application.getUniqueId(), '" + Permission.App.UPDATE + "')",
+                "updateTelegramBotApplication(UniqueId, int, String, TelegramBot)", "@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.UPDATE + "')"
         );
 
         var publicMethods = Arrays.stream(IdentityApplicationService.class.getMethods())
@@ -97,6 +100,38 @@ class IdentityApplicationServicePermissionIntegrationTest extends BaseIntegratio
                 .isInstanceOf(AccessDeniedException.class);
     }
 
+    @Test
+    @WithMockUser(username = USERNAME, roles = "USER")
+    void createTelegramBotApplication_whenUserDoesNotHaveAppCreatePermission_throwsAccessDeniedException() {
+        createIdentityUser(USERNAME);
+        var workspace = createWorkspace();
+
+        assertThatThrownBy(() -> service.createTelegramBotApplication(
+                new UniqueId(workspace.getUniqueId()),
+                nextString(),
+                TelegramBot.builder()
+                        .token(nextString())
+                        .build()
+        )).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @WithMockUser(username = USERNAME, roles = "USER")
+    void updateTelegramBotApplication_whenUserDoesNotHaveAppUpdatePermission_throwsAccessDeniedException() {
+        createIdentityUser(USERNAME);
+        var workspace = createWorkspace();
+        var application = createApplication(workspace);
+
+        assertThatThrownBy(() -> service.updateTelegramBotApplication(
+                new UniqueId(application.getUniqueId()),
+                application.getVersion(),
+                nextString(),
+                TelegramBot.builder()
+                        .token(nextString())
+                        .build()
+        )).isInstanceOf(AccessDeniedException.class);
+    }
+
     private IdentityWorkspaceEntity createWorkspace() {
         var saved = workspaceRepository.saveWithNewUniqueId(
                 IdentityWorkspaceEntity.builder()
@@ -127,7 +162,7 @@ class IdentityApplicationServicePermissionIntegrationTest extends BaseIntegratio
                     .name(name)
                     .uri(uri)
                     .uriHash(encryptionService.hashCaseSensitive(uri))
-                    .data(nextString())
+                    .payload(nextString())
                     .build();
 
             entityManager.persist(entity);

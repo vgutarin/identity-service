@@ -8,7 +8,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.entity.IdentityWorkspaceEntity;
-import vg.identity.model.IdentityApplication;
 import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.model.access.Permission;
@@ -44,7 +43,6 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
         var expectedExpressions = Map.of(
                 "addUser(UniqueId, String)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.User.CREATE + "')",
                 "create(IdentityWorkspace)", "@authorityChecker.hasAuthority('" + Permission.Workspace.CREATE + "')",
-                "createApplication(UniqueId, IdentityApplication)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.App.CREATE + "')",
                 "createRole(UniqueId, IdentityRole)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.Role.CREATE + "')",
                 "delete(UniqueId)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.Workspace.DELETE + "')",
                 "getAll()", "@authorityChecker.hasAuthority('" + Permission.Workspace.READ + "')",
@@ -120,20 +118,6 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
                 new UniqueId(saved.getUniqueId()),
                 IdentityRole.builder()
                         .name(nextString())
-                        .build()
-        )).isInstanceOf(AccessDeniedException.class);
-    }
-
-    @Test
-    void createApplication_whenUserDoesNotHaveAppCreatePermission_throwsAccessDeniedException() {
-        var saved = saveWorkspace();
-
-        assertThatThrownBy(() -> service.createApplication(
-                new UniqueId(saved.getUniqueId()),
-                IdentityApplication.builder()
-                        .name(nextString())
-                        .uri(nextString())
-                        .data(nextString())
                         .build()
         )).isInstanceOf(AccessDeniedException.class);
     }

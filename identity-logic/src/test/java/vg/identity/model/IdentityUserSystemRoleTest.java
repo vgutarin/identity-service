@@ -15,6 +15,8 @@ class IdentityUserSystemRoleTest {
     void values_whenEnumPersistsByOrdinal_returnsStableOrdinalsAndNames() {
         assertThat(IdentityUserSystemRole.OWNER.name()).isEqualTo("OWNER");
         assertThat(IdentityUserSystemRole.OWNER.ordinal()).isEqualTo(0);
+        assertThat(IdentityUserSystemRole.VERIFIED_USER.name()).isEqualTo("VERIFIED_USER");
+        assertThat(IdentityUserSystemRole.VERIFIED_USER.ordinal()).isEqualTo(1);
     }
 
     /**
@@ -26,7 +28,8 @@ class IdentityUserSystemRoleTest {
         assertThat(
                 IdentityUserSystemRole.values()
         ).containsExactly(
-                IdentityUserSystemRole.OWNER
+                IdentityUserSystemRole.OWNER,
+                IdentityUserSystemRole.VERIFIED_USER
         );
     }
 }

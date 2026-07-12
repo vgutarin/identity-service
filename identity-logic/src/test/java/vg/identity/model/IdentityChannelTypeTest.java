@@ -13,20 +13,12 @@ class IdentityChannelTypeTest {
      */
     @Test
     void values_whenEnumPersistsByOrdinal_returnsStableOrdinalsAndNames() {
-        assertThat(IdentityChannelType.GENERIC.name()).isEqualTo("GENERIC");
-        assertThat(IdentityChannelType.GENERIC.ordinal()).isEqualTo(0);
+
+        assertThat(IdentityChannelType.EMAIL.name()).isEqualTo("EMAIL");
+        assertThat(IdentityChannelType.EMAIL.ordinal()).isEqualTo(0);
 
         assertThat(IdentityChannelType.TELEGRAM_USER.name()).isEqualTo("TELEGRAM_USER");
         assertThat(IdentityChannelType.TELEGRAM_USER.ordinal()).isEqualTo(1);
-
-        assertThat(IdentityChannelType.TELEGRAM_BOT.name()).isEqualTo("TELEGRAM_BOT");
-        assertThat(IdentityChannelType.TELEGRAM_BOT.ordinal()).isEqualTo(2);
-
-        assertThat(IdentityChannelType.EMAIL.name()).isEqualTo("EMAIL");
-        assertThat(IdentityChannelType.EMAIL.ordinal()).isEqualTo(3);
-
-        assertThat(IdentityChannelType.PHONE.name()).isEqualTo("PHONE");
-        assertThat(IdentityChannelType.PHONE.ordinal()).isEqualTo(4);
     }
 
     /**
@@ -38,11 +30,8 @@ class IdentityChannelTypeTest {
         assertThat(
                 IdentityChannelType.values()
         ).containsExactly(
-                IdentityChannelType.GENERIC,
-                IdentityChannelType.TELEGRAM_USER,
-                IdentityChannelType.TELEGRAM_BOT,
                 IdentityChannelType.EMAIL,
-                IdentityChannelType.PHONE
+                IdentityChannelType.TELEGRAM_USER
         );
     }
 }

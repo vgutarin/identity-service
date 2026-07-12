@@ -1,34 +1,34 @@
 package vg.identity.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import tools.jackson.databind.ObjectMapper;
 import vg.identity.entity.IdentityCommandEntity;
 import vg.identity.mapper.IdentityCommandMapper;
+import vg.identity.model.EmailMessage;
 import vg.identity.model.IdentityCommand;
 import vg.identity.model.IdentityCommandStatus;
 import vg.identity.model.IdentityCommandType;
-import vg.identity.model.EmailMessage;
 import vg.identity.repository.IdentityCommandRepository;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.doAnswer;
 
 @ExtendWith(MockitoExtension.class)
 class IdentityCommandServiceTest {

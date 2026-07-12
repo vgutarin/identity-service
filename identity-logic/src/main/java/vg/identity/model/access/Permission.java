@@ -84,7 +84,7 @@ public class Permission {
                 .collect(Collectors.toSet());
 
         if (uniqueSet.size() != values.length) {
-            throw new IllegalArgumentException("Permissions must be unique");
+            throw new IllegalArgumentException("exception.permission.unique.required");
         }
 
         for (var permission : values) {

@@ -7,8 +7,6 @@ import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -22,6 +20,8 @@ import jakarta.annotation.security.RolesAllowed;
 import vg.identity.frontend.vaadin.MainView;
 import vg.identity.frontend.vaadin.Role;
 import vg.identity.frontend.vaadin.service.LocalizationService;
+import vg.identity.frontend.vaadin.ui.Dialogs;
+import vg.identity.frontend.vaadin.ui.Notifications;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.service.IdentityWorkspaceService;
 
@@ -117,11 +117,8 @@ public class IdentityWorkspaces extends VerticalLayout {
 
         var cancel = new Button(localization.i18n("Cancel"), event -> dialog.close());
 
-        var footer = new HorizontalLayout(cancel, save);
-        footer.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
-
         dialog.add(new VerticalLayout(form));
-        dialog.getFooter().add(footer);
+        dialog.getFooter().add(Dialogs.footer(cancel, save));
         dialog.open();
     }
 
@@ -130,17 +127,12 @@ public class IdentityWorkspaces extends VerticalLayout {
             binder.writeBean(workspace);
             var saved = workspaceService.create(workspace);
             dialog.close();
-            notify(localization.i18n("Workspace saved"), NotificationVariant.LUMO_SUCCESS);
+            Notifications.success(localization.i18n("Workspace saved"));
             UI.getCurrent().navigate(IdentityWorkspaceDetails.class, IdentityWorkspaceDetails.routeParameters(saved));
         } catch (ValidationException ignored) {
-            notify(localization.i18n("Fix validation errors"), NotificationVariant.LUMO_ERROR);
+            Notifications.error(localization.i18n("Fix validation errors"));
         } catch (Exception e) {
-            notify(localization.i18n(e), NotificationVariant.LUMO_ERROR);
+            Notifications.error(localization.i18n(e));
         }
-    }
-
-    private void notify(String message, NotificationVariant variant) {
-        var notification = Notification.show(message, 3000, Notification.Position.TOP_END);
-        notification.addThemeVariants(variant);
     }
 }

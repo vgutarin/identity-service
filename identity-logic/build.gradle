@@ -24,7 +24,8 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-security"
     implementation "org.springframework.boot:spring-boot-starter-data-jpa"
     implementation "org.springframework.boot:spring-boot-starter-validation"
-    implementation "com.fasterxml.jackson.core:jackson-databind"
+    implementation "org.springframework:spring-web"
+    implementation "tools.jackson.core:jackson-databind"
 
     implementation "vg.unique-id:unique-id-jpa-lib:0.0.1-SNAPSHOT"
     implementation "org.liquibase:liquibase-core"

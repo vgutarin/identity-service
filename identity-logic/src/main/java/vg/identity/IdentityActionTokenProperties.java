@@ -12,14 +12,17 @@ import java.time.Duration;
 @Getter
 @Setter
 @Validated
-@ConfigurationProperties("identity.user-channel-verification")
-public class IdentityUserChannelVerificationProperties {
+@ConfigurationProperties("identity.action-token")
+public class IdentityActionTokenProperties {
     @NotBlank
-    private String linkPrefix = "/channel/verify?id=";
+    private String verifyEmailBaseUrl = "/verify/email?id=";
 
     @NotNull
     private Duration expiresIn = Duration.ofDays(1);
 
     @NotNull
     private Duration requestCooldown = Duration.ofMinutes(5);
+
+    @NotBlank
+    private String telegramStartAppParam = "startapp";
 }

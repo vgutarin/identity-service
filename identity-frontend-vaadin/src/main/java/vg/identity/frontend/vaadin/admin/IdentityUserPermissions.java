@@ -9,8 +9,6 @@ import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -22,6 +20,8 @@ import jakarta.annotation.security.RolesAllowed;
 import vg.identity.frontend.vaadin.MainView;
 import vg.identity.frontend.vaadin.Role;
 import vg.identity.frontend.vaadin.service.LocalizationService;
+import vg.identity.frontend.vaadin.ui.Dialogs;
+import vg.identity.frontend.vaadin.ui.Notifications;
 import vg.identity.model.IdentityResourceType;
 import vg.identity.model.IdentityUser;
 import vg.identity.model.IdentityWorkspace;
@@ -31,9 +31,6 @@ import vg.identity.service.IdentityUserService;
 import vg.unique.id.jpa.UniqueIdEntity;
 
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,7 +47,6 @@ public class IdentityUserPermissions extends VerticalLayout {
     private final IdentityUserAuthorityService authorityService;
     private final LocalizationService localization;
     private final Grid<IdentityUser> usersGrid = new Grid<>(IdentityUser.class, false);
-    private final DateTimeFormatter dateTimeFormatter;
 
     public IdentityUserPermissions(
             IdentityUserService userService,
@@ -62,9 +58,6 @@ public class IdentityUserPermissions extends VerticalLayout {
         this.workspaceService = workspaceService;
         this.authorityService = authorityService;
         this.localization = localization;
-        this.dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
-                .withLocale(localization.getCurrentLocale())
-                .withZone(ZoneId.systemDefault());
 
         setSizeFull();
         setPadding(true);
@@ -145,23 +138,21 @@ public class IdentityUserPermissions extends VerticalLayout {
         var save = new Button(localization.i18n("Save"), event -> {
             var selectedPermissions = permissions.getValue();
             if (resourceType.getValue() == null || resource.getValue() == null || selectedPermissions.isEmpty()) {
-                notify(localization.i18n("Fix validation errors"), NotificationVariant.LUMO_ERROR);
+                Notifications.error(localization.i18n("Fix validation errors"));
                 return;
             }
             selectedPermissions.forEach(permission ->
                     authorityService.assignResourceAuthority(resource.getValue(), user, permission));
             dialog.close();
             refreshTree(user, tree);
-            notify(localization.i18n("Permission saved"), NotificationVariant.LUMO_SUCCESS);
+            Notifications.success(localization.i18n("Permission saved"));
         });
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         var cancel = new Button(localization.i18n("Cancel"), event -> dialog.close());
-        var footer = new HorizontalLayout(cancel, save);
-        footer.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
 
         dialog.add(new VerticalLayout(resourceType, resource, permissions));
-        dialog.getFooter().add(footer);
+        dialog.getFooter().add(Dialogs.footer(cancel, save));
         dialog.open();
     }
 
@@ -214,12 +205,12 @@ public class IdentityUserPermissions extends VerticalLayout {
             if (event.getValue()) {
                 authorityService.assignResourceAuthority(item.resource(), user, item.permissionName());
                 item.setGranted(true);
-                notify(localization.i18n("Permission saved"), NotificationVariant.LUMO_SUCCESS);
+                Notifications.success(localization.i18n("Permission saved"));
                 return;
             }
             authorityService.revokeResourceAuthority(item.resource(), user, item.permissionName());
             item.setGranted(false);
-            notify(localization.i18n("Permission removed"), NotificationVariant.LUMO_SUCCESS);
+            Notifications.success(localization.i18n("Permission removed"));
         });
         return checkbox;
     }
@@ -280,12 +271,7 @@ public class IdentityUserPermissions extends VerticalLayout {
     }
 
     private String format(Instant instant) {
-        return instant == null ? "" : dateTimeFormatter.format(instant);
-    }
-
-    private void notify(String message, NotificationVariant variant) {
-        var notification = Notification.show(message, 3000, Notification.Position.TOP_END);
-        notification.addThemeVariants(variant);
+        return localization.formatDateTime(instant);
     }
 
     private static class PermissionTreeItem {

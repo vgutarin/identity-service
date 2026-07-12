@@ -10,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityWorkspaceMapper;
-import vg.identity.model.IdentityApplication;
 import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityUser;
 import vg.identity.model.IdentityWorkspace;
@@ -30,7 +29,6 @@ public class IdentityWorkspaceService {
     private final IdentityWorkspaceRepository workspaceRepository;
     private final IdentityRoleTemplateRepository roleTemplateRepository;
     private final IdentityRoleService roleService;
-    private final IdentityApplicationService applicationService;
     private final IdentityUserService userService;
     private final IdentityWorkspaceMapper workspaceMapper;
 
@@ -98,15 +96,6 @@ public class IdentityWorkspaceService {
                 .orElseThrow(EntityNotFoundException::new);
 
         return roleService.create(role.getName(), role.getDescription(), workspace);
-    }
-
-    @PreAuthorize("@authorityChecker.hasAuthority(#uniqueId, '" + Permission.App.CREATE + "')")
-    @Transactional
-    public IdentityApplication createApplication(UniqueId uniqueId, IdentityApplication application) {
-        var workspace = workspaceRepository.findById(uniqueId.getLongValue())
-                .orElseThrow(EntityNotFoundException::new);
-
-        return applicationService.create(application.getName(), application.getUri(), application.getData(), workspace);
     }
 
     @PreAuthorize("@authorityChecker.hasAuthority(#uniqueId, '" + Permission.User.CREATE + "')")

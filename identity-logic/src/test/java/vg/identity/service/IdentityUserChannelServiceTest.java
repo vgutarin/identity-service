@@ -6,15 +6,19 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.ObjectMapper;
 import vg.identity.entity.IdentityUserChannelEntity;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.mapper.IdentityUserChannelMapper;
 import vg.identity.model.IdentityChannelType;
+import vg.identity.model.TelegramUserPrincipal;
 import vg.identity.model.user.channel.IdentityUserChannelEmail;
 import vg.identity.repository.IdentityUserChannelRepository;
 import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,6 +32,7 @@ import static vg.test.TestHelper.nextLong;
 
 @ExtendWith(MockitoExtension.class)
 class IdentityUserChannelServiceTest {
+    private static final Instant NOW = Instant.parse("2026-07-21T10:00:00Z");
 
     @Mock
     private UniqueIdService uniqueIdService;
@@ -38,7 +43,12 @@ class IdentityUserChannelServiceTest {
     @Mock
     private EncryptionService encryptionService;
     @Mock
-    private IdentityUserChannelVerificationService channelVerificationService;
+    private IdentityActionTokenService actionTokenService;
+    @Mock
+    private ObjectMapper objectMapper;
+
+    @Mock
+    private Clock serviceClock;
 
     @InjectMocks
     private IdentityUserChannelService service;
@@ -57,7 +67,7 @@ class IdentityUserChannelServiceTest {
                 .channelUserId(canonicalEmail)
                 .channelUserIdHash(channelUserIdHash)
                 .identityUser(user)
-                .data("{}")
+                .payload("{}")
                 .build();
         var model = emailChannel(uniqueId, canonicalEmail);
 
@@ -79,8 +89,8 @@ class IdentityUserChannelServiceTest {
         assertThat(capturedEntity.getChannelUserId()).isEqualTo(canonicalEmail);
         assertThat(capturedEntity.getChannelUserIdHash()).isEqualTo(channelUserIdHash);
         assertThat(capturedEntity.getIdentityUser()).isSameAs(user);
-        assertThat(capturedEntity.getData()).isNull();
-        verify(channelVerificationService).verify(result);
+        assertThat(capturedEntity.getPayload()).isNull();
+        verify(actionTokenService).confirm(result);
     }
 
     @Test
@@ -178,6 +188,92 @@ class IdentityUserChannelServiceTest {
         verify(identityChannelRepository, never()).save(any(IdentityUserChannelEntity.class));
     }
 
+    @Test
+    void bindTelegramUser_whenChannelDoesNotExist_createsAttachedChannelWithSerializedPrincipal() throws Exception {
+        var user = user(1L);
+        var telegramUser = telegramUser(42L);
+        var channelUserIdHash = new byte[]{4, 2};
+        when(encryptionService.hashCaseSensitive("42")).thenReturn(channelUserIdHash);
+        when(identityChannelRepository.findByChannelTypeAndChannelUserIdHash(
+                IdentityChannelType.TELEGRAM_USER, channelUserIdHash
+        )).thenReturn(Optional.empty());
+        when(objectMapper.writeValueAsString(telegramUser)).thenReturn("{\"id\":42}");
+        when(serviceClock.instant()).thenReturn(NOW);
+
+        var result = service.bindTelegramUser(telegramUser, user);
+
+        assertThat(result).isEqualTo(IdentityUserChannelService.TelegramBindResult.SUCCESS);
+        var captor = ArgumentCaptor.forClass(IdentityUserChannelEntity.class);
+        verify(identityChannelRepository).saveWithNewUniqueId(captor.capture(), eq(uniqueIdService));
+        var created = captor.getValue();
+        assertThat(created.getChannelType()).isEqualTo(IdentityChannelType.TELEGRAM_USER);
+        assertThat(created.getChannelUserId()).isEqualTo("42");
+        assertThat(created.getChannelUserIdHash()).isEqualTo(channelUserIdHash);
+        assertThat(created.getIdentityUser()).isSameAs(user);
+        assertThat(created.getPayload()).isEqualTo("{\"id\":42}");
+        assertThat(created.getVerifiedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void bindTelegramUser_whenUnattachedChannelIsNotVerified_attachesAndVerifiesIt() {
+        var user = user(1L);
+        var telegramUser = telegramUser(42L);
+        var channelUserIdHash = new byte[]{4, 2};
+        var channel = IdentityUserChannelEntity.builder().build();
+        when(encryptionService.hashCaseSensitive("42")).thenReturn(channelUserIdHash);
+        when(identityChannelRepository.findByChannelTypeAndChannelUserIdHash(
+                IdentityChannelType.TELEGRAM_USER, channelUserIdHash
+        )).thenReturn(Optional.of(channel));
+        when(serviceClock.instant()).thenReturn(NOW);
+
+        var result = service.bindTelegramUser(telegramUser, user);
+
+        assertThat(result).isEqualTo(IdentityUserChannelService.TelegramBindResult.SUCCESS);
+        assertThat(channel.getIdentityUser()).isSameAs(user);
+        assertThat(channel.getVerifiedAt()).isEqualTo(NOW);
+        verify(identityChannelRepository).save(channel);
+        verify(identityChannelRepository).flush();
+    }
+
+    @Test
+    void bindTelegramUser_whenUnattachedChannelIsAlreadyVerified_preservesVerificationTime() {
+        var user = user(1L);
+        var telegramUser = telegramUser(42L);
+        var channelUserIdHash = new byte[]{4, 2};
+        var verifiedAt = NOW.minusSeconds(60);
+        var channel = IdentityUserChannelEntity.builder().verifiedAt(verifiedAt).build();
+        when(encryptionService.hashCaseSensitive("42")).thenReturn(channelUserIdHash);
+        when(identityChannelRepository.findByChannelTypeAndChannelUserIdHash(
+                IdentityChannelType.TELEGRAM_USER, channelUserIdHash
+        )).thenReturn(Optional.of(channel));
+
+        var result = service.bindTelegramUser(telegramUser, user);
+
+        assertThat(result).isEqualTo(IdentityUserChannelService.TelegramBindResult.SUCCESS);
+        assertThat(channel.getIdentityUser()).isSameAs(user);
+        assertThat(channel.getVerifiedAt()).isEqualTo(verifiedAt);
+        verify(identityChannelRepository).save(channel);
+    }
+
+    @Test
+    void bindTelegramUser_whenChannelBelongsToAnotherUser_doesNotReattachIt() {
+        var user = user(1L);
+        var otherUser = user(2L);
+        var telegramUser = telegramUser(42L);
+        var channelUserIdHash = new byte[]{4, 2};
+        var channel = IdentityUserChannelEntity.builder().identityUser(otherUser).build();
+        when(encryptionService.hashCaseSensitive("42")).thenReturn(channelUserIdHash);
+        when(identityChannelRepository.findByChannelTypeAndChannelUserIdHash(
+                IdentityChannelType.TELEGRAM_USER, channelUserIdHash
+        )).thenReturn(Optional.of(channel));
+
+        var result = service.bindTelegramUser(telegramUser, user);
+
+        assertThat(result).isEqualTo(IdentityUserChannelService.TelegramBindResult.CHANNEL_ATTACHED_TO_ANOTHER_USER);
+        assertThat(channel.getIdentityUser()).isSameAs(otherUser);
+        verify(identityChannelRepository, never()).save(any(IdentityUserChannelEntity.class));
+    }
+
     private static IdentityUserChannelEmail emailChannel(long uniqueId, String email) {
         var channel = new IdentityUserChannelEmail();
         channel.setUniqueId(new UniqueId(uniqueId));
@@ -189,6 +285,13 @@ class IdentityUserChannelServiceTest {
     private static IdentityUserEntity user(long uniqueId) {
         return IdentityUserEntity.builder()
                 .uniqueId(uniqueId)
+                .build();
+    }
+
+    private static TelegramUserPrincipal telegramUser(long id) {
+        return TelegramUserPrincipal.builder()
+                .id(id)
+                .firstName("John")
                 .build();
     }
 }

@@ -8,15 +8,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import vg.identity.entity.IdentityUserChannelEntity;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.mapper.IdentityUserChannelMapper;
 import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityUserChannel;
+import vg.identity.model.TelegramUserPrincipal;
 import vg.identity.model.user.channel.IdentityUserChannelEmail;
 import vg.identity.repository.IdentityUserChannelRepository;
 import vg.unique.id.service.UniqueIdService;
 
+import java.time.Clock;
 import java.util.function.Function;
 
 @Slf4j
@@ -29,7 +33,9 @@ public class IdentityUserChannelService {
     private final IdentityUserChannelRepository identityChannelRepository;
     private final IdentityUserChannelMapper mapper;
     private final EncryptionService encryptionService;
-    private final IdentityUserChannelVerificationService channelVerificationService;
+    private final IdentityActionTokenService actionTokenService;
+    private final ObjectMapper objectMapper;
+    private final Clock clock;
 
     @Transactional
     IdentityUserChannelEmail createEmailChannel(@NotNull @Email String email, @NotNull IdentityUserEntity user) {
@@ -40,7 +46,7 @@ public class IdentityUserChannelService {
                         user
                 )
         );
-        channelVerificationService.verify(result);
+        actionTokenService.confirm(result);
         return result;
     }
 
@@ -76,6 +82,50 @@ public class IdentityUserChannelService {
         }
     }
 
+    TelegramBindResult bindTelegramUser(TelegramUserPrincipal telegramUser, IdentityUserEntity user) {
+        var channelUserId = String.valueOf(telegramUser.id());
+        var channelUserIdHash = encryptionService.hashCaseSensitive(channelUserId);
+        var channel = identityChannelRepository
+                .findByChannelTypeAndChannelUserIdHash(IdentityChannelType.TELEGRAM_USER, channelUserIdHash)
+                .orElse(null);
+
+        if (channel != null) {
+            var attachedUser = channel.getIdentityUser();
+            if (attachedUser != null) {
+                if (attachedUser.equals(user)) {
+                    return TelegramBindResult.SUCCESS;
+                }
+                log.error(
+                        "Telegram channel is attached to another user: requestedUserUniqueId={}, attachedUserUniqueId={}",
+                        user.getUniqueId(),
+                        attachedUser.getUniqueId()
+                );
+                return TelegramBindResult.CHANNEL_ATTACHED_TO_ANOTHER_USER;
+            }
+
+            channel.setIdentityUser(user);
+            if (null == channel.getVerifiedAt()) {
+                channel.setVerifiedAt(clock.instant());
+            }
+            identityChannelRepository.save(channel);
+            identityChannelRepository.flush();
+            return TelegramBindResult.SUCCESS;
+        }
+
+        identityChannelRepository.saveWithNewUniqueId(
+                IdentityUserChannelEntity.builder()
+                        .channelType(IdentityChannelType.TELEGRAM_USER)
+                        .channelUserId(channelUserId)
+                        .channelUserIdHash(channelUserIdHash)
+                        .identityUser(user)
+                        .payload(toJson(telegramUser))
+                        .verifiedAt(clock.instant())
+                        .build(),
+                uniqueIdService
+        );
+        return TelegramBindResult.SUCCESS;
+    }
+
     private IdentityUserChannelEntity create(
             IdentityChannelType channelType,
             String channelUserId,
@@ -104,5 +154,19 @@ public class IdentityUserChannelService {
                         .findByChannelTypeAndChannelUserIdHash(channelType, channelUserIdHash)
                         .orElseGet(() -> create(channelType, channelUserId, user))
         );
+    }
+
+    private String toJson(TelegramUserPrincipal telegramUser) {
+        try {
+            return objectMapper.writeValueAsString(telegramUser);
+        } catch (JacksonException e) {
+            throw new IllegalArgumentException("Cannot serialize Telegram user", e);
+        }
+    }
+
+    enum TelegramBindResult {
+        SUCCESS,
+        CHANNEL_ATTACHED_TO_ANOTHER_USER,
+        USER_ALREADY_HAS_TELEGRAM_CHANNEL
     }
 }

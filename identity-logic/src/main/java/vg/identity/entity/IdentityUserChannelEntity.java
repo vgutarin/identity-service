@@ -68,7 +68,7 @@ public class IdentityUserChannelEntity implements UniqueIdEntity {
 
     @Convert(converter = StringEncryptionConverter.class)
     @Column(columnDefinition = "MEDIUMBLOB", updatable = false)
-    private String data;
+    private String payload;
 
     @Column
     private Instant verifiedAt;

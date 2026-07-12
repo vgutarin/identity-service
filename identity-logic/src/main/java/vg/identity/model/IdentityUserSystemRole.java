@@ -4,9 +4,7 @@ public enum IdentityUserSystemRole {
     /**
      * role have all possible permissions
      */
-    OWNER
-    /**
-     * role have only read permissions
-     */
-    // VERIFIED_USER
+    OWNER,
+
+    VERIFIED_USER
 }

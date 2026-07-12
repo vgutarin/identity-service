@@ -54,7 +54,7 @@ class PermissionTest {
                 "workspace.read",
                 "workspace.read"
         })).isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Permissions must be unique");
+                .hasMessage("exception.permission.unique.required");
     }
 
     @Test

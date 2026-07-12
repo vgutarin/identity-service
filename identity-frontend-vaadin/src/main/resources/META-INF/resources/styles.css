@@ -90,3 +90,13 @@ vaadin-grid.clickable-workspaces-grid::part(body-cell) {
   font-weight: var(--aura-font-weight-semibold);
   margin: 0;
 }
+
+.telegram-auth-view {
+  background: var(--aura-background-color);
+  color: var(--vaadin-text-color);
+  text-align: center;
+}
+
+.telegram-auth-retry {
+  max-width: 100%;
+}

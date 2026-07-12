@@ -8,4 +8,6 @@ import java.util.Optional;
 
 public interface IdentityUserChannelRepository extends UniqueIdJpaRepository<IdentityUserChannelEntity> {
     Optional<IdentityUserChannelEntity> findByChannelTypeAndChannelUserIdHash(IdentityChannelType channelType, byte[] channelUserIdHash);
+
+    boolean existsByIdentityUserUniqueIdAndChannelType(Long identityUserUniqueId, IdentityChannelType channelType);
 }

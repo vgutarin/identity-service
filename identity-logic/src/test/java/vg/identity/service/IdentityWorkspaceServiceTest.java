@@ -7,11 +7,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import vg.identity.entity.IdentityUserEntity;
 import vg.identity.entity.IdentityRoleTemplateEntity;
+import vg.identity.entity.IdentityUserEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityWorkspaceMapper;
-import vg.identity.model.IdentityApplication;
 import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.repository.IdentityRoleTemplateRepository;
@@ -40,8 +39,6 @@ class IdentityWorkspaceServiceTest {
     IdentityRoleTemplateRepository roleTemplateRepository;
     @Mock
     IdentityRoleService roleService;
-    @Mock
-    IdentityApplicationService applicationService;
     @Mock
     IdentityUserService userService;
     @Mock
@@ -193,35 +190,6 @@ class IdentityWorkspaceServiceTest {
         var role = IdentityRole.builder().name(nextString()).build();
 
         assertThatThrownBy(() -> service.createRole(new UniqueId(workspaceId), role))
-                .isInstanceOf(EntityNotFoundException.class);
-    }
-
-    @Test
-    void createApplication_whenWorkspaceExists_createApplicationInWorkspace() {
-        var workspaceId = nextLong();
-        var workspace = workspaceEntity(workspaceId);
-        var application = IdentityApplication.builder()
-                .name(nextString())
-                .uri(nextString())
-                .data(nextString())
-                .build();
-        var savedApplication = IdentityApplication.builder()
-                .uniqueId(new UniqueId(nextLong()))
-                .workspaceUniqueId(workspaceId)
-                .build();
-
-        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
-        when(applicationService.create(application.getName(), application.getUri(), application.getData(), workspace)).thenReturn(savedApplication);
-
-        assertThat(service.createApplication(new UniqueId(workspaceId), application)).isSameAs(savedApplication);
-    }
-
-    @Test
-    void createApplication_whenWorkspaceIsNotFound_throwsEntityNotFoundException() {
-        var workspaceId = nextLong();
-        var application = IdentityApplication.builder().name(nextString()).uri(nextString()).build();
-
-        assertThatThrownBy(() -> service.createApplication(new UniqueId(workspaceId), application))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 

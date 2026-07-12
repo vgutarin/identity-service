@@ -1,17 +1,17 @@
 package vg.identity.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import vg.identity.entity.IdentityCommandEntity;
 import vg.identity.mapper.IdentityCommandMapper;
+import vg.identity.model.EmailMessage;
 import vg.identity.model.IdentityCommand;
 import vg.identity.model.IdentityCommandStatus;
 import vg.identity.model.IdentityCommandType;
-import vg.identity.model.EmailMessage;
 import vg.identity.repository.IdentityCommandRepository;
 
 import java.io.PrintWriter;
@@ -128,7 +128,7 @@ public class IdentityCommandService {
     private String toPayload(EmailMessage command) {
         try {
             return objectMapper.writeValueAsString(command);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException("Cannot serialize send email command", e);
         }
     }
