@@ -7,7 +7,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import vg.identity.entity.IdentityPrincipalEntity;
 import vg.identity.entity.IdentityUserEntity;
-import vg.identity.model.ActionToken;
+import vg.identity.model.IdentityAction;
 import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.TelegramUserPrincipal;
 import vg.identity.model.application.TelegramBot;
@@ -112,8 +112,8 @@ class TelegramUserBindingServiceTest {
         verify(actionTokenService, never()).consumeBindTelegramAction(actionId);
     }
 
-    private static ActionToken.BindTelegramInfo actionInfo(UUID actionId, IdentityPrincipalEntity principal) {
-        return new ActionToken.BindTelegramInfo(actionId, TelegramBot.builder().token("token").build(), principal);
+    private static IdentityAction.BindTelegramInfo actionInfo(UUID actionId, IdentityPrincipalEntity principal) {
+        return new IdentityAction.BindTelegramInfo(actionId, TelegramBot.builder().token("token").build(), principal);
     }
 
     private static IdentityPrincipalEntity principal(long id) {

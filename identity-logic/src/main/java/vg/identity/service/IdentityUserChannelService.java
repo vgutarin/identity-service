@@ -82,6 +82,19 @@ public class IdentityUserChannelService {
         }
     }
 
+    /**
+     * Resolves the {@link IdentityUserEntity} bound to the given Telegram user id, or {@code null} when no
+     * verified Telegram channel exists for it or the channel is not attached to any user yet.
+     */
+    @Transactional(readOnly = true)
+    IdentityUserEntity findUserByTelegramId(long telegramId) {
+        var channelUserIdHash = encryptionService.hashCaseSensitive(String.valueOf(telegramId));
+        return identityChannelRepository
+                .findByChannelTypeAndChannelUserIdHash(IdentityChannelType.TELEGRAM_USER, channelUserIdHash)
+                .map(IdentityUserChannelEntity::getIdentityUser)
+                .orElse(null);
+    }
+
     TelegramBindResult bindTelegramUser(TelegramUserPrincipal telegramUser, IdentityUserEntity user) {
         var channelUserId = String.valueOf(telegramUser.id());
         var channelUserIdHash = encryptionService.hashCaseSensitive(channelUserId);

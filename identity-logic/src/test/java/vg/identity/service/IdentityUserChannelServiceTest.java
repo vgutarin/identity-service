@@ -274,6 +274,42 @@ class IdentityUserChannelServiceTest {
         verify(identityChannelRepository, never()).save(any(IdentityUserChannelEntity.class));
     }
 
+    @Test
+    void findUserByTelegramId_whenVerifiedChannelIsAttached_returnsUser() {
+        var user = user(1L);
+        var channelUserIdHash = new byte[]{4, 2};
+        var channel = IdentityUserChannelEntity.builder().identityUser(user).build();
+        when(encryptionService.hashCaseSensitive("42")).thenReturn(channelUserIdHash);
+        when(identityChannelRepository.findByChannelTypeAndChannelUserIdHash(
+                IdentityChannelType.TELEGRAM_USER, channelUserIdHash
+        )).thenReturn(Optional.of(channel));
+
+        assertThat(service.findUserByTelegramId(42L)).isSameAs(user);
+    }
+
+    @Test
+    void findUserByTelegramId_whenChannelDoesNotExist_returnsNull() {
+        var channelUserIdHash = new byte[]{4, 2};
+        when(encryptionService.hashCaseSensitive("42")).thenReturn(channelUserIdHash);
+        when(identityChannelRepository.findByChannelTypeAndChannelUserIdHash(
+                IdentityChannelType.TELEGRAM_USER, channelUserIdHash
+        )).thenReturn(Optional.empty());
+
+        assertThat(service.findUserByTelegramId(42L)).isNull();
+    }
+
+    @Test
+    void findUserByTelegramId_whenChannelIsNotAttached_returnsNull() {
+        var channelUserIdHash = new byte[]{4, 2};
+        var channel = IdentityUserChannelEntity.builder().build();
+        when(encryptionService.hashCaseSensitive("42")).thenReturn(channelUserIdHash);
+        when(identityChannelRepository.findByChannelTypeAndChannelUserIdHash(
+                IdentityChannelType.TELEGRAM_USER, channelUserIdHash
+        )).thenReturn(Optional.of(channel));
+
+        assertThat(service.findUserByTelegramId(42L)).isNull();
+    }
+
     private static IdentityUserChannelEmail emailChannel(long uniqueId, String email) {
         var channel = new IdentityUserChannelEmail();
         channel.setUniqueId(new UniqueId(uniqueId));

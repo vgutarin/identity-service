@@ -14,7 +14,7 @@ import com.vaadin.flow.server.auth.AnonymousAllowed;
 import lombok.extern.slf4j.Slf4j;
 import vg.identity.frontend.vaadin.service.LocalizationService;
 import vg.identity.frontend.vaadin.ui.LocalePicker;
-import vg.identity.model.ActionToken;
+import vg.identity.model.IdentityAction;
 import vg.identity.service.IdentityActionTokenService;
 
 import java.net.URL;
@@ -81,7 +81,7 @@ public class IdentityUserEmailVerificationView extends VerticalLayout implements
         showPersonalInformationConsent(confirmEmailInfo);
     }
 
-    private void showPersonalInformationConsent(ActionToken.ConfirmEmailInfo confirmEmailInfo) {
+    private void showPersonalInformationConsent(IdentityAction.ConfirmEmailInfo confirmEmailInfo) {
         result.setText(i18n("email.verification.consent.required"));
 
         var consent = new Checkbox(i18n("personal.data.processing.consent.checkbox"));

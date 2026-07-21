@@ -10,8 +10,8 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import vg.identity.IdentityActionTokenProperties;
 import vg.identity.entity.IdentityActionTokenEntity;
-import vg.identity.model.ActionToken;
 import vg.identity.model.EmailMessage;
+import vg.identity.model.IdentityAction;
 import vg.identity.model.IdentityActionType;
 import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityPrincipalType;
@@ -22,6 +22,7 @@ import vg.identity.repository.IdentityActionTokenRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.util.URLHelper;
+import vg.unique.id.model.UniqueId;
 
 import java.net.URL;
 import java.time.Clock;
@@ -104,11 +105,12 @@ public class IdentityActionTokenService {
         );
     }
 
-    public ActionToken.ConfirmEmailInfo findConfirmEmailActionInfo(@NotNull UUID id) {
+    public IdentityAction.ConfirmEmailInfo findConfirmEmailActionInfo(@NotNull UUID id) {
         return findConfirmEmailActionTokenEntity(id)
                 .map(e ->
-                        ActionToken.ConfirmEmailInfo.builder()
+                        IdentityAction.ConfirmEmailInfo.builder()
                                 .id(e.getId())
+                                .userUniqueId(identityUserUniqueId(e))
                                 .personalInformationConsentGiven(
                                         isPersonalInformationConsentGiven(e)
                                 )
@@ -116,7 +118,7 @@ public class IdentityActionTokenService {
                 ).orElse(null);
     }
 
-    public ActionToken.BindTelegramInfo findBindTelegramActionInfo(@NotNull UUID id) {
+    public IdentityAction.BindTelegramInfo findBindTelegramActionInfo(@NotNull UUID id) {
         return findActionTokenEntity(id)
                 .filter(e -> e.getActionType() == IdentityActionType.BIND_TELEGRAM)
                 .filter(e -> e.getPrincipalType() == IdentityPrincipalType.USER)
@@ -130,7 +132,7 @@ public class IdentityActionTokenService {
                     if (telegramBot == null) {
                         return null;
                     }
-                    return new ActionToken.BindTelegramInfo(e.getId(), telegramBot.bot(), e.getPrincipal());
+                    return new IdentityAction.BindTelegramInfo(e.getId(), telegramBot.bot(), e.getPrincipal());
                 })
                 .orElse(null);
     }
@@ -140,7 +142,7 @@ public class IdentityActionTokenService {
     }
 
     @Transactional
-    public ConfirmationResult confirmEmail(@NotNull UUID id) {
+    public ConfirmationResult confirmEmail(@NotNull UUID id) {//TODO VG may be deleted. Telegram binding could be done using personal page
         return findConfirmEmailActionTokenEntity(id)
                 .map(verification -> {
                     var channel = verification.getIdentityUserChannel();
@@ -160,6 +162,37 @@ public class IdentityActionTokenService {
     public record ConfirmationResult(boolean success, URL bindTelegramUrl) {
     }
 
+    /**
+     * Confirms the email channel behind a {@code CONFIRM_EMAIL} action within the Telegram login flow:
+     * marks the channel verified, grants personal-data consent to the owning user if it is still missing and
+     * consumes the action. Unlike {@link #confirmEmail(UUID)} it does not create a follow-up
+     * {@code BIND_TELEGRAM} action, because the Telegram channel is bound directly by the caller.
+     *
+     * @return the unique id of the user the confirmed channel belongs to, or {@code null} when the action is
+     * missing, expired, of another type or not attached to a user.
+     */
+    @Transactional
+    public UniqueId confirmEmailChannel(@NotNull UUID id) {
+        return findConfirmEmailActionTokenEntity(id)
+                .map(verification -> {
+                    var channel = verification.getIdentityUserChannel();
+                    var now = clock.instant();
+                    channel.setVerifiedAt(now);
+                    var user = channel.getIdentityUser();
+                    if (user == null) {
+                        return (UniqueId) null;
+                    }
+                    if (null == user.getConsentToKeepPersonalDataAt()) {
+                        user.setConsentToKeepPersonalDataAt(now);
+                    }
+                    channelRepository.save(channel);
+                    channelRepository.flush();
+                    actionTokenRepository.deleteById(id);
+                    return new UniqueId(user.getUniqueId());
+                })
+                .orElse(null);
+    }
+
     private Optional<IdentityActionTokenEntity> findActionTokenEntity(@NotNull UUID id) {
         return actionTokenRepository.findById(id)
                 .filter(e -> e.getExpireAt().isAfter(clock.instant()));
@@ -168,6 +201,13 @@ public class IdentityActionTokenService {
     private Optional<IdentityActionTokenEntity> findConfirmEmailActionTokenEntity(@NotNull UUID id) {
         return findActionTokenEntity(id)
                 .filter(e -> e.getActionType() == IdentityActionType.CONFIRM_EMAIL);
+    }
+
+    private UniqueId identityUserUniqueId(IdentityActionTokenEntity entity) {
+        if (null == entity.getIdentityUserChannel() || null == entity.getIdentityUserChannel().getIdentityUser()) {
+            return null;
+        }
+        return new UniqueId(entity.getIdentityUserChannel().getIdentityUser().getUniqueId());
     }
 
     private boolean isPersonalInformationConsentGiven(IdentityActionTokenEntity entity) {
