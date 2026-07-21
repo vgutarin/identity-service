@@ -17,7 +17,7 @@ import vg.identity.frontend.vaadin.ui.LocalePicker;
 import vg.identity.model.IdentityAction;
 import vg.identity.service.IdentityActionTokenService;
 
-import java.net.URL;
+import java.net.URI;
 import java.util.UUID;
 
 @Slf4j
@@ -110,13 +110,13 @@ public class IdentityUserEmailVerificationView extends VerticalLayout implements
         result.setText(i18n("email.verification.link.invalidOrExpired"));
     }
 
-    private void showBindTelegramSuggestion(URL bindTelegramUrl) {
+    private void showBindTelegramSuggestion(URI bindTelegramUrl) {
         if (bindTelegramUrl == null) {
             return;
         }
 
         var link = new Anchor(
-                bindTelegramUrl.toExternalForm(),
+                bindTelegramUrl.toString(),
                 i18n("email.verification.telegram.bind.link")
         );
         link.setTarget("_blank");

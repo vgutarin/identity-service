@@ -3,6 +3,7 @@ package vg.identity.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.ObjectMapper;
@@ -11,23 +12,21 @@ import vg.identity.entity.IdentityActionTokenEntity;
 import vg.identity.entity.IdentityPrincipalEntity;
 import vg.identity.entity.IdentityUserChannelEntity;
 import vg.identity.entity.IdentityUserEntity;
-import vg.identity.model.IdentityAction;
 import vg.identity.model.EmailMessage;
+import vg.identity.model.IdentityAction;
 import vg.identity.model.IdentityActionType;
 import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.application.TelegramBot;
 import vg.identity.model.application.TelegramBotToConfirm;
-import vg.identity.model.application.TelegramBotWithUrl;
+import vg.identity.model.application.TelegramBotWithUri;
 import vg.identity.model.user.channel.IdentityUserChannelEmail;
 import vg.identity.repository.IdentityActionTokenRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
 import vg.unique.id.model.UniqueId;
 
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URL;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -39,6 +38,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -58,6 +59,8 @@ class IdentityActionTokenServiceTest {
     @Mock
     private IdentityApplicationService applicationService;
     @Mock
+    private ConfirmEmailMailFactory confirmEmailMailFactory;
+    @Mock
     private ObjectMapper objectMapper;
 
     private IdentityActionTokenProperties properties;
@@ -76,6 +79,7 @@ class IdentityActionTokenServiceTest {
                 commandService,
                 properties,
                 applicationService,
+                confirmEmailMailFactory,
                 objectMapper,
                 "Identityvgbot",
                 clock
@@ -108,6 +112,13 @@ class IdentityActionTokenServiceTest {
                     savedVerification.set(entity);
                     return entity;
                 });
+        var email = EmailMessage.builder()
+                .to(java.util.List.of("john@example.com"))
+                .subject("subject")
+                .body("body")
+                .html(true)
+                .build();
+        when(confirmEmailMailFactory.create(any(), any(), any())).thenReturn(email);
 
         service.confirm(channel);
 
@@ -121,12 +132,11 @@ class IdentityActionTokenServiceTest {
         assertThat(verification.getCreatedAt()).isEqualTo(clock.instant());
         assertThat(verification.getExpireAt()).isEqualTo(clock.instant().plus(Duration.ofHours(2)));
 
-        var expectedEmail = EmailMessage.builder()
-                .to(java.util.List.of("john@example.com"))
-                .subject("Verify your email")
-                .body("https://example.com/verify/" + verification.getId())
-                .build();
-        verify(commandService).enqueue(expectedEmail);
+        // No Telegram bot application is registered in this unit test, so the email is web-only.
+        var webUrlCaptor = ArgumentCaptor.forClass(URI.class);
+        verify(confirmEmailMailFactory).create(eq("john@example.com"), webUrlCaptor.capture(), isNull());
+        assertThat(webUrlCaptor.getValue()).isEqualTo(URI.create("https://example.com/verify/" + verification.getId()));
+        verify(commandService).enqueue(email);
     }
 
     @Test
@@ -652,8 +662,8 @@ class IdentityActionTokenServiceTest {
         return channel;
     }
 
-    private static TelegramBotWithUrl telegramBot() {
-        return new TelegramBotWithUrl(
+    private static TelegramBotWithUri telegramBot() {
+        return new TelegramBotWithUri(
                 url("https://t.me/identityvgbot"),
                 TelegramBot.builder()
                         .token("token")
@@ -661,11 +671,7 @@ class IdentityActionTokenServiceTest {
         );
     }
 
-    private static URL url(String value) {
-        try {
-            return URI.create(value).toURL();
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException("Invalid URL", e);
-        }
+    private static URI url(String value) {
+        return URI.create(value);
     }
 }

@@ -80,7 +80,7 @@ databaseChangeLog:
                   name: consent_to_keep_personal_data_at
                   type: DATETIME
               - column:
-                  name: payload
+                  name: metadata
                   type: MEDIUMBLOB
               - column:
                   constraints:

@@ -18,16 +18,14 @@ import vg.identity.model.IdentityApplication;
 import vg.identity.model.IdentityPrincipalStatus;
 import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.application.TelegramBot;
-import vg.identity.model.application.TelegramBotWithUrl;
+import vg.identity.model.application.TelegramBotWithUri;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URL;
 import java.util.List;
 import java.util.Optional;
 
@@ -317,7 +315,7 @@ class IdentityApplicationServiceTest {
         when(objectMapper.readValue(payload, TelegramBot.class)).thenReturn(telegramBot);
 
         assertThat(service.findTelegramBotByUsername(botUsername))
-                .isEqualTo(new TelegramBotWithUrl(url(storedUri), telegramBot));
+                .isEqualTo(new TelegramBotWithUri(url(storedUri), telegramBot));
     }
 
     @Test
@@ -338,7 +336,7 @@ class IdentityApplicationServiceTest {
         when(objectMapper.readValue(payload, TelegramBot.class)).thenReturn(telegramBot);
 
         assertThat(service.findTelegramBotByUsername("MyBot"))
-                .isEqualTo(new TelegramBotWithUrl(url(normalizedUri), telegramBot));
+                .isEqualTo(new TelegramBotWithUri(url(normalizedUri), telegramBot));
     }
 
     @Test
@@ -463,12 +461,8 @@ class IdentityApplicationServiceTest {
                 .build();
     }
 
-    private static URL url(String value) {
-        try {
-            return URI.create(value).toURL();
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException("Invalid URL", e);
-        }
+    private static URI url(String value) {
+        return URI.create(value);
     }
 
     private static IdentityWorkspaceEntity workspace(long uniqueId) {

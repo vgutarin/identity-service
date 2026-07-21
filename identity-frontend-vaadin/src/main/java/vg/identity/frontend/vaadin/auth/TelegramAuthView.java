@@ -27,7 +27,7 @@ import vg.identity.service.TelegramLoginService;
  */
 @Slf4j
 @JavaScript("https://telegram.org/js/telegram-web-app.js")
-@Route(value = "verify/telegram", autoLayout = false)
+@Route(value = "login/telegram", autoLayout = false)
 @AnonymousAllowed
 public class TelegramAuthView extends VerticalLayout implements HasDynamicTitle {
 

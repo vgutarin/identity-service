@@ -10,23 +10,21 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import vg.identity.IdentityActionTokenProperties;
 import vg.identity.entity.IdentityActionTokenEntity;
-import vg.identity.model.EmailMessage;
 import vg.identity.model.IdentityAction;
 import vg.identity.model.IdentityActionType;
 import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.application.TelegramBotToConfirm;
-import vg.identity.model.application.TelegramBotWithUrl;
+import vg.identity.model.application.TelegramBotWithUri;
 import vg.identity.model.user.channel.IdentityUserChannelEmail;
 import vg.identity.repository.IdentityActionTokenRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
-import vg.identity.util.URLHelper;
+import vg.identity.util.URIHelper;
 import vg.unique.id.model.UniqueId;
 
-import java.net.URL;
+import java.net.URI;
 import java.time.Clock;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,6 +39,7 @@ public class IdentityActionTokenService {
     private final IdentityCommandService commandService;
     private final IdentityActionTokenProperties properties;
     private final IdentityApplicationService applicationService;
+    private final ConfirmEmailMailFactory confirmEmailMailFactory;
     private final ObjectMapper objectMapper;
     private final String telegramBotName;
     private final Clock clock;
@@ -52,6 +51,7 @@ public class IdentityActionTokenService {
             IdentityCommandService commandService,
             IdentityActionTokenProperties properties,
             IdentityApplicationService applicationService,
+            ConfirmEmailMailFactory confirmEmailMailFactory,
             ObjectMapper objectMapper,
             @Value("${identity.telegram.bot.name:}") String telegramBotName,
             Clock clock
@@ -62,6 +62,7 @@ public class IdentityActionTokenService {
         this.commandService = commandService;
         this.properties = properties;
         this.applicationService = applicationService;
+        this.confirmEmailMailFactory = confirmEmailMailFactory;
         this.objectMapper = objectMapper;
         this.telegramBotName = telegramBotName;
         this.clock = clock;
@@ -97,11 +98,34 @@ public class IdentityActionTokenService {
 
         actionTokenRepository.save(verification);
         commandService.enqueue(
-                EmailMessage.builder()
-                        .to(List.of(channel.getEmail()))
-                        .subject("Verify your email")
-                        .body(properties.getVerifyEmailBaseUrl() + id)
-                        .build()
+                confirmEmailMailFactory.create(
+                        channel.getEmail(),
+                        URI.create(properties.getVerifyEmailBaseUrl() + id),
+                        telegramConfirmUri(id)
+                )
+        );
+    }
+
+    /**
+     * Builds the preferred Telegram confirmation link for a {@code CONFIRM_EMAIL} action: the configured bot's
+     * URL with the action id as the {@code startapp} parameter, so opening it runs the Telegram login flow.
+     *
+     * @return the link, or {@code null} when no bot is configured or the configured bot is not registered.
+     */
+    private URI telegramConfirmUri(UUID actionId) {
+        if (!StringUtils.hasText(telegramBotName)) {
+            return null;
+        }
+
+        var telegramBot = applicationService.findTelegramBotByUsername(telegramBotName);
+        if (telegramBot == null) {
+            return null;
+        }
+
+        return URIHelper.addQueryParam(
+                telegramBot.uri(),
+                properties.getTelegramStartAppParam(),
+                actionId.toString()
         );
     }
 
@@ -159,7 +183,7 @@ public class IdentityActionTokenService {
                 }).orElseGet(() -> new ConfirmationResult(false, null));
     }
 
-    public record ConfirmationResult(boolean success, URL bindTelegramUrl) {
+    public record ConfirmationResult(boolean success, URI bindTelegramUrl) {
     }
 
     /**
@@ -180,7 +204,7 @@ public class IdentityActionTokenService {
                     channel.setVerifiedAt(now);
                     var user = channel.getIdentityUser();
                     if (user == null) {
-                        return (UniqueId) null;
+                        return null;
                     }
                     if (null == user.getConsentToKeepPersonalDataAt()) {
                         user.setConsentToKeepPersonalDataAt(now);
@@ -216,7 +240,7 @@ public class IdentityActionTokenService {
                 && null != entity.getIdentityUserChannel().getIdentityUser().getConsentToKeepPersonalDataAt();
     }
 
-    private URL createBindTelegramUrlIfTelegramIsMissing(IdentityActionTokenEntity entity) {
+    private URI createBindTelegramUrlIfTelegramIsMissing(IdentityActionTokenEntity entity) {
         var principal = entity.getPrincipal();
         if (principal == null || !StringUtils.hasText(telegramBotName)) {
             return null;
@@ -251,9 +275,9 @@ public class IdentityActionTokenService {
         return bindTelegramUrl(telegramBot, actionId);
     }
 
-    private URL bindTelegramUrl(TelegramBotWithUrl telegramBot, UUID actionId) {
-        return URLHelper.addQueryParam(
-                telegramBot.url(),
+    private URI bindTelegramUrl(TelegramBotWithUri telegramBot, UUID actionId) {
+        return URIHelper.addQueryParam(
+                telegramBot.uri(),
                 properties.getTelegramStartAppParam(),
                 actionId.toString()
         );

@@ -38,7 +38,7 @@ class IdentityActionTokenServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void confirm_whenEmailChannelProvided_createsVerificationAndEnqueuesEmail() throws Exception {
+    void confirm_whenEmailChannelProvided_createsVerificationAndEnqueuesEmail() {
         var user = createIdentityUser("john" + nextString());
         var userEntity = userRepository.findById(user.getUniqueId().getLongValue()).orElseThrow();
         var channel = channelService.createEmailChannel("john@example.com", userEntity);
@@ -65,8 +65,17 @@ class IdentityActionTokenServiceIntegrationTest extends BaseIntegrationTest {
 
         var email = objectMapper.readValue(command.getPayload(), EmailMessage.class);
         assertThat(email.to()).containsExactly("john@example.com");
-        assertThat(email.subject()).isEqualTo("Verify your email");
-        assertThat(email.body()).isEqualTo("https://example.com/verify/" + verification.getId());
+        assertThat(email.html()).isTrue();
+        // Bilingual subject: Ukrainian first, English second.
+        assertThat(email.subject())
+                .contains("Підтвердьте вашу електронну адресу")
+                .contains("Confirm your email address");
+        // No Telegram bot is registered here, so the email is web-only in both languages.
+        assertThat(email.body())
+                .contains("Вітаємо!")
+                .contains("Hello,")
+                .contains("https://example.com/verify/" + verification.getId())
+                .doesNotContain("t.me");
     }
 
     @Test

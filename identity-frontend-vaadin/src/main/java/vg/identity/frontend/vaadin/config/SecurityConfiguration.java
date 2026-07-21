@@ -40,7 +40,6 @@ public class SecurityConfiguration {
         http.authorizeHttpRequests(auth -> {
             auth.requestMatchers("/admin-only/**").hasAnyRole("admin")
                 .requestMatchers(
-                        "/verify/**",
                         "/public/**",
                         "/h2-console",
                         "/h2-console/**"

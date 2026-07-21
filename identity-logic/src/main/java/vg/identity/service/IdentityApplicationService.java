@@ -17,16 +17,14 @@ import vg.identity.model.IdentityPrincipalStatus;
 import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.access.Permission;
 import vg.identity.model.application.TelegramBot;
-import vg.identity.model.application.TelegramBotWithUrl;
+import vg.identity.model.application.TelegramBotWithUri;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URL;
 import java.util.List;
 import java.util.Locale;
 
@@ -102,12 +100,12 @@ public class IdentityApplicationService {
      * Callers rendering the bot link for an authenticated user must enforce their own authorization.
      */
     @Transactional(readOnly = true)
-    TelegramBotWithUrl findTelegramBotByUsername(String botUsername) {
+    TelegramBotWithUri findTelegramBotByUsername(String botUsername) {
         var uri = telegramBotUri(botUsername);
         return applicationRepository.findByUriHash(hashUri(uri))
                 .map(entity ->
-                        new TelegramBotWithUrl(
-                                toUrl(entity.getUri()),
+                        new TelegramBotWithUri(
+                                URI.create(entity.getUri()),
                                 fromJson(entity.getPayload())
                         )
                 )
@@ -175,14 +173,6 @@ public class IdentityApplicationService {
         // lower case before building/hashing the URI. This keeps the stored value and the lookup key
         // consistent and prevents the same bot from being registered twice under different casing.
         return TELEGRAM_BOT_BASE_URI + botUsername.toLowerCase(Locale.ROOT);
-    }
-
-    private URL toUrl(String uri) {
-        try {
-            return URI.create(uri).toURL();
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException("Invalid Telegram bot URL", e);
-        }
     }
 
     private byte[] hashUri(String uri) {

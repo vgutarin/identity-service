@@ -23,15 +23,15 @@ public class EmailService {
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final EmailProperties emailProperties;
 
-    public void sendEmail(String to, String subject, String body) {
+    void sendEmail(String to, String subject, String body) {
         sendTextEmail(List.of(to), subject, body);
     }
 
-    public void sendTextEmail(String to, String subject, String body) {
+    void sendTextEmail(String to, String subject, String body) {
         sendTextEmail(List.of(to), subject, body);
     }
 
-    public void sendTextEmail(Collection<String> to, String subject, String body) {
+    void sendTextEmail(Collection<String> to, String subject, String body) {
         sendEmail(
                 EmailMessage.builder()
                         .to(to)
@@ -41,11 +41,11 @@ public class EmailService {
         );
     }
 
-    public void sendHtmlEmail(String to, String subject, String htmlBody) {
+    void sendHtmlEmail(String to, String subject, String htmlBody) {
         sendHtmlEmail(List.of(to), subject, htmlBody);
     }
 
-    public void sendHtmlEmail(Collection<String> to, String subject, String htmlBody) {
+    void sendHtmlEmail(Collection<String> to, String subject, String htmlBody) {
         sendEmail(
                 EmailMessage.builder()
                         .to(to)
@@ -56,7 +56,7 @@ public class EmailService {
         );
     }
 
-    public void sendEmail(EmailMessage email) {
+    void sendEmail(EmailMessage email) {
         validate(email);
         var from = validatedFrom();
 

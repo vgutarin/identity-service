@@ -12,12 +12,11 @@ import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.IdentityUser;
 import vg.identity.model.TelegramUserPrincipal;
 import vg.identity.model.application.TelegramBot;
-import vg.identity.model.application.TelegramBotWithUrl;
+import vg.identity.model.application.TelegramBotWithUri;
 import vg.identity.repository.IdentityUserRepository;
 import vg.unique.id.model.UniqueId;
 
 import java.net.URI;
-import java.net.URL;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -451,8 +450,8 @@ class TelegramLoginServiceTest {
                 .build();
     }
 
-    private static TelegramBotWithUrl botWithUrl() {
-        return new TelegramBotWithUrl(url("https://t.me/identityvgbot"), TelegramBot.builder().token("bot-token").build());
+    private static TelegramBotWithUri botWithUrl() {
+        return new TelegramBotWithUri(url("https://t.me/identityvgbot"), TelegramBot.builder().token("bot-token").build());
     }
 
     private static TelegramUserPrincipal telegramUser(long id, String firstName) {
@@ -483,11 +482,7 @@ class TelegramLoginServiceTest {
                 .build();
     }
 
-    private static URL url(String value) {
-        try {
-            return URI.create(value).toURL();
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        }
+    private static URI url(String value) {
+        return URI.create(value);
     }
 }
