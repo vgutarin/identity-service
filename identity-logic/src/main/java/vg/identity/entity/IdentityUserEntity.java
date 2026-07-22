@@ -50,13 +50,6 @@ public class IdentityUserEntity implements UniqueIdEntity {
 
     @Convert(converter = StringEncryptionConverter.class)
     @Column(columnDefinition = "BLOB")
-    private String username;
-
-    @Column(unique = true, columnDefinition = "BINARY(32)")
-    private byte[] usernameHash;
-
-    @Convert(converter = StringEncryptionConverter.class)
-    @Column(columnDefinition = "BLOB")
     private String password;
 
     private Instant consentToKeepPersonalDataAt;

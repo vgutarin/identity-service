@@ -32,6 +32,15 @@ databaseChangeLog:
                   name: display_name
                   type: BLOB
               - column:
+                  name: name
+                  type: BLOB
+              - column:
+                  name: name_hash
+                  type: BINARY(32)
+                  constraints:
+                    unique: true
+                    uniqueConstraintName: uk_identity_principal_name_hash
+              - column:
                   name: status
                   type: SMALLINT
                   constraints:
@@ -62,17 +71,6 @@ databaseChangeLog:
                     nullable: false
                   name: version
                   type: INT
-              - column:
-                  name: username_hash
-                  type: BINARY(32)
-                  constraints:
-                    unique: true
-                    uniqueConstraintName: uk_identity_user_username_hash
-              - column:
-                  constraints:
-                    nullable: false
-                  name: username
-                  type: BLOB
               - column:
                   name: password
                   type: BLOB
@@ -348,20 +346,6 @@ databaseChangeLog:
                     nullable: false
                   name: version
                   type: INT
-              - column:
-                  name: uri
-                  type: BLOB
-                  constraints:
-                    nullable: false
-              - column:
-                  name: uri_hash
-                  type: BINARY(32)
-                  constraints:
-                    unique: true
-                    uniqueConstraintName: uk_identity_application_uri_hash
-              - column:
-                  name: name
-                  type: BLOB
               - column:
                   name: payload
                   type: MEDIUMBLOB

@@ -59,17 +59,6 @@ public class IdentityApplicationEntity implements UniqueIdEntity {
     private IdentityWorkspaceEntity workspace;
 
     @Convert(converter = StringEncryptionConverter.class)
-    @Column(columnDefinition = "BLOB")
-    private String name;
-
-    @Convert(converter = StringEncryptionConverter.class)
-    @Column(nullable = false, columnDefinition = "BLOB")
-    private String uri;
-
-    @Column(unique = true, columnDefinition = "BINARY(32)")
-    private byte[] uriHash;
-
-    @Convert(converter = StringEncryptionConverter.class)
     @Column(columnDefinition = "MEDIUMBLOB")
     private String payload;
 

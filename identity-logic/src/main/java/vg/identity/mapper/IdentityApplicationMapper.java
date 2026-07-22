@@ -11,11 +11,12 @@ import vg.unique.id.mapper.UniqueIdMapper;
 @Mapper(componentModel = "spring", uses = UniqueIdMapper.class)
 public interface IdentityApplicationMapper {
     @Mapping(target = "workspaceUniqueId", expression = "java(toWorkspaceUniqueId(src.getWorkspace()))")
+    @Mapping(target = "name", source = "principal.displayName")
+    @Mapping(target = "uri", source = "principal.name")
     IdentityApplication toModel(IdentityApplicationEntity src);
 
     @Mapping(target = "principal", ignore = true)
     @Mapping(target = "workspace", ignore = true)
-    @Mapping(target = "uriHash", ignore = true)
     IdentityApplicationEntity toEntity(IdentityApplication src);
 
     @Mapping(target = "uniqueId", ignore = true)
@@ -24,7 +25,6 @@ public interface IdentityApplicationMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "workspace", ignore = true)
-    @Mapping(target = "uriHash", ignore = true)
     void updateEntity(@MappingTarget IdentityApplicationEntity entity, IdentityApplication application);
 
     default Long toWorkspaceUniqueId(IdentityWorkspaceEntity workspace) {

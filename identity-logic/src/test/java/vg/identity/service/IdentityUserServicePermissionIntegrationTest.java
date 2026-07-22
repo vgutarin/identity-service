@@ -44,6 +44,9 @@ class IdentityUserServicePermissionIntegrationTest extends BaseIntegrationTest {
         var publicMethods = Arrays.stream(IdentityUserService.class.getMethods())
                 .filter(method -> method.getDeclaringClass().equals(IdentityUserService.class))
                 .filter(method -> Modifier.isPublic(method.getModifiers()))
+                // loadUserByUsername is the Spring Security UserDetailsService entry point: it runs during
+                // authentication, before any principal exists, so it is intentionally not @PreAuthorize-secured.
+                .filter(method -> !method.getName().equals("loadUserByUsername"))
                 .collect(Collectors.toMap(this::signature, method -> method));
 
         assertThat(publicMethods.keySet()).containsExactlyInAnyOrderElementsOf(expectedExpressions.keySet());
@@ -78,7 +81,7 @@ class IdentityUserServicePermissionIntegrationTest extends BaseIntegrationTest {
                 .isInstanceOf(AccessDeniedException.class);
 
         assertThat(userRepository.findById(user.getUniqueId().getLongValue()))
-                .hasValueSatisfying(u -> assertThat(u.getUsername()).isEqualTo(originalUsername));
+                .hasValueSatisfying(u -> assertThat(u.getPrincipal().getName()).isEqualTo(originalUsername));
     }
 
     @Test

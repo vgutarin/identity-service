@@ -55,6 +55,18 @@ public class IdentityPrincipalEntity implements UniqueIdEntity {
     @Column(columnDefinition = "BLOB")
     private String displayName;
 
+    /**
+     * The globally unique identifier a principal is known by for authentication and lookup
+     * (the user's username, the application's uri). Encrypted at rest; {@link #nameHash} carries the
+     * blind index used to enforce uniqueness and to resolve principals by name.
+     */
+    @Convert(converter = StringEncryptionConverter.class)
+    @Column(columnDefinition = "BLOB")
+    private String name;
+
+    @Column(unique = true, columnDefinition = "BINARY(32)")
+    private byte[] nameHash;
+
     @Enumerated(EnumType.ORDINAL)
     @Column(nullable = false)
     private IdentityPrincipalStatus status;

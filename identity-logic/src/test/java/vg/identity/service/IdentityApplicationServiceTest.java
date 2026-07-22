@@ -67,7 +67,7 @@ class IdentityApplicationServiceTest {
         var name = nextString();
         var uri = URI.create("https://example.com/" + nextString());
         var data = nextString();
-        var uriHash = new byte[]{1, 2, 3};
+        var nameHash = new byte[]{1, 2, 3};
         var workspace = workspace(nextLong());
         var principal = principal(nextLong(), name);
         var savedEntity = applicationEntity(principal.getUniqueId());
@@ -78,7 +78,7 @@ class IdentityApplicationServiceTest {
 
         when(principalRepository.saveWithNewUniqueId(any(IdentityPrincipalEntity.class), eq(uniqueIdService)))
                 .thenReturn(principal);
-        when(encryptionService.hashCaseSensitive(uriString)).thenReturn(uriHash);
+        when(encryptionService.hashPrincipalName(uriString)).thenReturn(nameHash);
         when(applicationRepository.save(any(IdentityApplicationEntity.class))).thenReturn(savedEntity);
         when(applicationMapper.toModel(savedEntity)).thenReturn(savedModel);
 
@@ -86,16 +86,16 @@ class IdentityApplicationServiceTest {
 
         verify(principalRepository).saveWithNewUniqueId(principalCaptor.capture(), eq(uniqueIdService));
         assertThat(principalCaptor.getValue().getDisplayName()).isEqualTo(name);
+        assertThat(principalCaptor.getValue().getName()).isEqualTo(uriString);
+        assertThat(principalCaptor.getValue().getNameHash()).isEqualTo(nameHash);
         assertThat(principalCaptor.getValue().getStatus()).isEqualTo(IdentityPrincipalStatus.ACTIVE);
         assertThat(principalCaptor.getValue().getType()).isEqualTo(IdentityPrincipalType.APPLICATION);
 
         verify(applicationRepository).save(applicationCaptor.capture());
         assertThat(applicationCaptor.getValue().getUniqueId()).isEqualTo(principal.getUniqueId());
         assertThat(applicationCaptor.getValue().getWorkspace()).isSameAs(workspace);
-        assertThat(applicationCaptor.getValue().getName()).isEqualTo(name);
-        assertThat(applicationCaptor.getValue().getUri()).isEqualTo(uriString);
-        assertThat(applicationCaptor.getValue().getUriHash()).isEqualTo(uriHash);
         assertThat(applicationCaptor.getValue().getPayload()).isEqualTo(data);
+        assertThat(savedEntity.getPrincipal()).isSameAs(principal);
         verify(applicationRepository).flush();
     }
 
@@ -110,19 +110,20 @@ class IdentityApplicationServiceTest {
                 .build();
         var serializedBot = nextString();
         var expectedUri = "https://t.me/" + botUsername;
-        var uriHash = new byte[]{1, 2, 3};
+        var nameHash = new byte[]{1, 2, 3};
         var workspace = workspace(workspaceId.getLongValue());
         var principal = principal(nextLong(), name);
         var savedEntity = applicationEntity(principal.getUniqueId());
         var savedModel = applicationModel(principal.getUniqueId());
         var applicationCaptor = ArgumentCaptor.forClass(IdentityApplicationEntity.class);
+        var principalCaptor = ArgumentCaptor.forClass(IdentityPrincipalEntity.class);
 
         when(objectMapper.writeValueAsString(telegramBot)).thenReturn(serializedBot);
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
         when(telegramService.getUsername(telegramBot)).thenReturn(botUsername);
         when(principalRepository.saveWithNewUniqueId(any(IdentityPrincipalEntity.class), eq(uniqueIdService)))
                 .thenReturn(principal);
-        when(encryptionService.hashCaseSensitive(expectedUri)).thenReturn(uriHash);
+        when(encryptionService.hashPrincipalName(expectedUri)).thenReturn(nameHash);
         when(applicationRepository.save(any(IdentityApplicationEntity.class))).thenReturn(savedEntity);
         when(applicationMapper.toModel(savedEntity)).thenReturn(savedModel);
 
@@ -131,10 +132,11 @@ class IdentityApplicationServiceTest {
         ).isSameAs(savedModel);
 
         verify(telegramService).getUsername(telegramBot);
+        verify(principalRepository).saveWithNewUniqueId(principalCaptor.capture(), eq(uniqueIdService));
+        assertThat(principalCaptor.getValue().getDisplayName()).isEqualTo(name);
+        assertThat(principalCaptor.getValue().getName()).isEqualTo(expectedUri);
         verify(applicationRepository).save(applicationCaptor.capture());
         assertThat(applicationCaptor.getValue().getWorkspace()).isSameAs(workspace);
-        assertThat(applicationCaptor.getValue().getName()).isEqualTo(name);
-        assertThat(applicationCaptor.getValue().getUri()).isEqualTo(expectedUri);
         assertThat(applicationCaptor.getValue().getPayload()).isEqualTo(serializedBot);
     }
 
@@ -178,12 +180,12 @@ class IdentityApplicationServiceTest {
         var telegramBot = TelegramBot.builder().token(nextString()).build();
         var serializedBot = nextString();
         var expectedUri = "https://t.me/" + botUsername;
-        var uriHash = new byte[]{4, 5, 6};
+        var nameHash = new byte[]{4, 5, 6};
+        var principal = principal(applicationId.getLongValue(), nextString());
         var existing = IdentityApplicationEntity.builder()
                 .uniqueId(applicationId.getLongValue())
                 .version(version)
-                .name(nextString())
-                .uri(nextString())
+                .principal(principal)
                 .build();
         var savedEntity = applicationEntity(applicationId.getLongValue());
         var savedModel = applicationModel(applicationId.getLongValue());
@@ -191,7 +193,7 @@ class IdentityApplicationServiceTest {
         when(applicationRepository.findById(applicationId)).thenReturn(Optional.of(existing));
         when(telegramService.getUsername(telegramBot)).thenReturn(botUsername);
         when(objectMapper.writeValueAsString(telegramBot)).thenReturn(serializedBot);
-        when(encryptionService.hashCaseSensitive(expectedUri)).thenReturn(uriHash);
+        when(encryptionService.hashPrincipalName(expectedUri)).thenReturn(nameHash);
         when(applicationRepository.save(existing)).thenReturn(savedEntity);
         when(applicationMapper.toModel(savedEntity)).thenReturn(savedModel);
 
@@ -199,9 +201,10 @@ class IdentityApplicationServiceTest {
                 .isSameAs(savedModel);
 
         verify(telegramService).getUsername(telegramBot);
-        assertThat(existing.getName()).isEqualTo(name);
-        assertThat(existing.getUri()).isEqualTo(expectedUri);
-        assertThat(existing.getUriHash()).isEqualTo(uriHash);
+        assertThat(principal.getDisplayName()).isEqualTo(name);
+        assertThat(principal.getName()).isEqualTo(expectedUri);
+        assertThat(principal.getNameHash()).isEqualTo(nameHash);
+        verify(principalRepository).save(principal);
         assertThat(existing.getPayload()).isEqualTo(serializedBot);
         verify(applicationRepository).flush();
     }
@@ -301,17 +304,18 @@ class IdentityApplicationServiceTest {
     void findTelegramBotByUsername_whenBotExists_returnsBotWithUrl() throws JacksonException {
         var botUsername = nextString();
         var storedUri = "https://t.me/" + botUsername;
-        var uriHash = new byte[]{7, 8, 9};
+        var nameHash = new byte[]{7, 8, 9};
         var payload = nextString();
         var telegramBot = TelegramBot.builder().token(nextString()).build();
+        var principal = applicationPrincipal(nextLong(), storedUri);
         var entity = IdentityApplicationEntity.builder()
-                .uniqueId(nextLong())
-                .uri(storedUri)
+                .uniqueId(principal.getUniqueId())
+                .principal(principal)
                 .payload(payload)
                 .build();
 
-        when(encryptionService.hashCaseSensitive(storedUri)).thenReturn(uriHash);
-        when(applicationRepository.findByUriHash(uriHash)).thenReturn(Optional.of(entity));
+        when(encryptionService.hashPrincipalName(storedUri)).thenReturn(nameHash);
+        when(applicationRepository.findByPrincipal_NameHash(nameHash)).thenReturn(Optional.of(entity));
         when(objectMapper.readValue(payload, TelegramBot.class)).thenReturn(telegramBot);
 
         assertThat(service.findTelegramBotByUsername(botUsername))
@@ -321,18 +325,19 @@ class IdentityApplicationServiceTest {
     @Test
     void findTelegramBotByUsername_whenUsernameCasingDiffers_resolvesSameApplication() throws JacksonException {
         var normalizedUri = "https://t.me/mybot";
-        var uriHash = new byte[]{7, 8, 9};
+        var nameHash = new byte[]{7, 8, 9};
         var payload = nextString();
         var telegramBot = TelegramBot.builder().token(nextString()).build();
+        var principal = applicationPrincipal(nextLong(), normalizedUri);
         var entity = IdentityApplicationEntity.builder()
-                .uniqueId(nextLong())
-                .uri(normalizedUri)
+                .uniqueId(principal.getUniqueId())
+                .principal(principal)
                 .payload(payload)
                 .build();
 
         // Telegram usernames are case-insensitive, so "MyBot" must hash to the same key as "mybot".
-        when(encryptionService.hashCaseSensitive(normalizedUri)).thenReturn(uriHash);
-        when(applicationRepository.findByUriHash(uriHash)).thenReturn(Optional.of(entity));
+        when(encryptionService.hashPrincipalName(normalizedUri)).thenReturn(nameHash);
+        when(applicationRepository.findByPrincipal_NameHash(nameHash)).thenReturn(Optional.of(entity));
         when(objectMapper.readValue(payload, TelegramBot.class)).thenReturn(telegramBot);
 
         assertThat(service.findTelegramBotByUsername("MyBot"))
@@ -342,10 +347,10 @@ class IdentityApplicationServiceTest {
     @Test
     void findTelegramBotByUsername_whenBotIsNotFound_returnsNull() throws JacksonException {
         var botUsername = nextString();
-        var uriHash = new byte[]{7, 8, 9};
+        var nameHash = new byte[]{7, 8, 9};
 
-        when(encryptionService.hashCaseSensitive("https://t.me/" + botUsername)).thenReturn(uriHash);
-        when(applicationRepository.findByUriHash(uriHash)).thenReturn(Optional.empty());
+        when(encryptionService.hashPrincipalName("https://t.me/" + botUsername)).thenReturn(nameHash);
+        when(applicationRepository.findByPrincipal_NameHash(nameHash)).thenReturn(Optional.empty());
 
         assertThat(service.findTelegramBotByUsername(botUsername)).isNull();
         verify(objectMapper, never()).readValue(any(String.class), eq(TelegramBot.class));
@@ -368,11 +373,11 @@ class IdentityApplicationServiceTest {
     @Test
     void update_whenEntityExistsAndVersionMatches_returnsUpdatedApplication() {
         var id = nextLong();
-        var uriHash = new byte[]{4, 5, 6};
+        var nameHash = new byte[]{4, 5, 6};
         var model = IdentityApplication.builder()
                 .uniqueId(new UniqueId(id))
                 .name(nextString())
-                .uri(nextString())
+                .uri("https://t.me/" + nextString())
                 .payload(nextString())
                 .build();
         var existing = applicationEntity(id);
@@ -380,13 +385,15 @@ class IdentityApplicationServiceTest {
         var savedModel = applicationModel(id);
 
         when(applicationRepository.findById(new UniqueId(id))).thenReturn(Optional.of(existing));
-        when(encryptionService.hashCaseSensitive(model.getUri())).thenReturn(uriHash);
+        when(encryptionService.hashPrincipalName(model.getUri())).thenReturn(nameHash);
         when(applicationRepository.save(existing)).thenReturn(savedEntity);
         when(applicationMapper.toModel(savedEntity)).thenReturn(savedModel);
 
         assertThat(service.update(model)).isSameAs(savedModel);
         verify(applicationMapper).updateEntity(existing, model);
-        assertThat(existing.getUriHash()).isEqualTo(uriHash);
+        assertThat(existing.getPrincipal().getName()).isEqualTo(model.getUri());
+        assertThat(existing.getPrincipal().getNameHash()).isEqualTo(nameHash);
+        verify(principalRepository).save(existing.getPrincipal());
         verify(applicationRepository).flush();
     }
 
@@ -412,8 +419,6 @@ class IdentityApplicationServiceTest {
         var existing = IdentityApplicationEntity.builder()
                 .uniqueId(id)
                 .version(2)
-                .name(nextString())
-                .uri(nextString())
                 .build();
 
         when(applicationRepository.findById(new UniqueId(id))).thenReturn(Optional.of(existing));
@@ -435,12 +440,19 @@ class IdentityApplicationServiceTest {
         verify(applicationRepository).flush();
     }
 
+    @Test
+    void create_whenNameIsNotAbsoluteUri_throwsIllegalArgumentException() {
+        assertThatThrownBy(() ->
+                service.create(nextString(), URI.create("not-a-uri/path"), nextString(), workspace(nextLong())))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(applicationRepository, never()).save(any(IdentityApplicationEntity.class));
+    }
+
     private static IdentityApplicationEntity applicationEntity(long id) {
         return IdentityApplicationEntity.builder()
                 .uniqueId(id)
                 .version(0)
-                .name(nextString())
-                .uri(nextString())
+                .principal(applicationPrincipal(id, nextString()))
                 .build();
     }
 
@@ -456,6 +468,15 @@ class IdentityApplicationServiceTest {
         return IdentityPrincipalEntity.builder()
                 .uniqueId(id)
                 .displayName(name)
+                .status(IdentityPrincipalStatus.ACTIVE)
+                .type(IdentityPrincipalType.APPLICATION)
+                .build();
+    }
+
+    private static IdentityPrincipalEntity applicationPrincipal(long id, String uri) {
+        return IdentityPrincipalEntity.builder()
+                .uniqueId(id)
+                .name(uri)
                 .status(IdentityPrincipalStatus.ACTIVE)
                 .type(IdentityPrincipalType.APPLICATION)
                 .build();

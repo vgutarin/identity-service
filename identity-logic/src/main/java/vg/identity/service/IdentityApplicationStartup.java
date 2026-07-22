@@ -6,7 +6,6 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Component;
 import vg.identity.model.IdentityPermission;
@@ -25,7 +24,6 @@ import static vg.identity.model.IdentityUserSystemRole.OWNER;
 @Component
 public class IdentityApplicationStartup {
 
-    private final UserDetailsManager userDetailsManager;
     private final IdentityUserService userService;
     private final IdentityUserAuthorityService authorityService;
     private final IdentityWorkspaceService workspaceService;
@@ -44,6 +42,8 @@ public class IdentityApplicationStartup {
             }
 
             createUser("vg", "vg", IdentityUserSystemRole.OWNER);
+            createUser("b", "b", null);
+
             //createUser("app.vgutarin@gmail.com", "g", null);
 
             for (var permission : Permission.ALL) {
@@ -107,10 +107,6 @@ public class IdentityApplicationStartup {
             authorityService.assignAuthorityTmpInsecure(user, role);
         }
 
-        authorityService.loadAuthorities(user);
-        userDetailsManager.createUser(
-            user
-        );
         log.info("Created user: {}", username);
     }
 }

@@ -94,8 +94,7 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
     }
 
     protected IdentityUser createIdentityUser(String username) {
-        var usernameHash = encryptionService.canonicalizeAndHash(username);
-        var existing = userRepository.findByUsernameHash(usernameHash);
+        var existing = userRepository.findByPrincipal_NameHash(encryptionService.hashPrincipalName(username));
         if (existing.isPresent()) {
             return identityUserMapper.toModel(existing.get());
         }
@@ -108,8 +107,9 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
         var principal = createPrincipal(user);
         var userEntity = identityUserMapper.toEntity(user);
         userEntity.setUniqueId(principal.getUniqueId());
-        userEntity.setUsernameHash(usernameHash);
-        return identityUserMapper.toModel(userRepository.save(userEntity));
+        var saved = userRepository.save(userEntity);
+        saved.setPrincipal(principal);
+        return identityUserMapper.toModel(saved);
     }
 
     protected static Clock clock = Clock.fixed(
@@ -127,6 +127,8 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
 
     private IdentityPrincipalEntity createPrincipal(IdentityUser user) {
         var principal = IdentityPrincipalEntity.builder()
+                .name(user.getUsername())
+                .nameHash(encryptionService.hashPrincipalName(user.getUsername()))
                 .displayName(user.getUsername())
                 .status(IdentityPrincipalStatus.ACTIVE)
                 .type(IdentityPrincipalType.USER)

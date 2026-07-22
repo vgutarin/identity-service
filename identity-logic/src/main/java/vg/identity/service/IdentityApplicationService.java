@@ -64,9 +64,7 @@ public class IdentityApplicationService {
         var botUsername = telegramService.getUsername(telegramBot);
         var uri = telegramBotUri(botUsername);
 
-        existing.setName(name);
-        existing.setUri(uri);
-        existing.setUriHash(hashUri(uri));
+        updatePrincipalName(existing.getPrincipal(), name, uri);
         existing.setPayload(toJson(telegramBot));
 
         var saved = applicationRepository.save(existing);
@@ -102,10 +100,10 @@ public class IdentityApplicationService {
     @Transactional(readOnly = true)
     TelegramBotWithUri findTelegramBotByUsername(String botUsername) {
         var uri = telegramBotUri(botUsername);
-        return applicationRepository.findByUriHash(hashUri(uri))
+        return applicationRepository.findByPrincipal_NameHash(encryptionService.hashPrincipalName(uri))
                 .map(entity ->
                         new TelegramBotWithUri(
-                                URI.create(entity.getUri()),
+                                URI.create(entity.getPrincipal().getName()),
                                 fromJson(entity.getPayload())
                         )
                 )
@@ -132,7 +130,7 @@ public class IdentityApplicationService {
         }
 
         applicationMapper.updateEntity(existing, application);
-        existing.setUriHash(hashUri(application.getUri()));
+        updatePrincipalName(existing.getPrincipal(), application.getName(), application.getUri());
 
         var saved = applicationRepository.save(existing);
         applicationRepository.flush();
@@ -152,19 +150,19 @@ public class IdentityApplicationService {
 
     @Transactional
     IdentityApplication create(String name, URI uri, String payload, IdentityWorkspaceEntity workspace) {
-        var uriString = uri.toString();
-        var principal = createPrincipal(name);
+        var principal = createPrincipal(name, uri.toString());
         var entity = IdentityApplicationEntity.builder()
                 .uniqueId(principal.getUniqueId())
                 .workspace(workspace)
-                .name(name)
-                .uri(uriString)
-                .uriHash(hashUri(uriString))
                 .payload(payload)
                 .build();
 
         var saved = applicationRepository.save(entity);
         applicationRepository.flush();
+        // Attach the principal to the persisted instance only for mapping — the shared-PK association is
+        // read-only, and setting it before save would pull it into the merge and trip Hibernate's null-id
+        // assertion on the still-transient application.
+        saved.setPrincipal(principal);
         return applicationMapper.toModel(saved);
     }
 
@@ -173,10 +171,6 @@ public class IdentityApplicationService {
         // lower case before building/hashing the URI. This keeps the stored value and the lookup key
         // consistent and prevents the same bot from being registered twice under different casing.
         return TELEGRAM_BOT_BASE_URI + botUsername.toLowerCase(Locale.ROOT);
-    }
-
-    private byte[] hashUri(String uri) {
-        return encryptionService.hashCaseSensitive(uri);
     }
 
     private IdentityWorkspaceEntity getWorkspaceEntity(UniqueId workspaceUniqueId) {
@@ -200,13 +194,35 @@ public class IdentityApplicationService {
         }
     }
 
-    private IdentityPrincipalEntity createPrincipal(String name) {
+    private IdentityPrincipalEntity createPrincipal(String displayName, String uri) {
+        requireUriName(uri);
         var principal = IdentityPrincipalEntity.builder()
-                .displayName(name)
+                .displayName(displayName)
+                .name(uri)
+                .nameHash(encryptionService.hashPrincipalName(uri))
                 .status(IdentityPrincipalStatus.ACTIVE)
                 .type(IdentityPrincipalType.APPLICATION)
                 .build();
         return principalRepository.saveWithNewUniqueId(principal, uniqueIdService);
+    }
+
+    private void updatePrincipalName(IdentityPrincipalEntity principal, String displayName, String uri) {
+        requireUriName(uri);
+        principal.setDisplayName(displayName);
+        principal.setName(uri);
+        principal.setNameHash(encryptionService.hashPrincipalName(uri));
+        principalRepository.save(principal);
+    }
+
+    /**
+     * An application principal is always stored under an absolute URI name (it carries a scheme, hence a
+     * colon). Usernames are forbidden from containing a colon, so this keeps the two principal types in
+     * disjoint regions of the shared principal-name index and guarantees they can never collide.
+     */
+    private void requireUriName(String uri) {
+        if (uri == null || !URI.create(uri).isAbsolute()) {
+            throw new IllegalArgumentException("exception.application.name.mustBeUri");
+        }
     }
 
 }

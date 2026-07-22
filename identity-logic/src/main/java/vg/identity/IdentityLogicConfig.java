@@ -12,8 +12,6 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
-import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
 import vg.identity.service.IdentityActionLinkBuilder;
@@ -73,12 +71,4 @@ public class IdentityLogicConfig {
     public IdentityActionLinkBuilder actionLinkBuilder(IdentityActionTokenProperties properties) {
         return new IdentityActionLinkBuilderDefault(properties);
     }
-
-
-    //TODO implement UserDetailsManager
-    @Bean
-    public UserDetailsManager userDetailsService() {
-        return new InMemoryUserDetailsManager();
-    }
-
 }

@@ -139,11 +139,35 @@ public class EncryptionService {
         return hash(input);
     }
 
+    /**
+     * Blind-index hash for the principal-level {@code name}. Applies the same minimal processing on
+     * both write and lookup: non-printable characters are stripped, but no case folding or other
+     * canonicalization is performed. Deciding how to canonicalize the value (e.g. lower-casing) is the
+     * responsibility of the concrete principal type (user, application) before it is handed to the
+     * principal, so the shared principal layer never second-guesses it.
+     */
+    public byte[] hashPrincipalName(String input) {
+        if (input == null) {
+            return null;
+        }
+        return hash(normalizePrincipalName(input));
+    }
+
     String canonicalize(String input) {
         if (input == null) {
             return null;
         }
         return input.toLowerCase(Locale.ROOT).trim();
+    }
+
+    private String normalizePrincipalName(String input) {
+        if (input == null) {
+            return null;
+        }
+        // Remove control/format/surrogate/unassigned/private-use code points (Unicode category "C"),
+        // then strip leading/trailing (Unicode) whitespace. No case folding or other canonicalization
+        // is applied: that is the principal subtype's responsibility before the value reaches here.
+        return input.replaceAll("\\p{C}", "").strip();
     }
 
     private static SecretKey parseKey(int id, String base64Key) {

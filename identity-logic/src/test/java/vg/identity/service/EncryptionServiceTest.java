@@ -40,6 +40,11 @@ class EncryptionServiceTest {
         return properties;
     }
 
+    /** Builds a string containing the single given code point, avoiding literal invisible characters in source. */
+    private static String cp(int codePoint) {
+        return new String(Character.toChars(codePoint));
+    }
+
     @Test
     void encode_whenInputIsNull_returnsNull() {
         assertThat(encryptionService.encode(null)).isNull();
@@ -236,5 +241,80 @@ class EncryptionServiceTest {
         var hash2 = encryptionService.hashCaseSensitive(input2);
 
         assertThat(hash1).isNotEqualTo(hash2);
+    }
+
+    @Test
+    void hashPrincipalName_whenInputIsNull_returnsNull() {
+        assertThat(encryptionService.hashPrincipalName(null)).isNull();
+    }
+
+    @Test
+    void hashPrincipalName_isDeterministic() {
+        var hash1 = encryptionService.hashPrincipalName("principal-name");
+        var hash2 = encryptionService.hashPrincipalName("principal-name");
+
+        assertThat(hash1).isNotNull();
+        assertThat(hash1).isEqualTo(hash2);
+        assertThat(hash1.length).isEqualTo(32); // HMAC-SHA256 -> 32 bytes
+    }
+
+    @Test
+    void hashPrincipalName_isStableAcrossInstancesWithTheSameKey() {
+        // The blind index must be reproducible: a fresh service configured with the same key must hash
+        // identically, otherwise stored hashes could never be matched on a later lookup or after a restart.
+        var other = new EncryptionService(properties(1, Map.of(1, KEY)));
+
+        assertThat(encryptionService.hashPrincipalName("principal-name"))
+                .isEqualTo(other.hashPrincipalName("principal-name"));
+    }
+
+    @Test
+    void hashPrincipalName_stripsNonPrintableCharactersAnywhere() {
+        var expected = encryptionService.hashPrincipalName("vg");
+
+        assertThat(encryptionService.hashPrincipalName("v" + cp(0x0000) + "g")).isEqualTo(expected); // NUL (Cc)
+        assertThat(encryptionService.hashPrincipalName("v\tg")).isEqualTo(expected);                 // tab (Cc)
+        assertThat(encryptionService.hashPrincipalName("v" + cp(0x200B) + "g")).isEqualTo(expected); // zero-width space (Cf)
+        assertThat(encryptionService.hashPrincipalName(cp(0xFEFF) + "vg")).isEqualTo(expected);       // BOM / ZWNBSP (Cf)
+    }
+
+    @Test
+    void hashPrincipalName_trimsSurroundingWhitespace() {
+        var expected = encryptionService.hashPrincipalName("vg");
+
+        assertThat(encryptionService.hashPrincipalName("  vg  ")).isEqualTo(expected); // ASCII spaces
+        assertThat(encryptionService.hashPrincipalName("\tvg\n")).isEqualTo(expected); // control whitespace
+        assertThat(encryptionService.hashPrincipalName(cp(0x2003) + "vg" + cp(0x2003)))// EM SPACE (Zs)
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void hashPrincipalName_preservesInteriorWhitespace() {
+        // Only surrounding whitespace is trimmed; an interior space is a meaningful, retained character.
+        assertThat(encryptionService.hashPrincipalName("a b"))
+                .isNotEqualTo(encryptionService.hashPrincipalName("ab"));
+    }
+
+    @Test
+    void hashPrincipalName_isCaseSensitive() {
+        // hashPrincipalName performs no case folding; canonicalization is the caller's responsibility.
+        assertThat(encryptionService.hashPrincipalName("VG"))
+                .isNotEqualTo(encryptionService.hashPrincipalName("vg"));
+    }
+
+    @Test
+    void hashPrincipalName_equalsHashOfStrippedAndTrimmedValue() {
+        // Normalization is exactly: remove Unicode category "C" (control/format/...) code points, then
+        // strip surrounding whitespace - nothing else (no case folding, no interior changes).
+        assertThat(encryptionService.hashPrincipalName("  Vg" + cp(0x200B) + " "))
+                .isEqualTo(encryptionService.hash("Vg"));
+    }
+
+    @Test
+    void hashPrincipalName_doesNotStripNoBreakSpace() {
+        // Documents the boundary: NO-BREAK SPACE (U+00A0) is neither Unicode category "C" nor Java
+        // whitespace, so it is preserved and yields a different hash than the clean value.
+        assertThat(encryptionService.hashPrincipalName("vg" + cp(0x00A0)))
+                .isNotEqualTo(encryptionService.hashPrincipalName("vg"));
     }
 }

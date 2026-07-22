@@ -237,7 +237,7 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
         service.addUser(workspace.getUniqueId(), email);
 
         var user = userRepository.findAll().stream()
-                .filter(entity -> email.equals(entity.getUsername()))
+                .filter(entity -> email.equals(entity.getPrincipal().getName()))
                 .findFirst()
                 .orElseThrow();
         assertThat(workspaceUserRelationCount(workspace.getUniqueId().getLongValue(), user.getUniqueId()))

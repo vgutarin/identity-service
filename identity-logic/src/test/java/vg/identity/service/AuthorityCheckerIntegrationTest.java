@@ -155,6 +155,8 @@ class AuthorityCheckerIntegrationTest extends BaseIntegrationTest {
         var principal = principalRepository.saveWithNewUniqueId(
                 IdentityPrincipalEntity.builder()
                         .displayName(name)
+                        .name(uri)
+                        .nameHash(encryptionService.hashPrincipalName(uri))
                         .status(IdentityPrincipalStatus.ACTIVE)
                         .type(IdentityPrincipalType.APPLICATION)
                         .build(),
@@ -165,9 +167,6 @@ class AuthorityCheckerIntegrationTest extends BaseIntegrationTest {
                     .uniqueId(principal.getUniqueId())
                     .principal(entityManager.getReference(IdentityPrincipalEntity.class, principal.getUniqueId()))
                     .workspace(entityManager.getReference(IdentityWorkspaceEntity.class, workspace.getUniqueId()))
-                    .name(name)
-                    .uri(uri)
-                    .uriHash(encryptionService.hashCaseSensitive(uri))
                     .payload(nextString())
                     .build();
 

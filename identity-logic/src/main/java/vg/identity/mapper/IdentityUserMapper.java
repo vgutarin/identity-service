@@ -9,6 +9,7 @@ import vg.unique.id.mapper.UniqueIdMapper;
 
 @Mapper(componentModel = "spring", uses = UniqueIdMapper.class)
 public interface IdentityUserMapper {
+    @Mapping(target = "username", source = "principal.name")
     IdentityUser toModel(IdentityUserEntity src);
 
     @Mapping(target = "principal", ignore = true)
@@ -19,5 +20,6 @@ public interface IdentityUserMapper {
     @Mapping(target = "workspaces", ignore = true)
     void updateEntity(@MappingTarget IdentityUserEntity entity, IdentityUser user);
 
+    @Mapping(target = "username", source = "principal.name")
     void updateModel(@MappingTarget IdentityUser user, IdentityUserEntity entity);
 }

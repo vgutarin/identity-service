@@ -130,12 +130,39 @@ class IdentityUserServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void findByUsername_whenUsernameCaseDiffers_returnsUser() {
-        service.create(buildModel());
+        // Every username is canonicalized (lower-cased + trimmed) before hashing, so lookup is
+        // case-insensitive while the stored name keeps its original casing.
+        var mixedCaseName = "Ab" + nextString();
+        service.create(IdentityUser.builder().username(mixedCaseName).password(password).build());
 
-        var found = service.findByUsername(name.toUpperCase());
+        var found = service.findByUsername(mixedCaseName.toUpperCase());
 
         assertThat(found).isNotNull();
-        assertThat(found.getUsername()).isEqualTo(name);
+        assertThat(found.getUsername()).isEqualTo(mixedCaseName);
+    }
+
+    @Test
+    void findByUsername_whenEmailCaseDiffers_returnsUser() {
+        // An email username is canonicalized before hashing, so lookup is case-insensitive while the
+        // stored name keeps its original casing.
+        var email = "User" + nextLong() + "@Example.com";
+        service.create(IdentityUser.builder().username(email).password(password).build());
+
+        var found = service.findByUsername(email.toLowerCase());
+
+        assertThat(found).isNotNull();
+        assertThat(found.getUsername()).isEqualTo(email);
+    }
+
+    @Test
+    void create_whenEmailAlreadyExistsWithDifferentCase_throwsDataIntegrityViolationException() {
+        var email = "user" + nextLong() + "@example.com";
+        service.create(IdentityUser.builder().username(email).password(password).build());
+
+        var duplicate = IdentityUser.builder().username(email.toUpperCase()).password(password).build();
+
+        // Emails collide case-insensitively on the principal name_hash.
+        assertThatThrownBy(() -> service.create(duplicate)).isInstanceOf(Exception.class);
     }
 
     @Test
@@ -143,9 +170,8 @@ class IdentityUserServiceIntegrationTest extends BaseIntegrationTest {
         service.create(buildModel());
 
         var duplicate = buildModel();
-        duplicate.setUsername(name.toUpperCase());
 
-        // Should throw due to DB unique constraint on usernameHash
+        // Should throw due to DB unique constraint on principal name_hash
         assertThatThrownBy(
                 () -> service.create(duplicate)
         ).isInstanceOf(Exception.class);
