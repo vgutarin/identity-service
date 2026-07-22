@@ -78,6 +78,7 @@ class IdentityActionTokenServiceTest {
                 channelRepository,
                 commandService,
                 properties,
+                new IdentityActionLinkBuilderDefault(properties),
                 applicationService,
                 confirmEmailMailFactory,
                 objectMapper,

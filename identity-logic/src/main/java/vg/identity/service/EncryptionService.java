@@ -7,14 +7,15 @@ import vg.identity.EncryptionProperties;
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -23,22 +24,46 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class EncryptionService {
 
     private static final String ENCRYPTION_ALGORITHM = "AES/GCM/NoPadding";
+    private static final int KEY_ID_LENGTH = 1;
     private static final int IV_LENGTH = 12;
     private static final int GCM_TAG_BITS = 128;
-    private static final int PBKDF2_ITERATIONS = 65536;
-    private static final int KEY_LENGTH_BITS = 256;
+    private static final int AES_KEY_LENGTH_BYTES = 32;
+    private static final int MAX_KEY_ID = 0xFF;
 
     private static final String HASH_ALGORITHM = "HmacSHA256";
 
-    private final SecretKey secretKeyToEncrypt;
-    private final SecretKey secretKeyToHash;
+    private final Map<Integer, SecretKey> keyring;
+    private final int currentKeyId;
+    private final SecretKey currentKey;
+    private final SecretKey blindIndexKey;
 
     public EncryptionService(EncryptionProperties properties) {
-        if (properties.getSalt() == null || properties.getSalt().isBlank()) {
-            throw new IllegalStateException("BLIND_INDEX_SALT is not configured!");
+        if (properties.getBlindIndexKey() == null || properties.getBlindIndexKey().isBlank()) {
+            throw new IllegalStateException("identity.encryption.blind-index-key is not configured!");
         }
-        this.secretKeyToEncrypt = deriveKey(properties.getSecret(), properties.getSalt());
-        this.secretKeyToHash = new SecretKeySpec(properties.getSalt().getBytes(UTF_8), HASH_ALGORITHM);
+        if (properties.getKeys() == null || properties.getKeys().isEmpty()) {
+            throw new IllegalStateException("identity.encryption.keys is not configured!");
+        }
+        if (properties.getCurrentKeyId() == null) {
+            throw new IllegalStateException("identity.encryption.current-key-id is not configured!");
+        }
+
+        var ring = new HashMap<Integer, SecretKey>();
+        properties.getKeys().forEach((id, key) -> {
+            if (id < 0 || id > MAX_KEY_ID) {
+                throw new IllegalStateException("Encryption key id must be in range 0.." + MAX_KEY_ID + ", got: " + id);
+            }
+            ring.put(id, parseKey(id, key));
+        });
+
+        this.currentKeyId = properties.getCurrentKeyId();
+        if (!ring.containsKey(currentKeyId)) {
+            throw new IllegalStateException("identity.encryption.current-key-id " + currentKeyId + " is not present in identity.encryption.keys");
+        }
+
+        this.keyring = Map.copyOf(ring);
+        this.currentKey = this.keyring.get(currentKeyId);
+        this.blindIndexKey = new SecretKeySpec(properties.getBlindIndexKey().getBytes(UTF_8), HASH_ALGORITHM);
     }
 
     public byte[] encode(String src) {
@@ -50,10 +75,11 @@ public class EncryptionService {
             new SecureRandom().nextBytes(iv);
 
             var cipher = Cipher.getInstance(ENCRYPTION_ALGORITHM);
-            cipher.init(Cipher.ENCRYPT_MODE, secretKeyToEncrypt, new GCMParameterSpec(GCM_TAG_BITS, iv));
+            cipher.init(Cipher.ENCRYPT_MODE, currentKey, new GCMParameterSpec(GCM_TAG_BITS, iv));
             var encrypted = cipher.doFinal(src.getBytes(UTF_8));
 
-            return ByteBuffer.allocate(iv.length + encrypted.length)
+            return ByteBuffer.allocate(KEY_ID_LENGTH + iv.length + encrypted.length)
+                    .put((byte) currentKeyId)
                     .put(iv)
                     .put(encrypted)
                     .array();
@@ -67,11 +93,17 @@ public class EncryptionService {
             return null;
         }
         try {
-            var iv = Arrays.copyOfRange(encoded, 0, IV_LENGTH);
-            var ciphertext = Arrays.copyOfRange(encoded, IV_LENGTH, encoded.length);
+            var keyId = encoded[0] & 0xFF;
+            var key = keyring.get(keyId);
+            if (key == null) {
+                throw new IllegalStateException("No encryption key configured for key id " + keyId);
+            }
+
+            var iv = Arrays.copyOfRange(encoded, KEY_ID_LENGTH, KEY_ID_LENGTH + IV_LENGTH);
+            var ciphertext = Arrays.copyOfRange(encoded, KEY_ID_LENGTH + IV_LENGTH, encoded.length);
 
             var cipher = Cipher.getInstance(ENCRYPTION_ALGORITHM);
-            cipher.init(Cipher.DECRYPT_MODE, secretKeyToEncrypt, new GCMParameterSpec(GCM_TAG_BITS, iv));
+            cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(GCM_TAG_BITS, iv));
 
             return new String(cipher.doFinal(ciphertext), UTF_8);
         } catch (Exception e) {
@@ -86,7 +118,7 @@ public class EncryptionService {
 
         try {
             var mac = Mac.getInstance(HASH_ALGORITHM);
-            mac.init(secretKeyToHash);
+            mac.init(blindIndexKey);
             return mac.doFinal(input.getBytes(UTF_8));
         } catch (Exception e) {
             throw new RuntimeException("Error during hash generating", e);
@@ -114,14 +146,20 @@ public class EncryptionService {
         return input.toLowerCase(Locale.ROOT).trim();
     }
 
-    private static SecretKey deriveKey(String secret, String salt) {
-        try {
-            var factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-            var spec = new PBEKeySpec(secret.toCharArray(), salt.getBytes(UTF_8), PBKDF2_ITERATIONS, KEY_LENGTH_BITS);
-            var keyBytes = factory.generateSecret(spec).getEncoded();
-            return new SecretKeySpec(keyBytes, "AES");
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to derive encryption key", e);
+    private static SecretKey parseKey(int id, String base64Key) {
+        if (base64Key == null || base64Key.isBlank()) {
+            throw new IllegalStateException("Encryption key id " + id + " is not configured!");
         }
+        byte[] raw;
+        try {
+            raw = Base64.getDecoder().decode(base64Key.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("Encryption key id " + id + " is not valid Base64", e);
+        }
+        if (raw.length != AES_KEY_LENGTH_BYTES) {
+            throw new IllegalStateException(
+                    "Encryption key id " + id + " must decode to " + AES_KEY_LENGTH_BYTES + " bytes, got " + raw.length);
+        }
+        return new SecretKeySpec(raw, "AES");
     }
 }

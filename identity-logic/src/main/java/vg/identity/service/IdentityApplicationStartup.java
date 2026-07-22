@@ -2,7 +2,7 @@ package vg.identity.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationStartedEvent;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,7 +15,6 @@ import vg.identity.model.IdentityUser;
 import vg.identity.model.IdentityUserSystemRole;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.model.access.Permission;
-import vg.identity.model.application.TelegramBot;
 
 import java.util.List;
 
@@ -30,52 +29,51 @@ public class IdentityApplicationStartup {
     private final IdentityUserService userService;
     private final IdentityUserAuthorityService authorityService;
     private final IdentityWorkspaceService workspaceService;
-    private final IdentityApplicationService applicationService;
     private final IdentityPermissionService permissionService;
     private final IdentityRoleTemplateService roleTemplateService;
 
-    @EventListener(ApplicationStartedEvent.class)
+    @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         log.info("Identity application started");
-        setCurrentUserAsOwner();
+        try {
+            setCurrentUserAsOwner();
 
-        createUser("vg", "vg", IdentityUserSystemRole.OWNER);
-        createUser("app.vgutarin@gmail.com", "g", null);
+            if (null != userService.findByUsername("vg")) {
+                log.info("User with name {} already exists", userService.findByUsername("vg").getUsername());
+                return;
+            }
 
-        for(var permission : Permission.ALL) {
-            permissionService.create(IdentityPermission.builder().name(permission).build());
-        }
+            createUser("vg", "vg", IdentityUserSystemRole.OWNER);
+            //createUser("app.vgutarin@gmail.com", "g", null);
 
-        var i = 0;
-        for (var roleName : List.of("Role1", "Role2", "Role3")) {
-            var template = roleTemplateService.create(
-                    IdentityRoleTemplate.builder()
-                            .name(roleName)
-                            .description(roleName + " description " + i)
-                            .build()
+            for (var permission : Permission.ALL) {
+                permissionService.create(IdentityPermission.builder().name(permission).build());
+            }
+
+            var i = 0;
+            for (var roleName : List.of("Role1", "Role2", "Role3")) {
+                var template = roleTemplateService.create(
+                        IdentityRoleTemplate.builder()
+                                .name(roleName)
+                                .description(roleName + " description " + i)
+                                .build()
+                );
+                roleTemplateService.addPermission(template.getId(), Permission.ALL[i++]);
+                roleTemplateService.addPermission(template.getId(), Permission.ALL[i++]);
+            }
+
+            workspaceService.create(
+                    IdentityWorkspace.builder().name("System").build()
             );
-            roleTemplateService.addPermission(template.getId(), Permission.ALL[i++]);
-            roleTemplateService.addPermission(template.getId(), Permission.ALL[i++]);
+
+            List.of("Workspace1", "Workspace2").forEach(workspaceName ->
+                    workspaceService.create(
+                            IdentityWorkspace.builder().name(workspaceName).build()
+                    )
+            );
+        } finally {
+            SecurityContextHolder.clearContext();
         }
-
-        workspaceService.create(
-                IdentityWorkspace.builder().name("System").build()
-        );
-//        applicationService.createTelegramBotApplication(
-//                system.getUniqueId(),
-//                "System",
-//                TelegramBot.builder()
-//                        .token("system-bot-token")
-//                        .build()
-//        );
-
-        List.of("Workspace1", "Workspace2").forEach(workspaceName ->
-                workspaceService.create(
-                        IdentityWorkspace.builder().name(workspaceName).build()
-                )
-        );
-
-        SecurityContextHolder.clearContext();
     }
 
     public static void setCurrentUserAsOwner() {

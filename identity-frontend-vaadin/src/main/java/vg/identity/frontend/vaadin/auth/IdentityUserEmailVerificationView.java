@@ -21,9 +21,18 @@ import java.net.URI;
 import java.util.UUID;
 
 @Slf4j
-@Route(value = "verify/email", autoLayout = false)
+@Route(value = "verify/email/:id?", autoLayout = false)
 @AnonymousAllowed
 public class IdentityUserEmailVerificationView extends VerticalLayout implements BeforeEnterObserver, HasDynamicTitle {
+
+    /**
+     * Name of the action token path parameter. Must match the {@code :id} segment in the {@link Route}
+     * template above; reused by the link builder so the read side and the write side stay in sync. The
+     * segment is optional ({@code :id?}) so hitting the bare path shows the "link missing" message instead
+     * of a 404.
+     */
+    public static final String ID_PARAM = "id";
+
     private final transient IdentityActionTokenService actionTokenService;
     private final LocalizationService localization;
     private final Span result = new Span();
@@ -45,12 +54,8 @@ public class IdentityUserEmailVerificationView extends VerticalLayout implements
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        var id = event.getLocation()
-                .getQueryParameters()
-                .getParameters()
-                .getOrDefault("id", java.util.List.of())
-                .stream()
-                .findFirst()
+        var id = event.getRouteParameters()
+                .get(ID_PARAM)
                 .orElse(null);
 
         if (id == null || id.isBlank()) {

@@ -16,6 +16,7 @@ dependencies {
 	implementation "com.vaadin:vaadin-spring-boot-starter"
 	implementation "com.vaadin:vaadin-dev-server"
 	implementation "org.springframework.boot:spring-boot-starter-data-jpa"
+	implementation "org.springframework.boot:spring-boot-starter-liquibase"
 	implementation "org.springframework.boot:spring-boot-starter-security"
 	implementation "vg.unique-id:unique-id-jpa-lib:0.0.1-SNAPSHOT"
 

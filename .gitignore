@@ -11,3 +11,4 @@
 /src/main/frontend/index.html
 /node_modules/
 /identity-frontend-vaadin/vite.generated.ts
+/local-db/

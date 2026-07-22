@@ -15,7 +15,7 @@ import java.time.Duration;
 @ConfigurationProperties("identity.action-token")
 public class IdentityActionTokenProperties {
     @NotBlank
-    private String verifyEmailBaseUrl = "/verify/email?id=";
+    private String verifyEmailBaseUrl = "/verify/email/";
 
     @NotNull
     private Duration expiresIn = Duration.ofDays(1);

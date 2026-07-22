@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import vg.identity.IdentityActionTokenProperties;
@@ -15,12 +16,10 @@ import vg.identity.model.IdentityActionType;
 import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.application.TelegramBotToConfirm;
-import vg.identity.model.application.TelegramBotWithUri;
 import vg.identity.model.user.channel.IdentityUserChannelEmail;
 import vg.identity.repository.IdentityActionTokenRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
-import vg.identity.util.URIHelper;
 import vg.unique.id.model.UniqueId;
 
 import java.net.URI;
@@ -38,6 +37,7 @@ public class IdentityActionTokenService {
     private final IdentityUserChannelRepository channelRepository;
     private final IdentityCommandService commandService;
     private final IdentityActionTokenProperties properties;
+    private final IdentityActionLinkBuilder actionLinkBuilder;
     private final IdentityApplicationService applicationService;
     private final ConfirmEmailMailFactory confirmEmailMailFactory;
     private final ObjectMapper objectMapper;
@@ -50,6 +50,7 @@ public class IdentityActionTokenService {
             IdentityUserChannelRepository channelRepository,
             IdentityCommandService commandService,
             IdentityActionTokenProperties properties,
+            IdentityActionLinkBuilder actionLinkBuilder,
             IdentityApplicationService applicationService,
             ConfirmEmailMailFactory confirmEmailMailFactory,
             ObjectMapper objectMapper,
@@ -61,6 +62,7 @@ public class IdentityActionTokenService {
         this.channelRepository = channelRepository;
         this.commandService = commandService;
         this.properties = properties;
+        this.actionLinkBuilder = actionLinkBuilder;
         this.applicationService = applicationService;
         this.confirmEmailMailFactory = confirmEmailMailFactory;
         this.objectMapper = objectMapper;
@@ -100,7 +102,7 @@ public class IdentityActionTokenService {
         commandService.enqueue(
                 confirmEmailMailFactory.create(
                         channel.getEmail(),
-                        URI.create(properties.getVerifyEmailBaseUrl() + id),
+                        actionLinkBuilder.confirmationEmailUri(id),
                         telegramConfirmUri(id)
                 )
         );
@@ -122,11 +124,19 @@ public class IdentityActionTokenService {
             return null;
         }
 
-        return URIHelper.addQueryParam(
-                telegramBot.uri(),
-                properties.getTelegramStartAppParam(),
-                actionId.toString()
-        );
+        return telegramDeepLink(telegramBot.uri(), actionId);
+    }
+
+    /**
+     * Builds the Telegram deep link for an action: the bot URL carrying the action id in the
+     * {@code startapp} parameter, e.g. {@code https://t.me/<bot>?startapp=<actionId>}. Kept internal to the
+     * logic module, as it does not depend on the service's external public origin.
+     */
+    private URI telegramDeepLink(URI telegramBotUri, UUID actionId) {
+        return UriComponentsBuilder.fromUri(telegramBotUri)
+                .queryParam(properties.getTelegramStartAppParam(), actionId)
+                .build()
+                .toUri();
     }
 
     public IdentityAction.ConfirmEmailInfo findConfirmEmailActionInfo(@NotNull UUID id) {
@@ -272,15 +282,7 @@ public class IdentityActionTokenService {
                         .expireAt(createdAt.plus(properties.getExpiresIn()))
                         .build()
         );
-        return bindTelegramUrl(telegramBot, actionId);
-    }
-
-    private URI bindTelegramUrl(TelegramBotWithUri telegramBot, UUID actionId) {
-        return URIHelper.addQueryParam(
-                telegramBot.uri(),
-                properties.getTelegramStartAppParam(),
-                actionId.toString()
-        );
+        return telegramDeepLink(telegramBot.uri(), actionId);
     }
 
     private String toPayload(TelegramBotToConfirm payload) {

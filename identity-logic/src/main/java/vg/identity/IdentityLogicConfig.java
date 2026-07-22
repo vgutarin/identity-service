@@ -16,6 +16,8 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
+import vg.identity.service.IdentityActionLinkBuilder;
+import vg.identity.service.IdentityActionLinkBuilderDefault;
 
 import java.time.Clock;
 import java.util.Map;
@@ -60,6 +62,16 @@ public class IdentityLogicConfig {
     @ConditionalOnMissingBean
     public RestClient.Builder restClientBuilder() {
         return RestClient.builder();
+    }
+
+    /**
+     * Host-relative link builder used when no frontend supplies its own. The Vaadin module contributes an
+     * {@link IdentityActionLinkBuilder} bean that produces absolute URLs, which suppresses this fallback.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public IdentityActionLinkBuilder actionLinkBuilder(IdentityActionTokenProperties properties) {
+        return new IdentityActionLinkBuilderDefault(properties);
     }
 
 
