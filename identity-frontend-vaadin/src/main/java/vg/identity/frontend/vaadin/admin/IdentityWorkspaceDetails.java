@@ -136,11 +136,10 @@ public class IdentityWorkspaceDetails extends VerticalLayout implements BeforeEn
     }
 
     private FormLayout detailsLayout() {
-        var layout = new FormLayout(
+        var layout = Dialogs.singleColumnForm(
                 description,
                 new HorizontalLayout(createdAt, updatedAt)
         );
-        layout.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
         layout.setWidthFull();
         return layout;
     }
@@ -238,9 +237,7 @@ public class IdentityWorkspaceDetails extends VerticalLayout implements BeforeEn
         var editing = target.getUniqueId() != null;
         var formWorkspace = editing ? copy(target) : target;
 
-        var dialog = new Dialog();
-        dialog.setHeaderTitle(localization.i18n(editing ? "Edit workspace" : "Create workspace"));
-        dialog.setDraggable(true);
+        var dialog = Dialogs.form(localization.i18n(editing ? "Edit workspace" : "Create workspace"));
 
         var binder = new Binder<>(IdentityWorkspace.class);
         var name = new TextField(localization.i18n("Name"));
@@ -259,8 +256,7 @@ public class IdentityWorkspaceDetails extends VerticalLayout implements BeforeEn
                 .bind(IdentityWorkspace::getDescription, IdentityWorkspace::setDescription);
         binder.readBean(formWorkspace);
 
-        var form = new FormLayout(name, description);
-        form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
+        var form = Dialogs.singleColumnForm(name, description);
 
         var save = new Button(localization.i18n("Save"), event -> save(dialog, binder, formWorkspace));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);

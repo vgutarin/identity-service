@@ -4,7 +4,6 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -88,9 +87,7 @@ public class IdentityWorkspaces extends VerticalLayout {
     }
 
     private void openForm(IdentityWorkspace workspace) {
-        var dialog = new Dialog();
-        dialog.setHeaderTitle(localization.i18n("Create workspace"));
-        dialog.setDraggable(true);
+        var dialog = Dialogs.form(localization.i18n("Create workspace"));
 
         var binder = new Binder<>(IdentityWorkspace.class);
         var name = new TextField(localization.i18n("Name"));
@@ -109,8 +106,7 @@ public class IdentityWorkspaces extends VerticalLayout {
                 .bind(IdentityWorkspace::getDescription, IdentityWorkspace::setDescription);
         binder.readBean(workspace);
 
-        var form = new FormLayout(name, description);
-        form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
+        var form = Dialogs.singleColumnForm(name, description);
 
         var save = new Button(localization.i18n("Save"), event -> save(dialog, binder, workspace));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);

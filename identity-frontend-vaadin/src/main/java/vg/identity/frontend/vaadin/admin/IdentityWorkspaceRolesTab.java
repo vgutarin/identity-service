@@ -5,7 +5,6 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -180,10 +179,7 @@ class IdentityWorkspaceRolesTab extends VerticalLayout {
         var editing = role.getId() != null;
         var formRole = editing ? copy(role) : role;
 
-        var dialog = new Dialog();
-        dialog.setHeaderTitle(localization.i18n(editing ? "Edit role" : "Create role"));
-        dialog.setDraggable(true);
-        dialog.setWidth("640px");
+        var dialog = Dialogs.form(localization.i18n(editing ? "Edit role" : "Create role"));
 
         var binder = new Binder<>(IdentityRole.class);
         var name = new TextField(localization.i18n("Name"));
@@ -202,8 +198,7 @@ class IdentityWorkspaceRolesTab extends VerticalLayout {
                 .bind(IdentityRole::getDescription, IdentityRole::setDescription);
         binder.readBean(formRole);
 
-        var form = new FormLayout(name, description);
-        form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
+        var form = Dialogs.singleColumnForm(name, description);
 
         var save = new Button(localization.i18n("Save"), event -> save(dialog, binder, formRole));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);

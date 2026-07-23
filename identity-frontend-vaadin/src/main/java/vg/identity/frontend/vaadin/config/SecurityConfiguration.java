@@ -1,7 +1,6 @@
 package vg.identity.frontend.vaadin.config;
 
 import com.vaadin.flow.spring.security.VaadinSecurityConfigurer;
-import org.springframework.boot.security.autoconfigure.web.servlet.PathRequest;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,17 +36,10 @@ public class SecurityConfiguration {
 
         // Configure your static resources with public access before calling
         // VaadinSecurityConfigurer.vaadin() as it adds final anyRequest matcher
-        http.authorizeHttpRequests(auth -> {
-            auth.requestMatchers("/admin-only/**").hasAnyRole("admin")
-                .requestMatchers(
-                        "/public/**",
-                        "/h2-console",
-                        "/h2-console/**"
-                ).permitAll();
-        });
-
-        http.csrf(csrf -> csrf
-                .ignoringRequestMatchers(PathRequest.toH2Console())
+        http.authorizeHttpRequests(auth ->
+                auth.requestMatchers(
+                        "/public/**"
+                ).permitAll()
         );
 
         http.headers(headers -> headers

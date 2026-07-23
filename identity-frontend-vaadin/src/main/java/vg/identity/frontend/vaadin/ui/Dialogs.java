@@ -1,7 +1,10 @@
 package vg.identity.frontend.vaadin.ui;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
+import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import vg.identity.frontend.vaadin.service.LocalizationService;
@@ -11,7 +14,42 @@ import vg.identity.frontend.vaadin.service.LocalizationService;
  */
 public final class Dialogs {
 
+    /**
+     * Default maximum width, in pixels, for a form dialog on wide viewports.
+     */
+    private static final int DEFAULT_FORM_WIDTH_PX = 640;
+
     private Dialogs() {
+    }
+
+    /**
+     * Creates a draggable dialog with the given title, capped at {@link #DEFAULT_FORM_WIDTH_PX}.
+     */
+    public static Dialog form(String title) {
+        return form(title, DEFAULT_FORM_WIDTH_PX);
+    }
+
+    /**
+     * Creates a draggable dialog with the given title. The width caps at {@code maxWidthPx} on wide
+     * viewports but shrinks to 92% of the viewport on narrow (mobile) screens, so the dialog never
+     * overflows the screen.
+     */
+    public static Dialog form(String title, int maxWidthPx) {
+        var dialog = new Dialog();
+        dialog.setHeaderTitle(title);
+        dialog.setDraggable(true);
+        dialog.setWidth("min(%dpx, 92vw)".formatted(maxWidthPx));
+        return dialog;
+    }
+
+    /**
+     * Builds a single-column {@link FormLayout} for the given fields. A single column keeps the
+     * form readable on both desktop and mobile.
+     */
+    public static FormLayout singleColumnForm(Component... fields) {
+        var form = new FormLayout(fields);
+        form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
+        return form;
     }
 
     /**

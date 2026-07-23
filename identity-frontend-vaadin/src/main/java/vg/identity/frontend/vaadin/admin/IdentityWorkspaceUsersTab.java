@@ -3,7 +3,6 @@ package vg.identity.frontend.vaadin.admin;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -102,10 +101,7 @@ class IdentityWorkspaceUsersTab extends VerticalLayout {
     private void openForm() {
         var formUser = new UserForm();
 
-        var dialog = new Dialog();
-        dialog.setHeaderTitle(localization.i18n("Add user"));
-        dialog.setDraggable(true);
-        dialog.setWidth("640px");
+        var dialog = Dialogs.form(localization.i18n("Add user"));
 
         var binder = new Binder<>(UserForm.class);
         var email = new EmailField(localization.i18n("Email"));
@@ -121,8 +117,7 @@ class IdentityWorkspaceUsersTab extends VerticalLayout {
                 .bind(UserForm::email, UserForm::email);
         binder.readBean(formUser);
 
-        var form = new FormLayout(email);
-        form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
+        var form = Dialogs.singleColumnForm(email);
 
         var save = new Button(localization.i18n("Save"), event -> save(dialog, binder, formUser));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);

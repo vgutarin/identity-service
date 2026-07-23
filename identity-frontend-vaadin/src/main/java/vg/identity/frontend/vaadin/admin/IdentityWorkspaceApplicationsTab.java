@@ -4,7 +4,6 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -157,10 +156,7 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
     }
 
     private void openBotDialog(String title, TelegramBotForm formBot, Consumer<TelegramBotForm> onSave) {
-        var dialog = new Dialog();
-        dialog.setHeaderTitle(title);
-        dialog.setDraggable(true);
-        dialog.setWidth("640px");
+        var dialog = Dialogs.form(title);
 
         var binder = new Binder<>(TelegramBotForm.class);
         var name = new TextField(localization.i18n("Name"));
@@ -182,8 +178,7 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
                 .bind(TelegramBotForm::getBotToken, TelegramBotForm::setBotToken);
         binder.readBean(formBot);
 
-        var form = new FormLayout(name, botToken);
-        form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
+        var form = Dialogs.singleColumnForm(name, botToken);
 
         var save = new Button(localization.i18n("Save"), event -> saveBot(dialog, binder, formBot, onSave));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);

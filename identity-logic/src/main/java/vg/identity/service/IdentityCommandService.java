@@ -41,7 +41,6 @@ public class IdentityCommandService {
                 .build();
 
         var saved = commandRepository.save(entity);
-        commandRepository.flush();
         return commandMapper.toModel(saved);
     }
 
@@ -59,6 +58,8 @@ public class IdentityCommandService {
 
         command.setCommandStatus(IdentityCommandStatus.RUNNING);
         command.setStartedAt(clock.instant());
+        // Flush so the @Version-checked UPDATE (and any lost-race optimistic-lock failure) happens
+        // before the in-memory cursor advances; otherwise a lost claim would still move the cursor.
         commandRepository.flush();
         maxStartedCommandId = command.getId();
         return commandMapper.toModel(command);
@@ -80,7 +81,6 @@ public class IdentityCommandService {
 
         entity.setCommandStatus(IdentityCommandStatus.COMPLETED);
         entity.setCompletedAt(clock.instant());
-        commandRepository.flush();
     }
 
     @Transactional
@@ -101,7 +101,6 @@ public class IdentityCommandService {
         entity.setCommandStatus(IdentityCommandStatus.FAILED);
         entity.setErrorMessage(toErrorMessage(exception));
         entity.setCompletedAt(clock.instant());
-        commandRepository.flush();
     }
 
     long getMaxStartedCommandId() {

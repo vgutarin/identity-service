@@ -6,7 +6,6 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.checkbox.CheckboxGroup;
 import com.vaadin.flow.component.combobox.ComboBox;
-import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -93,10 +92,7 @@ public class IdentityUserPermissions extends VerticalLayout {
     }
 
     private void openAddPermissionDialog(IdentityUser user, TreeGrid<PermissionTreeItem> tree) {
-        var dialog = new Dialog();
-        dialog.setHeaderTitle(localization.i18n("Create permission"));
-        dialog.setDraggable(true);
-        dialog.setWidth("560px");
+        var dialog = Dialogs.form(localization.i18n("Create permission"), 560);
 
         var resourceType = new Select<IdentityResourceType>();
         resourceType.setLabel(localization.i18n("Resource type"));
@@ -157,10 +153,7 @@ public class IdentityUserPermissions extends VerticalLayout {
     }
 
     private void openPermissionsDialog(IdentityUser user) {
-        var dialog = new Dialog();
-        dialog.setHeaderTitle(localization.i18n("Permissions") + ": " + user.getUsername());
-        dialog.setDraggable(true);
-        dialog.setWidth("760px");
+        var dialog = Dialogs.form(localization.i18n("Permissions") + ": " + user.getUsername(), 760);
 
         var tree = new TreeGrid<PermissionTreeItem>();
         tree.setWidthFull();

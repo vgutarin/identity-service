@@ -27,7 +27,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -74,8 +73,6 @@ class IdentityCommandServiceTest {
         var result = service.enqueue(command);
 
         assertThat(result).isSameAs(model);
-
-        verify(repository).flush();
 
         var saved = savedEntity.get();
         assertThat(saved.getCommandStatus()).isEqualTo(IdentityCommandStatus.QUEUED);
@@ -165,7 +162,6 @@ class IdentityCommandServiceTest {
 
     @Test
     void complete_whenCommandExists_marksCompletedAndKeepsMaxStartedCommandId() {
-        var statuses = new ArrayList<IdentityCommandStatus>();
         var command = IdentityCommand.builder()
                 .id(7L)
                 .version(3)
@@ -180,14 +176,10 @@ class IdentityCommandServiceTest {
                 .payload("{}")
                 .build();
         when(repository.findById(7L)).thenReturn(Optional.of(entity));
-        doAnswer(invocation -> {
-            statuses.add(entity.getCommandStatus());
-            return null;
-        }).when(repository).flush();
 
         service.complete(command);
 
-        assertThat(statuses).containsExactly(IdentityCommandStatus.COMPLETED);
+        assertThat(entity.getCommandStatus()).isEqualTo(IdentityCommandStatus.COMPLETED);
         assertThat(entity.getCompletedAt()).isEqualTo(clock.instant());
         assertThat(service.getMaxStartedCommandId()).isZero();
     }
@@ -261,7 +253,6 @@ class IdentityCommandServiceTest {
 
     @Test
     void fail_whenCommandExists_marksFailedAndStoresErrorMessage() {
-        var statuses = new ArrayList<IdentityCommandStatus>();
         var command = IdentityCommand.builder()
                 .id(7L)
                 .version(3)
@@ -276,14 +267,10 @@ class IdentityCommandServiceTest {
                 .payload("{}")
                 .build();
         when(repository.findById(7L)).thenReturn(Optional.of(entity));
-        doAnswer(invocation -> {
-            statuses.add(entity.getCommandStatus());
-            return null;
-        }).when(repository).flush();
 
         service.fail(command, new IllegalStateException("boom"));
 
-        assertThat(statuses).containsExactly(IdentityCommandStatus.FAILED);
+        assertThat(entity.getCommandStatus()).isEqualTo(IdentityCommandStatus.FAILED);
         assertThat(entity.getErrorMessage())
                 .contains("boom")
                 .contains("java.lang.IllegalStateException");

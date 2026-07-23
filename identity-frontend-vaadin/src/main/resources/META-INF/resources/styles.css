@@ -28,6 +28,12 @@ body {
   font-weight: var(--aura-font-weight-semibold);
   line-height: var(--aura-line-height-m);
   margin: 0;
+  /* Let the title shrink and truncate instead of pushing the rest of the
+     header off-screen on narrow viewports. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .locale-picker {
@@ -99,4 +105,22 @@ vaadin-grid.clickable-workspaces-grid::part(body-cell) {
 
 .telegram-auth-retry {
   max-width: 100%;
+}
+
+/* Keep the app header usable on phones: the header row does not wrap, so on
+   narrow screens hide the long "Welcome <email>" label, shrink the language
+   selector and tighten spacing so the title and logout action still fit. */
+@media (max-width: 600px) {
+  .main-header {
+    gap: var(--vaadin-gap-s);
+    padding: var(--vaadin-padding-xs) var(--vaadin-padding-s);
+  }
+
+  .logged-user {
+    display: none;
+  }
+
+  .locale-picker {
+    width: 6.5rem;
+  }
 }

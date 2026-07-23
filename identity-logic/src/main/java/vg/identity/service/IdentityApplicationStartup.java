@@ -3,6 +3,7 @@ package vg.identity.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,6 +23,7 @@ import static vg.identity.model.IdentityUserSystemRole.OWNER;
 @Slf4j
 @RequiredArgsConstructor
 @Component
+@Profile("dev")
 public class IdentityApplicationStartup {
 
     private final IdentityUserService userService;
