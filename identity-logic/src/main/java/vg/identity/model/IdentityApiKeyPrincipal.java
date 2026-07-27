@@ -10,7 +10,7 @@ import java.util.List;
  * Application identity placed in the security context after an API key has been verified.
  * It contains no API-key material.
  */
-public record IdentityApiKeyPrincipal(UniqueId uniqueId, String username) implements IdentityPrincipal {
+public record IdentityApiKeyPrincipal(UniqueId uniqueId, String username) implements IdentityApplicationPrincipal {
 
     @Override
     public UniqueId getUniqueId() {

@@ -12,3 +12,5 @@
 /node_modules/
 /identity-frontend-vaadin/vite.generated.ts
 /local-db/
+/.junie/
+/src/

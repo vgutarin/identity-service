@@ -9,7 +9,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import vg.identity.entity.IdentityApplicationEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
-import vg.identity.model.IdentityApiKeyPrincipal;
+import vg.identity.model.IdentityApplicationPrincipal;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityRoleAssignmentRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
@@ -190,20 +190,19 @@ class AuthorityCheckerTest {
     }
 
     @Test
-    void isApiKeyAuthenticatedApplication_whenCurrentApiKeyPrincipalMatchesApplication_returnsTrue() {
+    void isAuthenticatedApplication_whenCurrentApplicationPrincipalMatchesApplication_returnsTrue() {
         var applicationUniqueId = new UniqueId(nextLong());
-        when(currentUserService.findCurrentUserDetails()).thenReturn(new IdentityApiKeyPrincipal(
-                applicationUniqueId,
-                "https://example.test/application"
-        ));
+        var principal = mock(IdentityApplicationPrincipal.class);
+        when(principal.getUniqueId()).thenReturn(applicationUniqueId);
+        when(currentUserService.findCurrentUserDetails()).thenReturn(principal);
 
-        assertThat(authorityChecker.isApiKeyAuthenticatedApplication(applicationUniqueId)).isTrue();
+        assertThat(authorityChecker.isAuthenticatedApplication(applicationUniqueId)).isTrue();
     }
 
     @Test
-    void isApiKeyAuthenticatedApplication_whenCurrentPrincipalIsNotMatchingApiKey_returnsFalse() {
+    void isAuthenticatedApplication_whenCurrentPrincipalIsNotAnApplication_returnsFalse() {
         when(currentUserService.findCurrentUserDetails()).thenReturn(mock(UserDetails.class));
 
-        assertThat(authorityChecker.isApiKeyAuthenticatedApplication(new UniqueId(nextLong()))).isFalse();
+        assertThat(authorityChecker.isAuthenticatedApplication(new UniqueId(nextLong()))).isFalse();
     }
 }

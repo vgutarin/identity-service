@@ -16,7 +16,7 @@ class IdentityApplicationControllerTest {
     void me_whenApplicationIsAuthenticated_returnsOnlySafeApplicationFields() {
         var applicationService = Mockito.mock(IdentityApplicationService.class);
         var principal = new IdentityApiKeyPrincipal(new UniqueId(42L), "https://example.test/app");
-        when(applicationService.getApiKeyAuthenticatedApplication(principal.getUniqueId())).thenReturn(
+        when(applicationService.getAuthenticatedApplication(principal.getUniqueId())).thenReturn(
                 IdentityApplication.builder()
                         .uniqueId(principal.getUniqueId())
                         .workspaceUniqueId(7L)

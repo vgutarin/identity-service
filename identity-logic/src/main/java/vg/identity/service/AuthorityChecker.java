@@ -3,7 +3,7 @@ package vg.identity.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import vg.identity.model.IdentityApiKeyPrincipal;
+import vg.identity.model.IdentityApplicationPrincipal;
 import vg.identity.model.IdentityUserSystemRole;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityRoleAssignmentRepository;
@@ -105,10 +105,10 @@ public class AuthorityChecker {
     }
 
     /**
-     * Allows an API key to access only the application principal it authenticated as.
+     * Allows an application principal to access only the application it authenticated as.
      */
-    public boolean isApiKeyAuthenticatedApplication(UniqueId applicationUniqueId) {
-        return userService.findCurrentUserDetails() instanceof IdentityApiKeyPrincipal principal
+    public boolean isAuthenticatedApplication(UniqueId applicationUniqueId) {
+        return userService.findCurrentUserDetails() instanceof IdentityApplicationPrincipal principal
                 && principal.getUniqueId().equals(applicationUniqueId);
     }
 

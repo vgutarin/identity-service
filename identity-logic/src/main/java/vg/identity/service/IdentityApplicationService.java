@@ -90,12 +90,12 @@ public class IdentityApplicationService {
     }
 
     /**
-     * Returns the application authenticated by an API key. An API key identifies only its own application,
-     * so this endpoint does not require a separately assigned {@code app.read} role.
+     * Returns the application represented by the authenticated application principal.
+     * This does not require a separately assigned {@code app.read} permission.
      */
-    @PreAuthorize("@authorityChecker.isApiKeyAuthenticatedApplication(#applicationUniqueId)")
+    @PreAuthorize("@authorityChecker.isAuthenticatedApplication(#applicationUniqueId)")
     @Transactional(readOnly = true)
-    public IdentityApplication getApiKeyAuthenticatedApplication(UniqueId applicationUniqueId) {
+    public IdentityApplication getAuthenticatedApplication(UniqueId applicationUniqueId) {
         return applicationRepository.findById(applicationUniqueId.getLongValue())
                 .map(applicationMapper::toModel)
                 .orElseThrow(EntityNotFoundException::new);
