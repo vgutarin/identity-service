@@ -64,7 +64,7 @@ public class IdentityUserAuthorityService {
     }
 
     @Transactional
-    public void assignAuthorityTmpInsecure(IdentityUser user, IdentityUserSystemRole role) {
+    void assignAuthorityTmpInsecure(IdentityUser user, IdentityUserSystemRole role) {
         // is created to temporary bypass the security
         assignAuthority(user, role);
     }

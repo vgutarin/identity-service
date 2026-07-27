@@ -32,6 +32,7 @@ import vg.identity.frontend.vaadin.ui.Notifications;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.service.EmailService;
 import vg.identity.service.IdentityApplicationService;
+import vg.identity.service.IdentityApiKeyService;
 import vg.identity.service.IdentityPermissionService;
 import vg.identity.service.IdentityRoleService;
 import vg.identity.service.IdentityWorkspaceService;
@@ -68,6 +69,7 @@ public class IdentityWorkspaceDetails extends VerticalLayout implements BeforeEn
     public IdentityWorkspaceDetails(
             IdentityWorkspaceService workspaceService,
             IdentityApplicationService applicationService,
+            IdentityApiKeyService apiKeyService,
             IdentityRoleService roleService,
             IdentityPermissionService permissionService,
             EmailService emailService,
@@ -75,7 +77,7 @@ public class IdentityWorkspaceDetails extends VerticalLayout implements BeforeEn
     ) {
         this.workspaceService = workspaceService;
         this.localization = localization;
-        applicationsContent = new IdentityWorkspaceApplicationsTab(applicationService, localization);
+        applicationsContent = new IdentityWorkspaceApplicationsTab(applicationService, apiKeyService, localization);
         rolesContent = new IdentityWorkspaceRolesTab(workspaceService, roleService, permissionService, localization);
         usersContent = new IdentityWorkspaceUsersTab(workspaceService, emailService, localization);
 

@@ -9,6 +9,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import vg.identity.entity.IdentityApplicationEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
+import vg.identity.model.IdentityApiKeyPrincipal;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityRoleAssignmentRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
@@ -186,5 +187,23 @@ class AuthorityCheckerTest {
 
         assertThat(authorityChecker.hasAuthority(resourceUniqueId, nextString())).isFalse();
         verifyNoInteractions(roleAssignmentRepository);
+    }
+
+    @Test
+    void isApiKeyAuthenticatedApplication_whenCurrentApiKeyPrincipalMatchesApplication_returnsTrue() {
+        var applicationUniqueId = new UniqueId(nextLong());
+        when(currentUserService.findCurrentUserDetails()).thenReturn(new IdentityApiKeyPrincipal(
+                applicationUniqueId,
+                "https://example.test/application"
+        ));
+
+        assertThat(authorityChecker.isApiKeyAuthenticatedApplication(applicationUniqueId)).isTrue();
+    }
+
+    @Test
+    void isApiKeyAuthenticatedApplication_whenCurrentPrincipalIsNotMatchingApiKey_returnsFalse() {
+        when(currentUserService.findCurrentUserDetails()).thenReturn(mock(UserDetails.class));
+
+        assertThat(authorityChecker.isApiKeyAuthenticatedApplication(new UniqueId(nextLong()))).isFalse();
     }
 }

@@ -90,6 +90,18 @@ public class IdentityApplicationService {
     }
 
     /**
+     * Returns the application authenticated by an API key. An API key identifies only its own application,
+     * so this endpoint does not require a separately assigned {@code app.read} role.
+     */
+    @PreAuthorize("@authorityChecker.isApiKeyAuthenticatedApplication(#applicationUniqueId)")
+    @Transactional(readOnly = true)
+    public IdentityApplication getApiKeyAuthenticatedApplication(UniqueId applicationUniqueId) {
+        return applicationRepository.findById(applicationUniqueId.getLongValue())
+                .map(applicationMapper::toModel)
+                .orElseThrow(EntityNotFoundException::new);
+    }
+
+    /**
      * Resolves a Telegram bot application by its bot username, returning both the public URL used to open
      * the bot and the {@link TelegramBot} needed to validate its callback, or {@code null} if no matching
      * application exists.

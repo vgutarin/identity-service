@@ -620,3 +620,53 @@ databaseChangeLog:
               - column:
                   name: error_message
                   type: MEDIUMBLOB
+  - changeSet:
+      id: 001-10
+      author: vg
+      changes:
+        - createTable:
+            tableName: identity_api_key
+            columns:
+              - column:
+                  name: id
+                  type: BINARY(16)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_identity_api_key
+              - column:
+                  name: principal_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_identity_api_key_to_principal
+                    referencedTableName: identity_principal
+                    referencedColumnNames: unique_id
+              - column:
+                  name: label
+                  type: BLOB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: secret_hash
+                  type: BINARY(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: revoked_at
+                  type: DATETIME
+        - createIndex:
+            tableName: identity_api_key
+            indexName: ix_identity_api_key_principal
+            columns:
+              - column:
+                  name: principal_unique_id

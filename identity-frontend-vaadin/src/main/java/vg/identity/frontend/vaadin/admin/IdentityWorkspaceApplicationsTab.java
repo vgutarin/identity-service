@@ -9,24 +9,31 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.datetimepicker.DateTimePicker;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import vg.identity.frontend.vaadin.service.LocalizationService;
 import vg.identity.frontend.vaadin.ui.Dialogs;
 import vg.identity.frontend.vaadin.ui.Notifications;
 import vg.identity.model.IdentityApplication;
+import vg.identity.model.IdentityApiKey;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.model.application.TelegramBot;
+import vg.identity.service.IdentityApiKeyService;
 import vg.identity.service.IdentityApplicationService;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.function.Consumer;
 
 class IdentityWorkspaceApplicationsTab extends VerticalLayout {
 
     private final transient IdentityApplicationService applicationService;
+    private final transient IdentityApiKeyService apiKeyService;
     private final LocalizationService localization;
     private final HorizontalLayout actions = new HorizontalLayout();
     private final Grid<IdentityApplication> grid = new Grid<>(IdentityApplication.class, false);
@@ -34,9 +41,11 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
 
     IdentityWorkspaceApplicationsTab(
             IdentityApplicationService applicationService,
+            IdentityApiKeyService apiKeyService,
             LocalizationService localization
     ) {
         this.applicationService = applicationService;
+        this.apiKeyService = apiKeyService;
         this.localization = localization;
 
         setSizeFull();
@@ -111,6 +120,10 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
     }
 
     private HorizontalLayout rowActions(IdentityApplication application) {
+        var apiKeys = new Button(localization.i18n("API keys"), VaadinIcon.KEY.create());
+        apiKeys.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
+        apiKeys.addClickListener(event -> openApiKeysDialog(application));
+
         var edit = new Button(localization.i18n("Edit"), VaadinIcon.EDIT.create());
         edit.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
         edit.addClickListener(event -> openEditForm(application));
@@ -119,7 +132,7 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
         delete.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
         delete.addClickListener(event -> confirmDelete(application));
 
-        return actionLayout(edit, delete);
+        return actionLayout(apiKeys, edit, delete);
     }
 
     private HorizontalLayout actionLayout(Component... actions) {
@@ -223,6 +236,141 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
         }
     }
 
+    private void openApiKeysDialog(IdentityApplication application) {
+        var dialog = Dialogs.form(localization.i18n("API keys"));
+        var keyGrid = new Grid<IdentityApiKey>(IdentityApiKey.class, false);
+        keyGrid.setWidthFull();
+        keyGrid.setEmptyStateText(localization.i18n("No API keys found"));
+        keyGrid.addColumn(IdentityApiKey::label)
+                .setHeader(localization.i18n("Label"))
+                .setAutoWidth(true);
+        keyGrid.addColumn(key -> format(key.expiresAt()))
+                .setHeader(localization.i18n("Expires"))
+                .setAutoWidth(true);
+        keyGrid.addColumn(key -> key.revokedAt() == null ? localization.i18n("Active") : localization.i18n("Revoked"))
+                .setHeader(localization.i18n("Status"))
+                .setAutoWidth(true);
+
+        var refresh = new Runnable() {
+            @Override
+            public void run() {
+                keyGrid.setItems(apiKeyService.findForApplication(application.getUniqueId()));
+            }
+        };
+        keyGrid.addComponentColumn(key -> revokeKeyButton(application, key, refresh))
+                .setHeader(localization.i18n("Actions"))
+                .setAutoWidth(true)
+                .setFlexGrow(0);
+
+        var generate = new Button(localization.i18n("Generate API key"), VaadinIcon.PLUS.create());
+        generate.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        generate.addClickListener(event -> openIssueApiKeyDialog(application, refresh));
+
+        var close = new Button(localization.i18n("Close"), event -> dialog.close());
+        dialog.add(new VerticalLayout(keyGrid));
+        dialog.getFooter().add(Dialogs.footer(close, generate));
+        refresh.run();
+        dialog.open();
+    }
+
+    private Button revokeKeyButton(IdentityApplication application, IdentityApiKey key, Runnable refresh) {
+        var revoke = new Button(localization.i18n("Revoke"), VaadinIcon.BAN.create());
+        revoke.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+        revoke.setEnabled(key.revokedAt() == null);
+        revoke.addClickListener(event -> confirmRevokeKey(application, key, refresh));
+        return revoke;
+    }
+
+    private void confirmRevokeKey(IdentityApplication application, IdentityApiKey key, Runnable refresh) {
+        Dialogs.confirmAction(
+                localization,
+                "Revoke API key",
+                "Revoke API key confirmation",
+                "Revoke",
+                () -> revokeKey(application, key, refresh)
+        );
+    }
+
+    private void revokeKey(IdentityApplication application, IdentityApiKey key, Runnable refresh) {
+        try {
+            apiKeyService.revokeForApplication(application.getUniqueId(), key.id());
+            refresh.run();
+            Notifications.success(localization.i18n("API key revoked"));
+        } catch (Exception e) {
+            Notifications.error(localization.i18n(e));
+        }
+    }
+
+    private void openIssueApiKeyDialog(IdentityApplication application, Runnable refresh) {
+        var dialog = Dialogs.form(localization.i18n("Generate API key"));
+        var formApiKey = new ApiKeyForm();
+        formApiKey.setExpiresAt(LocalDateTime.now(ZoneOffset.UTC).plusDays(90));
+
+        var binder = new Binder<>(ApiKeyForm.class);
+        var label = new TextField(localization.i18n("Label"));
+        label.setWidthFull();
+        label.setRequiredIndicatorVisible(true);
+
+        var expiresAt = new DateTimePicker(localization.i18n("Expires at (UTC)"));
+        expiresAt.setWidthFull();
+        expiresAt.setRequiredIndicatorVisible(true);
+
+        binder.forField(label)
+                .asRequired(localization.i18n("Label is required"))
+                .withValidator(value -> !value.isBlank() && value.strip().length() <= IdentityApiKeyService.MAX_LABEL_LENGTH,
+                        localization.i18n("Label must be 256 characters or fewer"))
+                .bind(ApiKeyForm::getLabel, ApiKeyForm::setLabel);
+        binder.forField(expiresAt)
+                .asRequired(localization.i18n("Expiry is required"))
+                .withValidator(value -> value != null && value.toInstant(ZoneOffset.UTC).isAfter(Instant.now()),
+                        localization.i18n("Expiry must be in the future"))
+                .bind(ApiKeyForm::getExpiresAt, ApiKeyForm::setExpiresAt);
+        binder.readBean(formApiKey);
+
+        var generate = new Button(localization.i18n("Generate"), event -> {
+            try {
+                binder.writeBean(formApiKey);
+                var issued = apiKeyService.issueForApplication(
+                        application.getUniqueId(),
+                        formApiKey.getLabel(),
+                        formApiKey.getExpiresAt().toInstant(ZoneOffset.UTC)
+                );
+                dialog.close();
+                refresh.run();
+                showIssuedApiKey(issued.value());
+            } catch (ValidationException ignored) {
+                Notifications.error(localization.i18n("Fix validation errors"));
+            } catch (Exception e) {
+                Notifications.error(localization.i18n(e));
+            }
+        });
+        generate.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        var cancel = new Button(localization.i18n("Cancel"), event -> dialog.close());
+
+        dialog.add(new VerticalLayout(Dialogs.singleColumnForm(label, expiresAt)));
+        dialog.getFooter().add(Dialogs.footer(cancel, generate));
+        dialog.open();
+    }
+
+    private void showIssuedApiKey(String value) {
+        var dialog = Dialogs.form(localization.i18n("Copy API key now"));
+        var apiKey = new TextArea(localization.i18n("API key"));
+        apiKey.setValue(value);
+        apiKey.setReadOnly(true);
+        apiKey.setWidthFull();
+        apiKey.setHelperText(localization.i18n("This key will not be shown again"));
+
+        var copy = new Button(localization.i18n("Copy"), event ->
+                dialog.getUI().ifPresent(ui -> ui.getPage().executeJs("navigator.clipboard.writeText($0)", value))
+        );
+        copy.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        var close = new Button(localization.i18n("Close"), event -> dialog.close());
+
+        dialog.add(new VerticalLayout(apiKey));
+        dialog.getFooter().add(Dialogs.footer(close, copy));
+        dialog.open();
+    }
+
     private void refreshGrid() {
         if (workspace == null) {
             grid.setItems();
@@ -256,6 +404,27 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
 
         private void setBotToken(String botToken) {
             this.botToken = botToken;
+        }
+    }
+
+    private static class ApiKeyForm {
+        private String label;
+        private LocalDateTime expiresAt;
+
+        private String getLabel() {
+            return label;
+        }
+
+        private void setLabel(String label) {
+            this.label = label;
+        }
+
+        private LocalDateTime getExpiresAt() {
+            return expiresAt;
+        }
+
+        private void setExpiresAt(LocalDateTime expiresAt) {
+            this.expiresAt = expiresAt;
         }
     }
 }

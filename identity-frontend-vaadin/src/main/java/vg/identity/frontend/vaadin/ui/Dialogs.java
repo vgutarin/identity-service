@@ -71,12 +71,26 @@ public final class Dialogs {
             String textKey,
             Runnable onConfirm
     ) {
+        confirmAction(localization, headerKey, textKey, "Delete", onConfirm);
+    }
+
+    /**
+     * Opens a confirmation dialog for an irreversible action using the shared error styling.
+     * Header, text, and action label are given as i18n keys.
+     */
+    public static void confirmAction(
+            LocalizationService localization,
+            String headerKey,
+            String textKey,
+            String confirmTextKey,
+            Runnable onConfirm
+    ) {
         var dialog = new ConfirmDialog();
         dialog.setHeader(localization.i18n(headerKey));
         dialog.setText(localization.i18n(textKey));
         dialog.setCancelable(true);
         dialog.setCancelText(localization.i18n("Cancel"));
-        dialog.setConfirmText(localization.i18n("Delete"));
+        dialog.setConfirmText(localization.i18n(confirmTextKey));
         dialog.setConfirmButtonTheme("error primary");
         dialog.addConfirmListener(event -> onConfirm.run());
         dialog.open();

@@ -55,6 +55,7 @@ class IdentityApplicationServicePermissionIntegrationTest extends BaseIntegratio
                 "createTelegramBotApplication(UniqueId, String, TelegramBot)", "@authorityChecker.hasAuthority(#workspaceUniqueId, '" + Permission.App.CREATE + "')",
                 "delete(UniqueId)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.App.DELETE + "')",
                 "findById(UniqueId)", "@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.READ + "')",
+                "getApiKeyAuthenticatedApplication(UniqueId)", "@authorityChecker.isApiKeyAuthenticatedApplication(#applicationUniqueId)",
                 "findByWorkspaceUniqueId(UniqueId)", "@authorityChecker.hasAuthority(#workspaceUniqueId, '" + Permission.App.READ + "')",
                 "getById(UniqueId)", "@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.READ + "')",
                 "update(IdentityApplication)", "@authorityChecker.hasAuthority(#application.getUniqueId(), '" + Permission.App.UPDATE + "')",
