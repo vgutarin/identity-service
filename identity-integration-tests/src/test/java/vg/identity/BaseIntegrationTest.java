@@ -20,6 +20,7 @@ import vg.identity.model.IdentityPrincipalType;
 import vg.identity.repository.IdentityApiKeyRepository;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityApplicationUserClaimRepository;
+import vg.identity.repository.IdentityApplicationUserRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
@@ -52,6 +53,8 @@ public abstract class BaseIntegrationTest implements Mysql8ContainerStarter {
     @Autowired
     protected IdentityApplicationUserClaimRepository applicationUserClaimRepository;
     @Autowired
+    protected IdentityApplicationUserRepository applicationUserRepository;
+    @Autowired
     protected IdentityWorkspaceScopeClaimDictionaryRepository scopeClaimDictionaryRepository;
     @Autowired
     protected IdentityWorkspaceRepository workspaceRepository;
@@ -73,6 +76,7 @@ public abstract class BaseIntegrationTest implements Mysql8ContainerStarter {
     @AfterEach
     protected void cleanUp() {
         applicationUserClaimRepository.deleteAll();
+        applicationUserRepository.deleteAll();
         scopeClaimDictionaryRepository.deleteAll();
         apiKeyRepository.deleteAll();
         applicationRepository.deleteAll();

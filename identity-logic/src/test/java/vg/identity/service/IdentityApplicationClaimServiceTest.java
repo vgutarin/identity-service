@@ -76,6 +76,12 @@ class IdentityApplicationClaimServiceTest {
         assertThat(revoke.getAnnotation(PreAuthorize.class)).isNotNull();
         assertThat(revoke.getAnnotation(PreAuthorize.class).value())
                 .isEqualTo("@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.CLAIM_DELETE + "')");
+
+        var read = IdentityApplicationClaimService.class.getMethod(
+                "getUserClaims", UniqueId.class, UniqueId.class);
+        assertThat(read.getAnnotation(PreAuthorize.class)).isNotNull();
+        assertThat(read.getAnnotation(PreAuthorize.class).value())
+                .isEqualTo("@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.READ + "')");
     }
 
     @Test
@@ -114,10 +120,38 @@ class IdentityApplicationClaimServiceTest {
     }
 
     @Test
-    void grantClaim_whenScopeIsUnknown_rejectsItBeforeTouchingAnyRepository() {
-        assertThatThrownBy(() -> service.grantClaim(new UniqueId(42L), new UniqueId(84L), "roles", "admin"))
+    void grantClaim_internsArbitraryScopeNormalized() {
+        var applicationUniqueId = new UniqueId(42L);
+        var identityUserUniqueId = new UniqueId(84L);
+        var workspace = IdentityWorkspaceEntity.builder().uniqueId(7L).build();
+        var application = mock(IdentityApplicationEntity.class);
+        when(application.getWorkspace()).thenReturn(workspace);
+        when(applicationRepository.findById(42L)).thenReturn(Optional.of(application));
+        when(encryptionService.hashCaseSensitive(any())).thenReturn(new byte[]{1});
+        when(dictionaryRepository.findByWorkspace_UniqueIdAndNameBlindIndex(anyLong(), any()))
+                .thenReturn(Optional.empty());
+        when(dictionaryRepository.save(any(IdentityWorkspaceScopeClaimDictionaryEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(claimRepository.existsById(any())).thenReturn(false);
+        when(userRepository.findById(84L)).thenReturn(Optional.of(mock(IdentityUserEntity.class)));
+        var savedClaim = new AtomicReference<IdentityApplicationUserClaimEntity>();
+        when(claimRepository.save(any(IdentityApplicationUserClaimEntity.class))).thenAnswer(invocation -> {
+            savedClaim.set(invocation.getArgument(0));
+            return invocation.getArgument(0);
+        });
+
+        service.grantClaim(applicationUniqueId, identityUserUniqueId, "  Features  ", "  Beta  ");
+
+        // A scope other than the reserved "permissions" is accepted and interned trimmed + lower-cased.
+        assertThat(savedClaim.get().getScope().getName()).isEqualTo("features");
+        assertThat(savedClaim.get().getClaim().getName()).isEqualTo("beta");
+    }
+
+    @Test
+    void grantClaim_whenScopeIsBlank_rejectsItBeforeTouchingAnyRepository() {
+        assertThatThrownBy(() -> service.grantClaim(new UniqueId(42L), new UniqueId(84L), "  ", "admin"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Unsupported application claim scope: roles");
+                .hasMessage("Application claim scope must not be blank");
 
         verifyNoInteractions(applicationRepository, claimRepository, userRepository, dictionaryRepository, encryptionService);
     }

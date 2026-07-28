@@ -20,6 +20,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -34,6 +35,8 @@ class IdentityApplicationApiServiceTest {
     @Mock
     private IdentityApplicationUserProvisioningService userProvisioningService;
     @Mock
+    private IdentityApplicationUserService applicationUserService;
+    @Mock
     private IdentityApplicationClaimService claimService;
 
     private IdentityApplicationApiService service;
@@ -45,6 +48,7 @@ class IdentityApplicationApiServiceTest {
                 currentApplicationService,
                 telegramAuthenticationService,
                 userProvisioningService,
+                applicationUserService,
                 claimService
         );
     }
@@ -108,6 +112,7 @@ class IdentityApplicationApiServiceTest {
                 new UniqueId(84L).toString(),
                 Map.of(IdentityApplicationUserPrincipal.PERMISSIONS_SCOPE, Set.of("orders.read", "orders.write"))
         ));
+        verify(applicationUserService).recordAuthentication(applicationUniqueId, 84L);
     }
 
     @Test
@@ -120,6 +125,6 @@ class IdentityApplicationApiServiceTest {
 
         assertThat(service.authenticateTelegram("invalid")).isEmpty();
 
-        verifyNoInteractions(userProvisioningService, claimService);
+        verifyNoInteractions(userProvisioningService, applicationUserService, claimService);
     }
 }

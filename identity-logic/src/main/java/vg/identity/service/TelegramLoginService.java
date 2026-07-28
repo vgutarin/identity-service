@@ -41,6 +41,7 @@ public class TelegramLoginService {
     private final IdentityUserService userService;
     private final IdentityUserAuthorityService authorityService;
     private final IdentityUserRepository userRepository;
+    private final IdentityApplicationUserService applicationUserService;
     private final String telegramBotName;
     private final Clock clock;
 
@@ -52,6 +53,7 @@ public class TelegramLoginService {
             IdentityUserService userService,
             IdentityUserAuthorityService authorityService,
             IdentityUserRepository userRepository,
+            IdentityApplicationUserService applicationUserService,
             @Value("${identity.telegram.bot.name:}") String telegramBotName,
             Clock clock
     ) {
@@ -62,6 +64,7 @@ public class TelegramLoginService {
         this.userService = userService;
         this.authorityService = authorityService;
         this.userRepository = userRepository;
+        this.applicationUserService = applicationUserService;
         this.telegramBotName = telegramBotName;
         this.clock = clock;
     }
@@ -137,7 +140,7 @@ public class TelegramLoginService {
             throw new IllegalStateException("Cannot confirm email for action " + info.id() + " after Telegram bind");
         }
 
-        return Result.authenticated(toAuthenticatedUser(user));
+        return Result.authenticated(toAuthenticatedUser(bot, user));
     }
 
     private Result handleBindTelegram(IdentityAction.BindTelegramInfo info, String initData, boolean consentGranted) {
@@ -169,7 +172,7 @@ public class TelegramLoginService {
         }
         actionTokenService.consumeBindTelegramAction(info.id());
 
-        return Result.authenticated(toAuthenticatedUser(user));
+        return Result.authenticated(toAuthenticatedUser(info.telegramBot(), user));
     }
 
     private Result handleGreetingOrLogin(String initData) {
@@ -186,7 +189,7 @@ public class TelegramLoginService {
 
         var user = channelService.findUserByTelegramId(telegramUser.id());
         if (user != null) {
-            return Result.authenticated(toAuthenticatedUser(user));
+            return Result.authenticated(toAuthenticatedUser(bot, user));
         }
 
         return Result.greeting(telegramUser.displayName());
@@ -206,9 +209,10 @@ public class TelegramLoginService {
         return bot.bot();
     }
 
-    private IdentityUser toAuthenticatedUser(IdentityUserEntity entity) {
+    private IdentityUser toAuthenticatedUser(TelegramBot bot, IdentityUserEntity entity) {
         var user = userService.toModel(entity);
         authorityService.loadAuthorities(user);
+        applicationUserService.recordAuthentication(bot.applicationId(), entity.getUniqueId());
         return user;
     }
 

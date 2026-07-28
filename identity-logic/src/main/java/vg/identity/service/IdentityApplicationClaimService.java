@@ -9,7 +9,6 @@ import vg.identity.entity.IdentityApplicationUserClaimEntity;
 import vg.identity.entity.IdentityApplicationUserClaimEntityId;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.entity.IdentityWorkspaceScopeClaimDictionaryEntity;
-import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.access.Permission;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityApplicationUserClaimRepository;
@@ -20,6 +19,7 @@ import vg.unique.id.model.UniqueId;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Internal management and lookup service for application-local user claims.
@@ -32,6 +32,8 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class IdentityApplicationClaimService {
+    private static final int MAX_SCOPE_LENGTH = 64;
+
     private final IdentityApplicationRepository applicationRepository;
     private final IdentityApplicationUserClaimRepository claimRepository;
     private final IdentityUserRepository userRepository;
@@ -42,7 +44,7 @@ public class IdentityApplicationClaimService {
     @Transactional
     public void grantClaim(UniqueId applicationUniqueId, UniqueId identityUserUniqueId, String scope, String claim) {
         var normalizedScope = normalizeScope(scope);
-        var normalizedClaim = normalizeClaim(normalizedScope, claim);
+        var normalizedClaim = normalizeClaim(claim);
         var application = applicationRepository.findById(applicationUniqueId.getLongValue())
                 .orElseThrow(EntityNotFoundException::new);
         var workspace = application.getWorkspace();
@@ -66,7 +68,7 @@ public class IdentityApplicationClaimService {
     @Transactional
     public void revokeClaim(UniqueId applicationUniqueId, UniqueId identityUserUniqueId, String scope, String claim) {
         var normalizedScope = normalizeScope(scope);
-        var normalizedClaim = normalizeClaim(normalizedScope, claim);
+        var normalizedClaim = normalizeClaim(claim);
         var application = applicationRepository.findById(applicationUniqueId.getLongValue()).orElse(null);
         if (application == null) {
             return;
@@ -84,17 +86,28 @@ public class IdentityApplicationClaimService {
 
     }
 
+    /**
+     * All claims of one application user, grouped by scope, for a workspace administrator (e.g. the admin UI).
+     * The internal issuance path uses the unsecured {@link #findClaimsByScope} instead, since it runs under the
+     * authenticated application rather than an administrator.
+     */
+    @PreAuthorize("@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.READ + "')")
+    @Transactional(readOnly = true)
+    public Map<String, Set<String>> getUserClaims(UniqueId applicationUniqueId, UniqueId identityUserUniqueId) {
+        return findClaimsByScope(applicationUniqueId, identityUserUniqueId);
+    }
+
     @Transactional(readOnly = true)
     Map<String, Set<String>> findClaimsByScope(UniqueId applicationUniqueId, UniqueId identityUserUniqueId) {
-        var permissions = claimRepository.findClaimNamesByScopeBlindIndex(
-                applicationUniqueId.getLongValue(),
-                identityUserUniqueId.getLongValue(),
-                encryptionService.hashCaseSensitive(IdentityApplicationUserPrincipal.PERMISSIONS_SCOPE)
-        );
-        if (permissions.isEmpty()) {
-            return Map.of();
-        }
-        return Map.of(IdentityApplicationUserPrincipal.PERMISSIONS_SCOPE, Set.copyOf(permissions));
+        return claimRepository.findByApplication_UniqueIdAndIdentityUser_UniqueId(
+                        applicationUniqueId.getLongValue(),
+                        identityUserUniqueId.getLongValue()
+                )
+                .stream()
+                .collect(Collectors.groupingBy(
+                        entry -> entry.getScope().getName(),
+                        Collectors.mapping(entry -> entry.getClaim().getName(), Collectors.toSet())
+                ));
     }
 
 
@@ -138,16 +151,19 @@ public class IdentityApplicationClaimService {
     }
 
     private static String normalizeScope(String scope) {
-        if (!IdentityApplicationUserPrincipal.PERMISSIONS_SCOPE.equals(scope)) {
-            throw new IllegalArgumentException("Unsupported application claim scope: " + scope);
+        if (scope == null || scope.isBlank()) {
+            throw new IllegalArgumentException("Application claim scope must not be blank");
         }
-        return scope;
+        var normalized = scope.trim().toLowerCase(Locale.ROOT);
+        if (normalized.length() > MAX_SCOPE_LENGTH) {
+            throw new IllegalArgumentException("Application claim scope must not exceed " + MAX_SCOPE_LENGTH + " characters");
+        }
+        return normalized;
     }
 
-    private static String normalizeClaim(String scope, String claim) {
-        normalizeScope(scope);
+    private static String normalizeClaim(String claim) {
         if (claim == null || claim.isBlank()) {
-            throw new IllegalArgumentException("Application permission claim must not be blank");
+            throw new IllegalArgumentException("Application claim must not be blank");
         }
         return claim.trim().toLowerCase(Locale.ROOT);
     }

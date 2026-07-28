@@ -116,7 +116,7 @@ public class IdentityApplicationService {
                 .map(entity ->
                         new TelegramBotWithUri(
                                 URI.create(entity.getPrincipal().getName()),
-                                fromJson(entity.getPayload())
+                                toTelegramBot(entity)
                         )
                 )
                 .orElse(null);
@@ -126,7 +126,7 @@ public class IdentityApplicationService {
     @Transactional(readOnly = true)
     TelegramBot getTelegramBot(UniqueId applicationUniqueId) {
         return applicationRepository.findById(applicationUniqueId.getLongValue())
-                .map(application -> fromJson(application.getPayload()))
+                .map(this::toTelegramBot)
                 .orElseThrow(EntityNotFoundException::new);
     }
 
@@ -206,9 +206,11 @@ public class IdentityApplicationService {
         }
     }
 
-    private TelegramBot fromJson(String payload) {
+    private TelegramBot toTelegramBot(IdentityApplicationEntity entity) {
         try {
-            return objectMapper.readValue(payload, TelegramBot.class);
+            return objectMapper
+                    .readValue(entity.getPayload(), TelegramBot.class)
+                    .withApplicationId(new UniqueId(entity.getUniqueId()));
         } catch (JacksonException e) {
             throw new IllegalArgumentException("Cannot deserialize Telegram bot", e);
         }

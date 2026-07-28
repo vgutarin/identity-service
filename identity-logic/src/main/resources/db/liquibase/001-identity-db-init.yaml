@@ -763,3 +763,54 @@ databaseChangeLog:
                   type: DATETIME
                   constraints:
                     nullable: false
+  - changeSet:
+      id: 001-12
+      author: vg
+      changes:
+        - createTable:
+            tableName: identity_application_user
+            columns:
+              - column:
+                  name: application_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_application_user
+                    foreignKeyName: fk_identity_application_user_to_application
+                    referencedTableName: identity_application
+                    referencedColumnNames: unique_id
+              - column:
+                  name: identity_user_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_application_user
+                    foreignKeyName: fk_identity_application_user_to_user
+                    referencedTableName: identity_user
+                    referencedColumnNames: unique_id
+              - column:
+                  name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: metadata
+                  type: MEDIUMBLOB
+              - column:
+                  name: last_authenticated_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+

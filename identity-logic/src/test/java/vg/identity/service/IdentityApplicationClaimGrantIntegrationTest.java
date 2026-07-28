@@ -52,6 +52,28 @@ class IdentityApplicationClaimGrantIntegrationTest extends BaseIntegrationTest {
 
     @Test
     @WithMockUser(username = ADMIN, roles = "USER")
+    void findClaimsByScope_groupsAllClaimsUnderTheirScopes() {
+        var admin = createIdentityUser(ADMIN);
+        var workspace = createWorkspace();
+        var application = createApplication(workspace);
+        grantWorkspacePermission(admin, workspace, Permission.App.CLAIM_CREATE);
+        var applicationUniqueId = new UniqueId(application.getUniqueId());
+        var subject = createIdentityUser("subject-" + nextString());
+
+        claimService.grantClaim(applicationUniqueId, subject.getUniqueId(), IdentityApplicationUserPrincipal.PERMISSIONS_SCOPE, "orders.read");
+        claimService.grantClaim(applicationUniqueId, subject.getUniqueId(), IdentityApplicationUserPrincipal.PERMISSIONS_SCOPE, "orders.write");
+        claimService.grantClaim(applicationUniqueId, subject.getUniqueId(), "features", "beta");
+
+        var claimsByScope = claimService.findClaimsByScope(applicationUniqueId, subject.getUniqueId());
+
+        assertThat(claimsByScope).containsOnlyKeys(IdentityApplicationUserPrincipal.PERMISSIONS_SCOPE, "features");
+        assertThat(claimsByScope.get(IdentityApplicationUserPrincipal.PERMISSIONS_SCOPE))
+                .containsExactlyInAnyOrder("orders.read", "orders.write");
+        assertThat(claimsByScope.get("features")).containsExactly("beta");
+    }
+
+    @Test
+    @WithMockUser(username = ADMIN, roles = "USER")
     void grantClaim_whenSameClaimIsGrantedToTwoUsers_internsOneDictionaryEntryPerWorkspace() {
         var admin = createIdentityUser(ADMIN);
         var workspace = createWorkspace();

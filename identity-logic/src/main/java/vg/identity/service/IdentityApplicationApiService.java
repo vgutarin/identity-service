@@ -18,6 +18,7 @@ public class IdentityApplicationApiService implements IdentityApplicationApi {
     private final CurrentIdentityApplicationService currentIdentityApplicationService;
     private final TelegramAuthenticationService telegramAuthenticationService;
     private final IdentityApplicationUserProvisioningService userProvisioningService;
+    private final IdentityApplicationUserService applicationUserService;
     private final IdentityApplicationClaimService claimService;
 
     @Override
@@ -38,13 +39,16 @@ public class IdentityApplicationApiService implements IdentityApplicationApi {
         var bot = applicationService.getTelegramBot(applicationUniqueId);
         return telegramAuthenticationService.parseUser(bot, initData)
                 .map(userProvisioningService::resolveTelegramUser)
-                .map(identityUser -> new IdentityApplicationUserPrincipal(
-                        applicationUniqueId.toString(),
-                        new UniqueId(identityUser.getUniqueId()).toString(),
-                        claimService.findClaimsByScope(
-                                applicationUniqueId,
-                                new UniqueId(identityUser.getUniqueId())
-                        )
-                ));
+                .map(identityUser -> {
+                    applicationUserService.recordAuthentication(applicationUniqueId, identityUser.getUniqueId());
+                    return new IdentityApplicationUserPrincipal(
+                            applicationUniqueId.toString(),
+                            new UniqueId(identityUser.getUniqueId()).toString(),
+                            claimService.findClaimsByScope(
+                                    applicationUniqueId,
+                                    new UniqueId(identityUser.getUniqueId())
+                            )
+                    );
+                });
     }
 }
