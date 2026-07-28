@@ -1,7 +1,5 @@
 package vg.identity.service;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,19 +8,12 @@ import org.springframework.security.web.authentication.preauth.PreAuthenticatedA
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vg.identity.BaseIntegrationTest;
-import vg.identity.entity.IdentityApplicationEntity;
 import vg.identity.entity.IdentityApplicationUserClaimEntity;
-import vg.identity.entity.IdentityPrincipalEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.entity.IdentityWorkspaceScopeClaimDictionaryEntity;
 import vg.identity.model.IdentityApiKeyPrincipal;
 import vg.identity.model.IdentityApplicationUserPrincipal;
-import vg.identity.model.IdentityPrincipalStatus;
-import vg.identity.model.IdentityPrincipalType;
-import vg.identity.repository.IdentityApplicationUserClaimRepository;
-import vg.identity.repository.IdentityWorkspaceScopeClaimDictionaryRepository;
 import vg.unique.id.model.UniqueId;
-import vg.unique.id.service.UniqueIdService;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -36,25 +27,16 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static vg.test.TestHelper.nextString;
 
 class IdentityApplicationClaimIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private IdentityApplicationApi applicationApi;
     @Autowired
-    private IdentityApplicationUserClaimRepository applicationUserClaimRepository;
-    @Autowired
-    private IdentityWorkspaceScopeClaimDictionaryRepository scopeClaimDictionaryRepository;
-    @Autowired
     private AuthorityChecker authorityChecker;
-    @Autowired
-    private UniqueIdService uniqueIdService;
     @Autowired
     private EncryptionService encryptionService;
     @Autowired
     private PlatformTransactionManager transactionManager;
-    @PersistenceContext
-    private EntityManager entityManager;
 
     @AfterEach
     void clearSecurityContext() {
@@ -119,34 +101,8 @@ class IdentityApplicationClaimIntegrationTest extends BaseIntegrationTest {
     }
 
     private ApplicationFixture createTelegramApplication(String botToken) {
-        var workspace = workspaceRepository.saveWithNewUniqueId(
-                IdentityWorkspaceEntity.builder()
-                        .name("workspace-" + nextString())
-                        .build(),
-                uniqueIdService
-        );
-        var uri = "https://" + nextString() + ".example.test";
-        var principal = principalRepository.saveWithNewUniqueId(
-                IdentityPrincipalEntity.builder()
-                        .displayName("application-" + nextString())
-                        .name(uri)
-                        .nameHash(encryptionService.hashPrincipalName(uri))
-                        .status(IdentityPrincipalStatus.ACTIVE)
-                        .type(IdentityPrincipalType.APPLICATION)
-                        .build(),
-                uniqueIdService
-        );
-        var application = new TransactionTemplate(transactionManager).execute(status -> {
-            var entity = IdentityApplicationEntity.builder()
-                    .uniqueId(principal.getUniqueId())
-                    .principal(entityManager.getReference(IdentityPrincipalEntity.class, principal.getUniqueId()))
-                    .workspace(entityManager.getReference(IdentityWorkspaceEntity.class, workspace.getUniqueId()))
-                    .payload("{\"token\":\"" + botToken + "\"}")
-                    .build();
-            entityManager.persist(entity);
-            entityManager.flush();
-            return entity;
-        });
+        var application = createApplication(createWorkspace(), "{\"token\":\"" + botToken + "\"}");
+        var uri = principalRepository.findById(new UniqueId(application.getUniqueId())).orElseThrow().getName();
         return new ApplicationFixture(application.getUniqueId(), uri, botToken);
     }
 

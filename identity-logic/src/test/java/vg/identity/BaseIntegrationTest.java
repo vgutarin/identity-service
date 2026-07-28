@@ -1,5 +1,7 @@
 package vg.identity;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -8,7 +10,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import vg.identity.entity.IdentityApplicationEntity;
+import vg.identity.entity.IdentityPermissionEntity;
 import vg.identity.entity.IdentityPrincipalEntity;
+import vg.identity.entity.IdentityRoleAssignmentEntity;
+import vg.identity.entity.IdentityRoleEntity;
+import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityUserMapper;
 import vg.identity.model.IdentityPrincipalStatus;
 import vg.identity.model.IdentityPrincipalType;
@@ -36,6 +45,7 @@ import vg.unique.id.service.UniqueIdService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Set;
 
 import static vg.test.TestHelper.nextString;
 
@@ -83,6 +93,10 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
     private IdentityUserMapper identityUserMapper;
     @Autowired
     private EncryptionService encryptionService;
+    @Autowired
+    protected PlatformTransactionManager transactionManager;
+    @PersistenceContext
+    protected EntityManager entityManager;
 
 
     @AfterEach
@@ -146,5 +160,71 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
                 .type(IdentityPrincipalType.USER)
                 .build();
         return principalRepository.saveWithNewUniqueId(principal, uniqueIdService);
+    }
+
+    protected IdentityWorkspaceEntity createWorkspace() {
+        var workspace = workspaceRepository.saveWithNewUniqueId(
+                IdentityWorkspaceEntity.builder().name(nextString()).build(),
+                uniqueIdService
+        );
+        workspaceRepository.flush();
+        return workspace;
+    }
+
+    protected IdentityApplicationEntity createApplication(IdentityWorkspaceEntity workspace) {
+        return createApplication(workspace, nextString());
+    }
+
+    protected IdentityApplicationEntity createApplication(IdentityWorkspaceEntity workspace, String payload) {
+        var uri = nextString();
+        var principal = principalRepository.saveWithNewUniqueId(
+                IdentityPrincipalEntity.builder()
+                        .displayName(nextString())
+                        .name(uri)
+                        .nameHash(encryptionService.hashPrincipalName(uri))
+                        .status(IdentityPrincipalStatus.ACTIVE)
+                        .type(IdentityPrincipalType.APPLICATION)
+                        .build(),
+                uniqueIdService
+        );
+        return new TransactionTemplate(transactionManager).execute(status -> {
+            var entity = IdentityApplicationEntity.builder()
+                    .uniqueId(principal.getUniqueId())
+                    .principal(entityManager.getReference(IdentityPrincipalEntity.class, principal.getUniqueId()))
+                    .workspace(entityManager.getReference(IdentityWorkspaceEntity.class, workspace.getUniqueId()))
+                    .payload(payload)
+                    .build();
+            entityManager.persist(entity);
+            entityManager.flush();
+            return entity;
+        });
+    }
+
+    protected IdentityRoleEntity createRole(IdentityWorkspaceEntity workspace, String permissionName) {
+        var permission = permissionRepository.findByName(permissionName)
+                .orElseGet(() -> permissionRepository.save(IdentityPermissionEntity.builder()
+                        .name(permissionName)
+                        .build()));
+        return roleRepository.save(IdentityRoleEntity.builder()
+                .name(nextString())
+                .workspace(workspace)
+                .permissions(Set.of(permission))
+                .build());
+    }
+
+    protected void assignRole(IdentityUser user, long resourceUniqueId, IdentityRoleEntity role) {
+        var principal = principalRepository.findById(user.getUniqueId()).orElseThrow();
+        roleAssignmentRepository.save(IdentityRoleAssignmentEntity.builder()
+                .principal(principal)
+                .resourceUniqueId(resourceUniqueId)
+                .role(role)
+                .build());
+    }
+
+    /** Convenience: create a role carrying {@code permissionName} in the workspace and assign it to the user there. */
+    protected IdentityRoleEntity grantWorkspacePermission(IdentityUser user, IdentityWorkspaceEntity workspace, String permissionName) {
+        var role = createRole(workspace, permissionName);
+        assignRole(user, workspace.getUniqueId(), role);
+        return role;
     }
 }

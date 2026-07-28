@@ -1,34 +1,19 @@
 package vg.identity.service;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 import vg.identity.BaseIntegrationTest;
-import vg.identity.entity.IdentityApplicationEntity;
-import vg.identity.entity.IdentityPermissionEntity;
-import vg.identity.entity.IdentityPrincipalEntity;
-import vg.identity.entity.IdentityRoleAssignmentEntity;
-import vg.identity.entity.IdentityRoleEntity;
-import vg.identity.entity.IdentityWorkspaceEntity;
-import vg.identity.model.IdentityPrincipalStatus;
-import vg.identity.model.IdentityPrincipalType;
-import vg.identity.model.IdentityUser;
 import vg.identity.model.access.Permission;
 import vg.identity.model.application.TelegramBot;
 import vg.unique.id.model.UniqueId;
-import vg.unique.id.service.UniqueIdService;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,14 +25,6 @@ class IdentityApplicationServicePermissionIntegrationTest extends BaseIntegratio
 
     @Autowired
     IdentityApplicationService service;
-    @Autowired
-    UniqueIdService uniqueIdService;
-    @Autowired
-    EncryptionService encryptionService;
-    @Autowired
-    PlatformTransactionManager transactionManager;
-    @PersistenceContext
-    EntityManager entityManager;
 
     @Test
     void publicMethods_areSecuredWithExpectedPreAuthorizeExpressions() {
@@ -82,7 +59,7 @@ class IdentityApplicationServicePermissionIntegrationTest extends BaseIntegratio
         var user = createIdentityUser(USERNAME);
         var workspace = createWorkspace();
         var application = createApplication(workspace);
-        var role = createRole(workspace);
+        var role = createRole(workspace, Permission.App.READ);
         assignRole(user, workspace.getUniqueId(), role);
 
         assertThat(service.findByWorkspaceUniqueId(new UniqueId(workspace.getUniqueId())))
@@ -131,65 +108,6 @@ class IdentityApplicationServicePermissionIntegrationTest extends BaseIntegratio
                         .token(nextString())
                         .build()
         )).isInstanceOf(AccessDeniedException.class);
-    }
-
-    private IdentityWorkspaceEntity createWorkspace() {
-        var saved = workspaceRepository.saveWithNewUniqueId(
-                IdentityWorkspaceEntity.builder()
-                        .name(nextString())
-                        .build(),
-                uniqueIdService
-        );
-        workspaceRepository.flush();
-        return saved;
-    }
-
-    private IdentityApplicationEntity createApplication(IdentityWorkspaceEntity workspace) {
-        var name = nextString();
-        var uri = nextString();
-        var principal = principalRepository.saveWithNewUniqueId(
-                IdentityPrincipalEntity.builder()
-                        .displayName(name)
-                        .name(uri)
-                        .nameHash(encryptionService.hashPrincipalName(uri))
-                        .status(IdentityPrincipalStatus.ACTIVE)
-                        .type(IdentityPrincipalType.APPLICATION)
-                        .build(),
-                uniqueIdService
-        );
-        return new TransactionTemplate(transactionManager).execute(status -> {
-            var entity = IdentityApplicationEntity.builder()
-                    .uniqueId(principal.getUniqueId())
-                    .principal(entityManager.getReference(IdentityPrincipalEntity.class, principal.getUniqueId()))
-                    .workspace(entityManager.getReference(IdentityWorkspaceEntity.class, workspace.getUniqueId()))
-                    .payload(nextString())
-                    .build();
-
-            entityManager.persist(entity);
-            entityManager.flush();
-            return entity;
-        });
-    }
-
-    private IdentityRoleEntity createRole(IdentityWorkspaceEntity workspace) {
-        var permission = permissionRepository.findByName(Permission.App.READ)
-                .orElseGet(() -> permissionRepository.save(IdentityPermissionEntity.builder()
-                        .name(Permission.App.READ)
-                        .build()));
-        return roleRepository.save(IdentityRoleEntity.builder()
-                .name(nextString())
-                .workspace(workspace)
-                .permissions(Set.of(permission))
-                .build());
-    }
-
-    private void assignRole(IdentityUser user, long resourceUniqueId, IdentityRoleEntity role) {
-        var principal = principalRepository.findById(user.getUniqueId()).orElseThrow();
-        roleAssignmentRepository.save(IdentityRoleAssignmentEntity.builder()
-                .principal(principal)
-                .resourceUniqueId(resourceUniqueId)
-                .role(role)
-                .build());
     }
 
     private String signature(Method method) {
