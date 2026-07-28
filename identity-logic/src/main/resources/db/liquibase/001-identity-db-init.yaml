@@ -670,3 +670,96 @@ databaseChangeLog:
             columns:
               - column:
                   name: principal_unique_id
+  - changeSet:
+      id: 001-10-1
+      author: vg
+      changes:
+        - createTable:
+            tableName: identity_workspace_scope_claim_dictionary
+            columns:
+              - column:
+                  name: id
+                  type: INT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_identity_workspace_scope_claim_dictionary
+              - column:
+                  name: workspace_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_workspace_scope_claim_dictionary_to_workspace
+                    referencedTableName: identity_workspace
+                    referencedColumnNames: unique_id
+              - column:
+                  name: name
+                  type: BLOB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name_blind_index
+                  type: BINARY(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: identity_workspace_scope_claim_dictionary
+            columnNames: workspace_unique_id, name_blind_index
+            constraintName: unq_workspace_scope_claim_dictionary
+  - changeSet:
+      id: 001-11
+      author: vg
+      changes:
+        - createTable:
+            tableName: identity_application_user_claim
+            columns:
+              - column:
+                  name: application_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_application_user_claim
+                    foreignKeyName: fk_identity_application_user_claim_to_application
+                    referencedTableName: identity_application
+                    referencedColumnNames: unique_id
+              - column:
+                  name: identity_user_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_application_user_claim
+                    foreignKeyName: fk_identity_application_user_claim_to_user
+                    referencedTableName: identity_user
+                    referencedColumnNames: unique_id
+              - column:
+                  name: scope_id
+                  type: INT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_application_user_claim
+                    foreignKeyName: fk_identity_application_user_claim_to_scope
+                    referencedTableName: identity_workspace_scope_claim_dictionary
+                    referencedColumnNames: id
+              - column:
+                  name: claim_id
+                  type: INT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_identity_application_user_claim
+                    foreignKeyName: fk_identity_application_user_claim_to_claim
+                    referencedTableName: identity_workspace_scope_claim_dictionary
+                    referencedColumnNames: id
+              - column:
+                  name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false

@@ -136,6 +136,9 @@ public class IdentityUserChannelService {
                         .build(),
                 uniqueIdService
         );
+        // Flush the insert now so a concurrent-creation unique-constraint violation surfaces here, inside
+        // the caller's transaction, as a DataIntegrityViolationException (mirrors the attach branch above).
+        identityChannelRepository.flush();
         return TelegramBindResult.SUCCESS;
     }
 

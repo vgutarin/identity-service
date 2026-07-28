@@ -212,6 +212,8 @@ class IdentityUserChannelServiceTest {
         assertThat(created.getIdentityUser()).isSameAs(user);
         assertThat(created.getPayload()).isEqualTo("{\"id\":42}");
         assertThat(created.getVerifiedAt()).isEqualTo(NOW);
+        // The insert is flushed so a concurrent-creation constraint violation surfaces in the caller's transaction.
+        verify(identityChannelRepository).flush();
     }
 
     @Test

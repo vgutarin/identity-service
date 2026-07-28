@@ -122,6 +122,14 @@ public class IdentityApplicationService {
                 .orElse(null);
     }
 
+    /** Returns a registered Telegram bot for application-user authentication. */
+    @Transactional(readOnly = true)
+    TelegramBot getTelegramBot(UniqueId applicationUniqueId) {
+        return applicationRepository.findById(applicationUniqueId.getLongValue())
+                .map(application -> fromJson(application.getPayload()))
+                .orElseThrow(EntityNotFoundException::new);
+    }
+
     @PreAuthorize("@authorityChecker.hasAuthority(#workspaceUniqueId, '" + Permission.App.READ + "')")
     @Transactional(readOnly = true)
     public List<IdentityApplication> findByWorkspaceUniqueId(UniqueId workspaceUniqueId) {

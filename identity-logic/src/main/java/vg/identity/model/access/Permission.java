@@ -38,12 +38,16 @@ public class Permission {
         public static final String READ = "app.read";
         public static final String UPDATE = "app.update";
         public static final String DELETE = "app.delete";
+        public static final String CLAIM_CREATE = "app.claim.create";
+        public static final String CLAIM_DELETE = "app.claim.delete";
 
         static final String[] ALL = {
                 CREATE,
                 READ,
                 UPDATE,
-                DELETE
+                DELETE,
+                CLAIM_CREATE,
+                CLAIM_DELETE
         };
     }
 

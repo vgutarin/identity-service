@@ -14,6 +14,7 @@ import vg.identity.model.IdentityPrincipalStatus;
 import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.IdentityUser;
 import vg.identity.repository.IdentityApplicationRepository;
+import vg.identity.repository.IdentityApplicationUserClaimRepository;
 import vg.identity.repository.IdentityApiKeyRepository;
 import vg.identity.repository.IdentityCommandRepository;
 import vg.identity.repository.IdentityPermissionRepository;
@@ -27,6 +28,7 @@ import vg.identity.repository.IdentityUserRepository;
 import vg.identity.repository.IdentityUserResourcePermissionRepository;
 import vg.identity.repository.IdentityUserSystemRoleRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
+import vg.identity.repository.IdentityWorkspaceScopeClaimDictionaryRepository;
 import vg.identity.service.EncryptionService;
 import vg.test.containers.starters.Mysql8ContainerStarter;
 import vg.unique.id.service.UniqueIdService;
@@ -47,6 +49,8 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
     protected IdentityRoleRepository roleRepository;
     @Autowired
     protected IdentityApplicationRepository applicationRepository;
+    @Autowired
+    protected IdentityApplicationUserClaimRepository applicationUserClaimRepository;
     @Autowired
     protected IdentityApiKeyRepository apiKeyRepository;
     @Autowired
@@ -70,6 +74,8 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
     @Autowired
     protected IdentityWorkspaceRepository workspaceRepository;
     @Autowired
+    protected IdentityWorkspaceScopeClaimDictionaryRepository scopeClaimDictionaryRepository;
+    @Autowired
     protected IdentityPrincipalRepository principalRepository;
     @Autowired
     private UniqueIdService uniqueIdService;
@@ -82,6 +88,8 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
     @AfterEach
     protected void cleanUp() {
         commandRepository.deleteAll();
+        applicationUserClaimRepository.deleteAll();
+        scopeClaimDictionaryRepository.deleteAll();
         roleAssignmentRepository.deleteAll();
         resourcePermissionRepository.deleteAll();
         actionTokenRepository.deleteAll();

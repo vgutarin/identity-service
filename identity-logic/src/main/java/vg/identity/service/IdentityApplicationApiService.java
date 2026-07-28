@@ -1,10 +1,12 @@
 package vg.identity.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import vg.identity.model.AuthenticatedIdentityApplication;
-import vg.identity.model.IdentityApplicationPrincipal;
+import vg.identity.model.IdentityApplicationUserPrincipal;
+import vg.unique.id.model.UniqueId;
+
+import java.util.Optional;
 
 /**
  * Embedded implementation of {@link IdentityApplicationApi}.
@@ -12,12 +14,15 @@ import vg.identity.model.IdentityApplicationPrincipal;
 @Service
 @RequiredArgsConstructor
 public class IdentityApplicationApiService implements IdentityApplicationApi {
-    private final CurrentUserService currentUserService;
     private final IdentityApplicationService applicationService;
+    private final CurrentIdentityApplicationService currentIdentityApplicationService;
+    private final TelegramAuthenticationService telegramAuthenticationService;
+    private final IdentityApplicationUserProvisioningService userProvisioningService;
+    private final IdentityApplicationClaimService claimService;
 
     @Override
     public AuthenticatedIdentityApplication me() {
-        var principal = currentApplicationPrincipal();
+        var principal = currentIdentityApplicationService.requireApplicationPrincipal();
         var application = applicationService.getAuthenticatedApplication(principal.getUniqueId());
         return new AuthenticatedIdentityApplication(
                 application.getUniqueId().toString(),
@@ -27,11 +32,19 @@ public class IdentityApplicationApiService implements IdentityApplicationApi {
         );
     }
 
-    private IdentityApplicationPrincipal currentApplicationPrincipal() {
-        var principal = currentUserService.findCurrentUserDetails();
-        if (!(principal instanceof IdentityApplicationPrincipal applicationPrincipal)) {
-            throw new AccessDeniedException("Application authentication is required");
-        }
-        return applicationPrincipal;
+    @Override
+    public Optional<IdentityApplicationUserPrincipal> authenticateTelegram(String initData) {
+        var applicationUniqueId = currentIdentityApplicationService.requireApplicationUniqueId();
+        var bot = applicationService.getTelegramBot(applicationUniqueId);
+        return telegramAuthenticationService.parseUser(bot, initData)
+                .map(userProvisioningService::resolveTelegramUser)
+                .map(identityUser -> new IdentityApplicationUserPrincipal(
+                        applicationUniqueId.toString(),
+                        new UniqueId(identityUser.getUniqueId()).toString(),
+                        claimService.findClaimsByScope(
+                                applicationUniqueId,
+                                new UniqueId(identityUser.getUniqueId())
+                        )
+                ));
     }
 }
