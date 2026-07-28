@@ -91,7 +91,7 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
     @Autowired
     protected IdentityPrincipalRepository principalRepository;
     @Autowired
-    private UniqueIdService uniqueIdService;
+    protected UniqueIdService uniqueIdService;
     @Autowired
     private IdentityUserMapper identityUserMapper;
     @Autowired
@@ -209,11 +209,11 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
                 .orElseGet(() -> permissionRepository.save(IdentityPermissionEntity.builder()
                         .name(permissionName)
                         .build()));
-        return roleRepository.save(IdentityRoleEntity.builder()
+        return roleRepository.saveWithNewUniqueId(IdentityRoleEntity.builder()
                 .name(nextString())
                 .workspace(workspace)
                 .permissions(Set.of(permission))
-                .build());
+                .build(), uniqueIdService);
     }
 
     protected void assignRole(IdentityUser user, long resourceUniqueId, IdentityRoleEntity role) {

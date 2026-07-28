@@ -7,12 +7,13 @@ import vg.identity.entity.IdentityPermissionEntity;
 import vg.identity.entity.IdentityRoleEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.model.IdentityRole;
+import vg.unique.id.mapper.UniqueIdMapper;
 
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = UniqueIdMapper.class)
 public interface IdentityRoleMapper {
     @Mapping(target = "workspaceUniqueId", expression = "java(toWorkspaceUniqueId(src.getWorkspace()))")
     @Mapping(target = "permissions", expression = "java(toPermissionNames(src.getPermissions()))")
@@ -22,7 +23,7 @@ public interface IdentityRoleMapper {
     @Mapping(target = "permissions", ignore = true)
     IdentityRoleEntity toEntity(IdentityRole src);
 
-    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "uniqueId", ignore = true)
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

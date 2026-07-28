@@ -1,6 +1,7 @@
 package vg.identity.frontend.vaadin.config;
 
 import com.vaadin.flow.spring.security.VaadinSecurityConfigurer;
+import org.springframework.boot.security.autoconfigure.web.servlet.PathRequest;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -38,8 +39,14 @@ public class SecurityConfiguration {
         // VaadinSecurityConfigurer.vaadin() as it adds final anyRequest matcher
         http.authorizeHttpRequests(auth ->
                 auth.requestMatchers(
-                        "/public/**"
+                        "/public/**",
+                        "/h2-console",
+                        "/h2-console/**"
                 ).permitAll()
+        );
+
+        http.csrf(csrf -> csrf
+                .ignoringRequestMatchers(PathRequest.toH2Console())
         );
 
         http.headers(headers -> headers

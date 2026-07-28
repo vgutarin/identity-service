@@ -3,8 +3,6 @@ package vg.identity.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
@@ -21,6 +19,7 @@ import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import vg.unique.id.jpa.UniqueIdEntity;
 
 import java.time.Instant;
 import java.util.HashSet;
@@ -46,11 +45,10 @@ import static vg.utils.HibernateHelper.effectiveClass;
 )
 @Entity
 @EntityListeners(AuditingEntityListener.class)
-public class IdentityRoleEntity {
+public class IdentityRoleEntity implements UniqueIdEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long uniqueId;
 
     @Version
     private int version;
@@ -88,7 +86,7 @@ public class IdentityRoleEntity {
         if (o == null) return false;
         if (effectiveClass(this) != effectiveClass(o)) return false;
         var that = (IdentityRoleEntity) o;
-        return getId() != null && Objects.equals(getId(), that.getId());
+        return getUniqueId() != null && Objects.equals(getUniqueId(), that.getUniqueId());
     }
 
     @Override

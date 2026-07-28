@@ -76,13 +76,13 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
         var adminRole = roleRepository.findByNameAndWorkspace(firstName, workspace).orElseThrow();
         var secondRole = roleRepository.findByNameAndWorkspace(secondName, workspace).orElseThrow();
 
-        assertThat(roleService.getById(adminRole.getId()))
+        assertThat(roleService.getById(new UniqueId(adminRole.getUniqueId())))
                 .satisfies(role -> {
                     assertThat(role.getDescription()).isEqualTo(firstDescription);
                     assertThat(role.getWorkspaceUniqueId()).isEqualTo(saved.getUniqueId().getLongValue());
                     assertThat(role.getPermissions()).containsExactlyInAnyOrder("workspace.read", "workspace.write");
                 });
-        assertThat(roleService.getById(secondRole.getId()))
+        assertThat(roleService.getById(new UniqueId(secondRole.getUniqueId())))
                 .satisfies(role -> {
                     assertThat(role.getWorkspaceUniqueId()).isEqualTo(saved.getUniqueId().getLongValue());
                     assertThat(role.getPermissions()).containsExactly("app.read");
@@ -181,12 +181,12 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
                 .permissions(Set.of("workspace.read"))
                 .build());
 
-        assertThat(role.getId()).isNotNull();
+        assertThat(role.getUniqueId()).isNotNull();
         assertThat(role.getName()).isEqualTo(roleName);
         assertThat(role.getDescription()).isEqualTo(roleDescription);
         assertThat(role.getWorkspaceUniqueId()).isEqualTo(saved.getUniqueId().getLongValue());
         assertThat(role.getPermissions()).isEmpty();
-        assertThat(roleRepository.findById(role.getId()))
+        assertThat(roleRepository.findById(role.getUniqueId()))
                 .hasValueSatisfying(entity -> {
                     assertThat(entity.getWorkspace()).isNotNull();
                     assertThat(entity.getWorkspace().getUniqueId()).isEqualTo(saved.getUniqueId().getLongValue());

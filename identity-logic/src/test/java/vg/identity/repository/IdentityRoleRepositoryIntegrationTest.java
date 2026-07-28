@@ -26,12 +26,13 @@ class IdentityRoleRepositoryIntegrationTest extends BaseIntegrationTest {
         var firstWorkspace = createWorkspaceViaService();
         var secondWorkspace = createWorkspaceViaService();
 
-        var firstRole = roleRepository.saveAndFlush(buildRole(roleName, firstWorkspace));
-        var secondRole = roleRepository.saveAndFlush(buildRole(roleName, secondWorkspace));
+        var firstRole = roleRepository.saveWithNewUniqueId(buildRole(roleName, firstWorkspace), uniqueIdService);
+        var secondRole = roleRepository.saveWithNewUniqueId(buildRole(roleName, secondWorkspace), uniqueIdService);
+        roleRepository.flush();
 
-        assertThat(firstRole.getId()).isNotNull();
-        assertThat(secondRole.getId()).isNotNull();
-        assertThat(firstRole.getId()).isNotEqualTo(secondRole.getId());
+        assertThat(firstRole.getUniqueId()).isNotNull();
+        assertThat(secondRole.getUniqueId()).isNotNull();
+        assertThat(firstRole.getUniqueId()).isNotEqualTo(secondRole.getUniqueId());
         assertThat(roleRepository.findByNameAndWorkspace(roleName, firstWorkspace)).contains(firstRole);
         assertThat(roleRepository.findByNameAndWorkspace(roleName, secondWorkspace)).contains(secondRole);
     }
@@ -41,7 +42,10 @@ class IdentityRoleRepositoryIntegrationTest extends BaseIntegrationTest {
         var roleName = nextString();
 
         assertThatThrownBy(
-                () -> roleRepository.saveAndFlush(buildRole(roleName, null))
+                () -> {
+                    roleRepository.saveWithNewUniqueId(buildRole(roleName, null), uniqueIdService);
+                    roleRepository.flush();
+                }
         ).isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -50,10 +54,13 @@ class IdentityRoleRepositoryIntegrationTest extends BaseIntegrationTest {
         var roleName = nextString();
         var workspace = createWorkspaceViaService();
 
-        roleRepository.saveAndFlush(buildRole(roleName, workspace));
+        roleRepository.saveWithNewUniqueId(buildRole(roleName, workspace), uniqueIdService);
+        roleRepository.flush();
 
-        assertThatThrownBy(() -> roleRepository.saveAndFlush(buildRole(roleName, workspace)))
-                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> {
+            roleRepository.saveWithNewUniqueId(buildRole(roleName, workspace), uniqueIdService);
+            roleRepository.flush();
+        }).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     private IdentityWorkspaceEntity createWorkspaceViaService() {

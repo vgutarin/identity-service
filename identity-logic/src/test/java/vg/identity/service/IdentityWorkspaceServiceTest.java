@@ -174,7 +174,7 @@ class IdentityWorkspaceServiceTest {
                 .description(nextString())
                 .build();
         var savedRole = IdentityRole.builder()
-                .id(nextLong())
+                .uniqueId(nextUniqueId())
                 .workspaceUniqueId(workspaceId)
                 .build();
 

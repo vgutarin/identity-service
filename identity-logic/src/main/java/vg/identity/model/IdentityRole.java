@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import vg.unique.id.model.UniqueId;
 
 import java.time.Instant;
 import java.util.HashSet;
@@ -14,7 +15,7 @@ import java.util.Set;
 @Data
 @Builder
 public class IdentityRole {
-    private Long id;
+    private UniqueId uniqueId;
     private int version;
     private Instant createdAt;
     private Instant updatedAt;

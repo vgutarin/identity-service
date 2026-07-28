@@ -13,6 +13,8 @@ import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityRoleMapper;
 import vg.identity.model.IdentityRole;
 import vg.identity.repository.IdentityRoleRepository;
+import vg.unique.id.model.UniqueId;
+import vg.unique.id.service.UniqueIdService;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -25,6 +27,7 @@ public class IdentityRoleService {
     private final IdentityRoleRepository roleRepository;
     private final IdentityPermissionService permissionService;
     private final IdentityRoleMapper roleMapper;
+    private final UniqueIdService uniqueIdService;
 
     @PreAuthorize("hasRole('OWNER')")
     @Transactional
@@ -35,7 +38,7 @@ public class IdentityRoleService {
                 .build();
         entity.setWorkspace(workspace);
 
-        var saved = roleRepository.save(entity);
+        var saved = roleRepository.saveWithNewUniqueId(entity, uniqueIdService);
         roleRepository.flush();
         return roleMapper.toModel(saved);
     }
@@ -54,7 +57,7 @@ public class IdentityRoleService {
                             .permissions(new HashSet<>(template.getPermissions()))
                             .build();
 
-                    var saved = roleRepository.save(entity);
+                    var saved = roleRepository.saveWithNewUniqueId(entity, uniqueIdService);
                     return roleMapper.toModel(saved);
                 })
                 .toList();
@@ -63,8 +66,8 @@ public class IdentityRoleService {
         return roles;
     }
     @Transactional(readOnly = true)
-    public IdentityRole getById(long id) {
-        return roleMapper.toModel(getEntity(id));
+    public IdentityRole getById(UniqueId roleId) {
+        return roleMapper.toModel(getEntity(roleId));
     }
 
     @Transactional(readOnly = true)
@@ -77,12 +80,12 @@ public class IdentityRoleService {
     @PreAuthorize("hasRole('OWNER')")
     @Transactional
     public IdentityRole update(IdentityRole role) {
-        var id = role.getId();
-        var existing = roleRepository.findById(id)
+        var roleId = role.getUniqueId();
+        var existing = roleRepository.findById(roleId)
                 .orElseThrow(EntityNotFoundException::new);
 
         if (existing.getVersion() != role.getVersion()) {
-            throw new ObjectOptimisticLockingFailureException(IdentityRoleEntity.class, id);
+            throw new ObjectOptimisticLockingFailureException(IdentityRoleEntity.class, roleId);
         }
 
         roleMapper.updateEntity(existing, role);
@@ -96,8 +99,8 @@ public class IdentityRoleService {
 
     @PreAuthorize("hasRole('OWNER')")
     @Transactional
-    public void delete(Long id) {
-        var existing = roleRepository.findById(id)
+    public void delete(UniqueId roleId) {
+        var existing = roleRepository.findById(roleId)
                 .orElseThrow(EntityNotFoundException::new);
 
         roleRepository.delete(existing);
@@ -106,8 +109,8 @@ public class IdentityRoleService {
 
     @PreAuthorize("hasRole('OWNER')")
     @Transactional
-    public IdentityRole addPermission(Long id, String permissionName) {
-        var existing = roleRepository.findById(id)
+    public IdentityRole addPermission(UniqueId roleId, String permissionName) {
+        var existing = roleRepository.findById(roleId)
                 .orElseThrow(EntityNotFoundException::new);
 
         existing.getPermissions().add(permissionService.getOrCreateEntity(permissionName));
@@ -118,8 +121,8 @@ public class IdentityRoleService {
 
     @PreAuthorize("hasRole('OWNER')")
     @Transactional
-    public IdentityRole removePermission(Long id, String permissionName) {
-        var existing = roleRepository.findById(id)
+    public IdentityRole removePermission(UniqueId roleId, String permissionName) {
+        var existing = roleRepository.findById(roleId)
                 .orElseThrow(EntityNotFoundException::new);
         var normalizedPermissionName = IdentityPermissionService.normalize(permissionName);
 
@@ -130,8 +133,8 @@ public class IdentityRoleService {
     }
 
     @Transactional(readOnly = true)
-    public IdentityRoleEntity getEntity(long id) {
-        return roleRepository.findById(id)
+    public IdentityRoleEntity getEntity(UniqueId roleId) {
+        return roleRepository.findById(roleId)
                 .orElseThrow(EntityNotFoundException::new);
     }
 

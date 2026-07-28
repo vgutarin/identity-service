@@ -13,7 +13,6 @@ import vg.identity.model.IdentityApplicationPrincipal;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityRoleAssignmentRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
-import vg.unique.id.model.UniqueId;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,8 +21,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import static vg.test.TestHelper.nextLong;
 import static vg.test.TestHelper.nextString;
+import static vg.test.TestHelper.nextUniqueId;
 
 @ExtendWith(MockitoExtension.class)
 class AuthorityCheckerTest {
@@ -113,7 +112,7 @@ class AuthorityCheckerTest {
         when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
         when(currentUserService.hasRole("OWNER")).thenReturn(true);
 
-        assertThat(authorityChecker.hasAuthority(new UniqueId(nextLong()), nextString())).isTrue();
+        assertThat(authorityChecker.hasAuthority(nextUniqueId(), nextString())).isTrue();
         verifyNoInteractions(roleAssignmentRepository);
     }
 
@@ -125,14 +124,14 @@ class AuthorityCheckerTest {
         when(currentUserService.hasRole("OWNER")).thenReturn(false);
         when(currentUserService.findCurrentUserUniqueId()).thenReturn(null);
 
-        assertThat(authorityChecker.hasAuthority(new UniqueId(nextLong()), nextString())).isFalse();
+        assertThat(authorityChecker.hasAuthority(nextUniqueId(), nextString())).isFalse();
     }
 
     @Test
     void hasAuthority_withWorkspaceScopeAndRepositoryGrantsPermission_returnsTrue() {
         var userDetails = mock(UserDetails.class);
-        var userUniqueId = new UniqueId(nextLong());
-        var workspaceUniqueId = new UniqueId(nextLong());
+        var userUniqueId = nextUniqueId();
+        var workspaceUniqueId = nextUniqueId();
         var permission = nextString();
 
         when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
@@ -149,9 +148,9 @@ class AuthorityCheckerTest {
     @Test
     void hasAuthority_withApplicationScopeAndRepositoryGrantsPermissionOnPath_returnsTrue() {
         var userDetails = mock(UserDetails.class);
-        var userUniqueId = new UniqueId(nextLong());
-        var applicationUniqueId = new UniqueId(nextLong());
-        var workspaceUniqueId = new UniqueId(nextLong());
+        var userUniqueId = nextUniqueId();
+        var applicationUniqueId = nextUniqueId();
+        var workspaceUniqueId = nextUniqueId();
         var permission = nextString();
 
         when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
@@ -176,8 +175,8 @@ class AuthorityCheckerTest {
     @Test
     void hasAuthority_withScopeAndResourceDoesNotBelongToSupportedScope_returnsFalse() {
         var userDetails = mock(UserDetails.class);
-        var userUniqueId = new UniqueId(nextLong());
-        var resourceUniqueId = new UniqueId(nextLong());
+        var userUniqueId = nextUniqueId();
+        var resourceUniqueId = nextUniqueId();
 
         when(currentUserService.findCurrentUserDetails()).thenReturn(userDetails);
         when(currentUserService.hasRole("OWNER")).thenReturn(false);
@@ -191,7 +190,7 @@ class AuthorityCheckerTest {
 
     @Test
     void isAuthenticatedApplication_whenCurrentApplicationPrincipalMatchesApplication_returnsTrue() {
-        var applicationUniqueId = new UniqueId(nextLong());
+        var applicationUniqueId = nextUniqueId();
         var principal = mock(IdentityApplicationPrincipal.class);
         when(principal.getUniqueId()).thenReturn(applicationUniqueId);
         when(currentUserService.findCurrentUserDetails()).thenReturn(principal);
@@ -203,6 +202,6 @@ class AuthorityCheckerTest {
     void isAuthenticatedApplication_whenCurrentPrincipalIsNotAnApplication_returnsFalse() {
         when(currentUserService.findCurrentUserDetails()).thenReturn(mock(UserDetails.class));
 
-        assertThat(authorityChecker.isAuthenticatedApplication(new UniqueId(nextLong()))).isFalse();
+        assertThat(authorityChecker.isAuthenticatedApplication(nextUniqueId())).isFalse();
     }
 }

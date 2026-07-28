@@ -15,6 +15,8 @@ import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityRoleMapper;
 import vg.identity.model.IdentityRole;
 import vg.identity.repository.IdentityRoleRepository;
+import vg.unique.id.model.UniqueId;
+import vg.unique.id.service.UniqueIdService;
 
 import java.util.HashSet;
 import java.util.List;
@@ -28,6 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static vg.test.TestHelper.nextLong;
 import static vg.test.TestHelper.nextString;
+import static vg.test.TestHelper.nextUniqueId;
 
 @ExtendWith(MockitoExtension.class)
 class IdentityRoleServiceTest {
@@ -37,6 +40,8 @@ class IdentityRoleServiceTest {
     IdentityPermissionService permissionService;
     @Mock
     IdentityRoleMapper roleMapper;
+    @Mock
+    UniqueIdService uniqueIdService;
 
     @InjectMocks
     IdentityRoleService service;
@@ -49,11 +54,11 @@ class IdentityRoleServiceTest {
         var savedModel = roleModel(1L);
         var captor = ArgumentCaptor.forClass(IdentityRoleEntity.class);
 
-        when(roleRepository.save(any(IdentityRoleEntity.class))).thenReturn(savedEntity);
+        when(roleRepository.saveWithNewUniqueId(any(IdentityRoleEntity.class), any())).thenReturn(savedEntity);
         when(roleMapper.toModel(savedEntity)).thenReturn(savedModel);
 
         assertThat(service.create(name, description, null)).isSameAs(savedModel);
-        verify(roleRepository).save(captor.capture());
+        verify(roleRepository).saveWithNewUniqueId(captor.capture(), any());
         assertThat(captor.getValue().getName()).isEqualTo(name);
         assertThat(captor.getValue().getDescription()).isEqualTo(description);
         assertThat(captor.getValue().getWorkspace()).isNull();
@@ -70,11 +75,11 @@ class IdentityRoleServiceTest {
         var savedModel = roleModel(1L);
         var captor = ArgumentCaptor.forClass(IdentityRoleEntity.class);
 
-        when(roleRepository.save(any(IdentityRoleEntity.class))).thenReturn(savedEntity);
+        when(roleRepository.saveWithNewUniqueId(any(IdentityRoleEntity.class), any())).thenReturn(savedEntity);
         when(roleMapper.toModel(savedEntity)).thenReturn(savedModel);
 
         assertThat(service.create(name, description, workspace)).isSameAs(savedModel);
-        verify(roleRepository).save(captor.capture());
+        verify(roleRepository).saveWithNewUniqueId(captor.capture(), any());
         assertThat(captor.getValue().getName()).isEqualTo(name);
         assertThat(captor.getValue().getDescription()).isEqualTo(description);
         assertThat(captor.getValue().getWorkspace()).isSameAs(workspace);
@@ -98,12 +103,13 @@ class IdentityRoleServiceTest {
         var savedModel = roleModel(nextLong());
         var captor = ArgumentCaptor.forClass(IdentityRoleEntity.class);
 
-        when(roleRepository.save(any(IdentityRoleEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(roleRepository.saveWithNewUniqueId(any(IdentityRoleEntity.class), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(roleMapper.toModel(any(IdentityRoleEntity.class))).thenReturn(savedModel);
 
         assertThat(service.createFromTemplate(List.of(template), workspace)).containsExactly(savedModel);
 
-        verify(roleRepository).save(captor.capture());
+        verify(roleRepository).saveWithNewUniqueId(captor.capture(), any());
         var copiedRole = captor.getValue();
         assertThat(copiedRole.getName()).isEqualTo(template.getName());
         assertThat(copiedRole.getDescription()).isEqualTo(template.getDescription());
@@ -114,9 +120,9 @@ class IdentityRoleServiceTest {
 
     @Test
     void getById_whenEntityExists_returnsRole() {
-        var id = nextLong();
-        var entity = roleEntity(id);
-        var model = roleModel(id);
+        var id = nextUniqueId();
+        var entity = roleEntity(id.getLongValue());
+        var model = roleModel(id.getLongValue());
 
         when(roleRepository.findById(id)).thenReturn(Optional.of(entity));
         when(roleMapper.toModel(entity)).thenReturn(model);
@@ -126,7 +132,7 @@ class IdentityRoleServiceTest {
 
     @Test
     void getById_whenEntityIsNotFound_throwsEntityNotFoundException() {
-        var id = nextLong();
+        var id = nextUniqueId();
 
         assertThatThrownBy(() -> service.getById(id))
                 .isInstanceOf(EntityNotFoundException.class);
@@ -147,16 +153,16 @@ class IdentityRoleServiceTest {
 
     @Test
     void update_whenEntityExistsAndVersionMatches_returnsUpdatedRole() {
-        var id = nextLong();
+        var id = nextUniqueId();
         var model = IdentityRole.builder()
-                .id(id)
+                .uniqueId(id)
                 .description(nextString())
                 .permissions(Set.of("workspace.delete"))
                 .build();
-        var existing = roleEntity(id);
+        var existing = roleEntity(id.getLongValue());
         existing.setPermissions(new HashSet<>(Set.of(permission("workspace.read"))));
-        var savedEntity = roleEntity(id);
-        var savedModel = roleModel(id);
+        var savedEntity = roleEntity(id.getLongValue());
+        var savedModel = roleModel(id.getLongValue());
 
         when(roleRepository.findById(id)).thenReturn(Optional.of(existing));
         when(permissionService.getOrCreateEntity("workspace.delete")).thenReturn(permission("workspace.delete"));
@@ -175,7 +181,7 @@ class IdentityRoleServiceTest {
     void update_whenEntityIsNotFound_throwsEntityNotFoundException() {
         var model = roleModel(nextLong());
 
-        when(roleRepository.findById(model.getId())).thenReturn(Optional.empty());
+        when(roleRepository.findById(model.getUniqueId())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.update(model))
                 .isInstanceOf(EntityNotFoundException.class);
@@ -183,14 +189,14 @@ class IdentityRoleServiceTest {
 
     @Test
     void update_whenVersionIsStale_throwsObjectOptimisticLockingFailureException() {
-        var id = nextLong();
+        var id = nextUniqueId();
         var model = IdentityRole.builder()
-                .id(id)
+                .uniqueId(id)
                 .version(1)
                 .name(nextString())
                 .build();
         var existing = IdentityRoleEntity.builder()
-                .id(id)
+                .uniqueId(id.getLongValue())
                 .version(2)
                 .name(nextString())
                 .build();
@@ -203,8 +209,8 @@ class IdentityRoleServiceTest {
 
     @Test
     void delete_whenEntityExists_deleteRole() {
-        var id = nextLong();
-        var entity = roleEntity(id);
+        var id = nextUniqueId();
+        var entity = roleEntity(id.getLongValue());
 
         when(roleRepository.findById(id)).thenReturn(Optional.of(entity));
 
@@ -216,10 +222,10 @@ class IdentityRoleServiceTest {
 
     @Test
     void addPermission_whenEntityExists_addsPermission() {
-        var id = nextLong();
-        var entity = roleEntity(id);
+        var id = nextUniqueId();
+        var entity = roleEntity(id.getLongValue());
         var permission = permission("workspace.read");
-        var savedModel = roleModel(id);
+        var savedModel = roleModel(id.getLongValue());
 
         when(roleRepository.findById(id)).thenReturn(Optional.of(entity));
         when(permissionService.getOrCreateEntity("workspace.read")).thenReturn(permission);
@@ -233,10 +239,10 @@ class IdentityRoleServiceTest {
 
     @Test
     void removePermission_whenEntityExists_removesPermission() {
-        var id = nextLong();
-        var entity = roleEntity(id);
+        var id = nextUniqueId();
+        var entity = roleEntity(id.getLongValue());
         entity.setPermissions(new HashSet<>(Set.of(permission("workspace.read"))));
-        var savedModel = roleModel(id);
+        var savedModel = roleModel(id.getLongValue());
 
         when(roleRepository.findById(id)).thenReturn(Optional.of(entity));
         when(roleRepository.save(entity)).thenReturn(entity);
@@ -247,17 +253,17 @@ class IdentityRoleServiceTest {
         verify(roleRepository).flush();
     }
 
-    private static IdentityRoleEntity roleEntity(long id) {
+    private static IdentityRoleEntity roleEntity(long uniqueId) {
         return IdentityRoleEntity.builder()
-                .id(id)
+                .uniqueId(uniqueId)
                 .name(nextString())
                 .permissions(new HashSet<>())
                 .build();
     }
 
-    private static IdentityRole roleModel(long id) {
+    private static IdentityRole roleModel(long uniqueId) {
         return IdentityRole.builder()
-                .id(id)
+                .uniqueId(new UniqueId(uniqueId))
                 .name(nextString())
                 .build();
     }

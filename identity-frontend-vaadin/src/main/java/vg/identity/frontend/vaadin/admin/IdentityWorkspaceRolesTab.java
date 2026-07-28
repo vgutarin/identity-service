@@ -23,6 +23,7 @@ import vg.identity.model.IdentityWorkspace;
 import vg.identity.service.IdentityPermissionService;
 import vg.identity.service.IdentityRoleService;
 import vg.identity.service.IdentityWorkspaceService;
+import vg.unique.id.model.UniqueId;
 
 import java.time.Instant;
 import java.util.Comparator;
@@ -176,7 +177,7 @@ class IdentityWorkspaceRolesTab extends VerticalLayout {
     }
 
     private void openForm(IdentityRole role) {
-        var editing = role.getId() != null;
+        var editing = role.getUniqueId() != null;
         var formRole = editing ? copy(role) : role;
 
         var dialog = Dialogs.form(localization.i18n(editing ? "Edit role" : "Create role"));
@@ -214,7 +215,7 @@ class IdentityWorkspaceRolesTab extends VerticalLayout {
         try {
             binder.writeBean(role);
 
-            if (role.getId() == null) {
+            if (role.getUniqueId() == null) {
                 workspaceService.createRole(workspace.getUniqueId(), role);
             } else {
                 roleService.update(role);
@@ -240,7 +241,7 @@ class IdentityWorkspaceRolesTab extends VerticalLayout {
 
     private void delete(IdentityRole role) {
         try {
-            roleService.delete(role.getId());
+            roleService.delete(role.getUniqueId());
             refreshGrid();
             Notifications.success(localization.i18n("Role deleted"));
         } catch (Exception e) {
@@ -272,7 +273,7 @@ class IdentityWorkspaceRolesTab extends VerticalLayout {
 
     private IdentityRole copy(IdentityRole role) {
         return IdentityRole.builder()
-                .id(role.getId())
+                .uniqueId(role.getUniqueId())
                 .version(role.getVersion())
                 .createdAt(role.getCreatedAt())
                 .updatedAt(role.getUpdatedAt())
@@ -325,8 +326,8 @@ class IdentityWorkspaceRolesTab extends VerticalLayout {
             return role;
         }
 
-        private Long roleId() {
-            return role.getId();
+        private UniqueId roleId() {
+            return role.getUniqueId();
         }
 
         private String permissionName() {

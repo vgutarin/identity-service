@@ -146,7 +146,7 @@ class IdentityApplicationServiceTest {
                 .token(nextString())
                 .build();
 
-        assertThatThrownBy(() -> service.createTelegramBotApplication(new UniqueId(nextLong()), nextString(), telegramBot))
+        assertThatThrownBy(() -> service.createTelegramBotApplication(nextUniqueId(), nextString(), telegramBot))
                 .isInstanceOf(EntityNotFoundException.class);
 
         verify(telegramService, never()).getUsername(telegramBot);
@@ -213,7 +213,7 @@ class IdentityApplicationServiceTest {
     void updateTelegramBotApplication_whenApplicationIsNotFound_throwsEntityNotFoundException() {
         var telegramBot = TelegramBot.builder().token(nextString()).build();
 
-        assertThatThrownBy(() -> service.updateTelegramBotApplication(new UniqueId(nextLong()), 0, nextString(), telegramBot))
+        assertThatThrownBy(() -> service.updateTelegramBotApplication(nextUniqueId(), 0, nextString(), telegramBot))
                 .isInstanceOf(EntityNotFoundException.class);
 
         verify(telegramService, never()).getUsername(telegramBot);

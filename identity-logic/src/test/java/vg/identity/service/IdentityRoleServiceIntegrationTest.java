@@ -13,6 +13,7 @@ import vg.identity.entity.IdentityRoleTemplateEntity;
 import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityRoleTemplate;
 import vg.identity.model.IdentityWorkspace;
+import vg.unique.id.model.UniqueId;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -45,7 +46,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
         var workspace = createWorkspaceEntity();
         var saved = service.create(name, description, workspace);
 
-        assertThat(saved.getId()).isNotNull();
+        assertThat(saved.getUniqueId()).isNotNull();
         assertThat(saved.getName()).isEqualTo(name);
         assertThat(saved.getDescription()).isEqualTo(description);
         assertThat(saved.getWorkspaceUniqueId()).isEqualTo(workspace.getUniqueId());
@@ -62,7 +63,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
         var workspace = createWorkspaceEntity();
         var saved = service.create(name, null, workspace);
 
-        assertThat(saved.getId()).isNotNull();
+        assertThat(saved.getUniqueId()).isNotNull();
         assertThat(saved.getWorkspaceUniqueId()).isEqualTo(workspace.getUniqueId());
     }
 
@@ -88,17 +89,17 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
         var saved = service.createFromTemplate(List.of(templateEntity), workspaceEntity).getFirst();
 
-        assertThat(saved.getId()).isNotNull();
+        assertThat(saved.getUniqueId()).isNotNull();
         assertThat(saved.getName()).isEqualTo(name);
         assertThat(saved.getDescription()).isEqualTo(description);
         assertThat(saved.getWorkspaceUniqueId()).isEqualTo(workspace.getUniqueId().getLongValue());
         assertThat(saved.getPermissions()).containsExactlyInAnyOrder("workspace.read", "app.update");
-        assertThat(roleRepository.findById(saved.getId()))
+        assertThat(roleRepository.findById(saved.getUniqueId()))
                 .hasValueSatisfying(role -> {
                     assertThat(role.getWorkspace()).isNotNull();
                     assertThat(role.getWorkspace().getUniqueId()).isEqualTo(workspace.getUniqueId().getLongValue());
                 });
-        assertThat(service.getById(saved.getId()).getPermissions())
+        assertThat(service.getById(saved.getUniqueId()).getPermissions())
                 .containsExactlyInAnyOrder("workspace.read", "app.update");
     }
 
@@ -106,9 +107,9 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
     void getById_whenEntityExists_returnsRole() {
         var saved = service.create(name, null, createWorkspaceEntity());
 
-        var found = service.getById(saved.getId());
+        var found = service.getById(saved.getUniqueId());
 
-        assertThat(found.getId()).isEqualTo(saved.getId());
+        assertThat(found.getUniqueId()).isEqualTo(saved.getUniqueId());
         assertThat(found.getName()).isEqualTo(name);
         assertThat(found.getPermissions()).isEmpty();
     }
@@ -120,8 +121,8 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
         var second = service.create(nextString(), null, workspace);
 
         assertThat(service.getAll())
-                .extracting(IdentityRole::getId)
-                .contains(first.getId(), second.getId());
+                .extracting(IdentityRole::getUniqueId)
+                .contains(first.getUniqueId(), second.getUniqueId());
     }
 
     @Test
@@ -131,7 +132,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
         var updated = service.update(
                 IdentityRole.builder()
-                        .id(saved.getId())
+                        .uniqueId(saved.getUniqueId())
                         .version(saved.getVersion())
                         .name(nextString())
                         .description(newDescription)
@@ -139,13 +140,13 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
                         .build()
         );
 
-        assertThat(updated.getId()).isEqualTo(saved.getId());
+        assertThat(updated.getUniqueId()).isEqualTo(saved.getUniqueId());
         assertThat(updated.getName()).isEqualTo(name);
         assertThat(updated.getDescription()).isEqualTo(newDescription);
         assertThat(updated.getPermissions()).containsExactlyInAnyOrder("app.create", "workspace.delete");
         assertThat(updated.getVersion()).isEqualTo(1);
 
-        assertThat(service.getById(saved.getId()).getPermissions())
+        assertThat(service.getById(saved.getUniqueId()).getPermissions())
                 .containsExactlyInAnyOrder("app.create", "workspace.delete");
     }
 
@@ -153,7 +154,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
     void update_whenVersionIsStale_throwsObjectOptimisticLockingFailureException() {
         var saved = service.create(name, null, createWorkspaceEntity());
         var stale = IdentityRole.builder()
-                .id(saved.getId())
+                .uniqueId(saved.getUniqueId())
                 .version(saved.getVersion())
                 .description(nextString())
                 .build();
@@ -161,7 +162,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
         service.update(
                 IdentityRole.builder()
-                        .id(saved.getId())
+                        .uniqueId(saved.getUniqueId())
                         .version(saved.getVersion())
                         .description(currentDescription)
                         .permissions(Set.of("app.delete"))
@@ -170,7 +171,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
         assertThatThrownBy(() -> service.update(stale))
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);
-        assertThat(roleRepository.findById(saved.getId()))
+        assertThat(roleRepository.findById(saved.getUniqueId()))
                 .hasValueSatisfying(role -> {
                     assertThat(role.getDescription()).isEqualTo(currentDescription);
                     assertThat(role.getVersion()).isEqualTo(1);
@@ -181,7 +182,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
     void addPermission_whenEntityExists_addsPermission() {
         var saved = service.create(name, null, createWorkspaceEntity());
 
-        var updated = service.addPermission(saved.getId(), " app.create ");
+        var updated = service.addPermission(saved.getUniqueId(), " app.create ");
 
         assertThat(updated.getPermissions()).containsExactly("app.create");
     }
@@ -189,10 +190,10 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
     @Test
     void removePermission_whenEntityExists_removesPermission() {
         var saved = service.create(name, null, createWorkspaceEntity());
-        service.addPermission(saved.getId(), "workspace.read");
-        service.addPermission(saved.getId(), "app.create");
+        service.addPermission(saved.getUniqueId(), "workspace.read");
+        service.addPermission(saved.getUniqueId(), "app.create");
 
-        var updated = service.removePermission(saved.getId(), " App.CREATE ");
+        var updated = service.removePermission(saved.getUniqueId(), " App.CREATE ");
 
         assertThat(updated.getPermissions()).containsExactly("workspace.read");
     }
@@ -201,14 +202,14 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
     void delete_whenEntityExists_deleteRole() {
         var saved = service.create(name, null, createWorkspaceEntity());
 
-        service.delete(saved.getId());
+        service.delete(saved.getUniqueId());
 
-        assertThat(roleRepository.findById(saved.getId())).isEmpty();
+        assertThat(roleRepository.findById(saved.getUniqueId())).isEmpty();
     }
 
     @Test
     void getById_whenEntityIsNotFound_throwsEntityNotFoundException() {
-        assertThatThrownBy(() -> service.getById(Long.MAX_VALUE))
+        assertThatThrownBy(() -> service.getById(new UniqueId(Long.MAX_VALUE)))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 

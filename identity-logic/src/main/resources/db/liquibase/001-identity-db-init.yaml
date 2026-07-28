@@ -468,9 +468,8 @@ databaseChangeLog:
             tableName: identity_role
             columns:
               - column:
-                  name: id
+                  name: unique_id
                   type: BIGINT
-                  autoIncrement: true
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_identity_role
@@ -538,7 +537,7 @@ databaseChangeLog:
                     primaryKeyName: pk_identity_role_assignment
                     foreignKeyName: fk_role_assignment_to_role
                     referencedTableName: identity_role
-                    referencedColumnNames: id
+                    referencedColumnNames: unique_id
               - column:
                   name: created_at
                   type: DATETIME
@@ -556,7 +555,7 @@ databaseChangeLog:
                     primaryKeyName: pk_identity_role_permission
                     foreignKeyName: fk_role_permission_to_role
                     referencedTableName: identity_role
-                    referencedColumnNames: id
+                    referencedColumnNames: unique_id
               - column:
                   name: permission_id
                   type: BIGINT
