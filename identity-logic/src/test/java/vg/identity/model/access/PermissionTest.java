@@ -32,6 +32,8 @@ class PermissionTest {
                 "app.read",
                 "app.update",
                 "app.delete",
+                "app.claim.create",
+                "app.claim.delete",
                 "role.create",
                 "role.read",
                 "role.update",

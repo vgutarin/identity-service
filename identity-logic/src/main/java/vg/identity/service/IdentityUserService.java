@@ -25,6 +25,7 @@ import vg.unique.id.service.UniqueIdService;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -123,37 +124,55 @@ public class IdentityUserService implements UserDetailsService {
         );
     }
 
+    /**
+     * Provisions a fresh, anonymous identity user — one with no natural username. The principal is stored
+     * under an opaque, unique name purely to satisfy the not-null/unique principal-name index; callers are
+     * expected to identify the user by a channel (e.g. Telegram) rather than by name.
+     */
+    IdentityUserEntity createAnonymousEntity() {
+        var opaqueName = "user-" + UUID.randomUUID();
+        var principal = createPrincipal(opaqueName, encryptionService.hashPrincipalName(opaqueName));
+        return saveUserForPrincipal(principal, IdentityUserEntity.builder().build());
+    }
+
     IdentityUser toModel(IdentityUserEntity entity) {
         return mapper.toModel(entity);
     }
 
     private IdentityUserEntity newEntity(IdentityUser user) {
         requireColonFreeUsername(user.getUsername());
-        var principal = createPrincipal(user);
-        var userEntity = mapper.toEntity(user);
-        userEntity.setUniqueId(principal.getUniqueId());
-        userEntity = repository.save(userEntity);
-        repository.flush();
-        // Attach the principal to the persisted instance only for mapping. The association is a
-        // read-only shared-PK join (insertable/updatable false); setting it before save would drag it
-        // into the merge and trip Hibernate's null-id assertion on the still-transient child.
-        userEntity.setPrincipal(principal);
+        var principal = createPrincipal(user.getUsername(), hashUsername(user.getUsername()));
+        var userEntity = saveUserForPrincipal(principal, mapper.toEntity(user));
         if (emailService.validateEmail(user.getUsername())) {
             channelService.createEmailChannel(user.getUsername(), userEntity);
         }
         return userEntity;
-
     }
 
-    private IdentityPrincipalEntity createPrincipal(IdentityUser user) {
+    private IdentityPrincipalEntity createPrincipal(String name, byte[] nameHash) {
         var principal = IdentityPrincipalEntity.builder()
-                .name(user.getUsername())
-                .nameHash(hashUsername(user.getUsername()))
-                .displayName(user.getUsername())
+                .name(name)
+                .nameHash(nameHash)
+                .displayName(name)
                 .status(IdentityPrincipalStatus.ACTIVE)
                 .type(IdentityPrincipalType.USER)
                 .build();
         return principalRepository.saveWithNewUniqueId(principal, uniqueIdService);
+    }
+
+    /**
+     * Persists a new {@link IdentityUserEntity} under the shared primary key of the given principal and
+     * flushes so a duplicate-principal collision surfaces immediately.
+     */
+    private IdentityUserEntity saveUserForPrincipal(IdentityPrincipalEntity principal, IdentityUserEntity userEntity) {
+        userEntity.setUniqueId(principal.getUniqueId());
+        var saved = repository.save(userEntity);
+        repository.flush();
+        // Attach the principal to the persisted instance only for mapping. The association is a
+        // read-only shared-PK join (insertable/updatable false); setting it before save would drag it
+        // into the merge and trip Hibernate's null-id assertion on the still-transient child.
+        saved.setPrincipal(principal);
+        return saved;
     }
 
     private void updatePrincipalName(IdentityPrincipalEntity principal, String username) {

@@ -63,7 +63,7 @@ public class IdentityUserChannelEntity implements UniqueIdEntity {
     @Column(columnDefinition = "BLOB", nullable = false, updatable = false)
     private String channelUserId;
 
-    @Column(unique = true, nullable = false, updatable = false, columnDefinition = "BINARY(32)")
+    @Column(nullable = false, updatable = false, columnDefinition = "BINARY(32)")
     private byte[] channelUserIdHash;
 
     @Convert(converter = StringEncryptionConverter.class)

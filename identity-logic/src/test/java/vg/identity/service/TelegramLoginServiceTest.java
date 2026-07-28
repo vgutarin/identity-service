@@ -36,6 +36,7 @@ class TelegramLoginServiceTest {
     private static final String BOT_NAME = "Identityvgbot";
     private static final String INIT_DATA = "init-data";
     private static final Instant NOW = Instant.parse("2026-07-21T10:00:00Z");
+    private static final UniqueId APPLICATION_ID = new UniqueId(99L);
 
     @Mock
     private IdentityActionTokenService actionTokenService;
@@ -51,6 +52,8 @@ class TelegramLoginServiceTest {
     private IdentityUserAuthorityService authorityService;
     @Mock
     private IdentityUserRepository userRepository;
+    @Mock
+    private IdentityApplicationUserService applicationUserService;
 
     private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
 
@@ -66,6 +69,7 @@ class TelegramLoginServiceTest {
                 userService,
                 authorityService,
                 userRepository,
+                applicationUserService,
                 BOT_NAME,
                 clock
         );
@@ -90,6 +94,7 @@ class TelegramLoginServiceTest {
         assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.AUTHENTICATED);
         assertThat(result.user()).isSameAs(identityUser);
         verify(authorityService).loadAuthorities(identityUser);
+        verify(applicationUserService).recordAuthentication(APPLICATION_ID, 17L);
     }
 
     @Test
@@ -127,6 +132,7 @@ class TelegramLoginServiceTest {
                 userService,
                 authorityService,
                 userRepository,
+                applicationUserService,
                 "",
                 clock
         );
@@ -327,6 +333,7 @@ class TelegramLoginServiceTest {
         verify(channelService).bindTelegramUser(telegramUser, userEntity);
         verify(actionTokenService).confirmEmailChannel(actionId);
         verify(authorityService).loadAuthorities(identityUser);
+        verify(applicationUserService).recordAuthentication(APPLICATION_ID, 17L);
     }
 
     @Test
@@ -451,7 +458,10 @@ class TelegramLoginServiceTest {
     }
 
     private static TelegramBotWithUri botWithUrl() {
-        return new TelegramBotWithUri(url("https://t.me/identityvgbot"), TelegramBot.builder().token("bot-token").build());
+        return new TelegramBotWithUri(
+                url("https://t.me/identityvgbot"),
+                TelegramBot.builder().applicationId(APPLICATION_ID).token("bot-token").build()
+        );
     }
 
     private static TelegramUserPrincipal telegramUser(long id, String firstName) {

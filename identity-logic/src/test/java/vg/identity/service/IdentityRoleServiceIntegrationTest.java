@@ -68,7 +68,7 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void createFromTemplate_whenTemplatesAreProvided_returnsCreatedRoles() {
-        var workspace = createWorkspace();
+        var workspace = createWorkspaceViaService();
         var description = nextString();
         var template = roleTemplateService.create(IdentityRoleTemplate.builder()
                 .name(name)
@@ -212,14 +212,14 @@ class IdentityRoleServiceIntegrationTest extends BaseIntegrationTest {
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
-    private IdentityWorkspace createWorkspace() {
+    private IdentityWorkspace createWorkspaceViaService() {
         return workspaceService.create(IdentityWorkspace.builder()
                 .name(nextString())
                 .build());
     }
 
     private IdentityWorkspaceEntity createWorkspaceEntity() {
-        var workspace = createWorkspace();
+        var workspace = createWorkspaceViaService();
         return workspaceRepository.findById(workspace.getUniqueId().getLongValue()).orElseThrow();
     }
 }

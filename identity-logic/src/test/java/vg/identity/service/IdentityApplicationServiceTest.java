@@ -318,8 +318,14 @@ class IdentityApplicationServiceTest {
         when(applicationRepository.findByPrincipal_NameHash(nameHash)).thenReturn(Optional.of(entity));
         when(objectMapper.readValue(payload, TelegramBot.class)).thenReturn(telegramBot);
 
-        assertThat(service.findTelegramBotByUsername(botUsername))
-                .isEqualTo(new TelegramBotWithUri(url(storedUri), telegramBot));
+        assertThat(
+                service.findTelegramBotByUsername(botUsername)
+        ).isEqualTo(
+                new TelegramBotWithUri(
+                        url(storedUri),
+                        telegramBot.withApplicationId(new UniqueId(principal.getUniqueId()))
+                )
+        );
     }
 
     @Test
@@ -340,8 +346,14 @@ class IdentityApplicationServiceTest {
         when(applicationRepository.findByPrincipal_NameHash(nameHash)).thenReturn(Optional.of(entity));
         when(objectMapper.readValue(payload, TelegramBot.class)).thenReturn(telegramBot);
 
-        assertThat(service.findTelegramBotByUsername("MyBot"))
-                .isEqualTo(new TelegramBotWithUri(url(normalizedUri), telegramBot));
+        assertThat(
+                service.findTelegramBotByUsername("MyBot")
+        ).isEqualTo(
+                new TelegramBotWithUri(
+                        url(normalizedUri),
+                        telegramBot.withApplicationId(new UniqueId(principal.getUniqueId()))
+                )
+        );
     }
 
     @Test

@@ -23,8 +23,8 @@ class IdentityRoleRepositoryIntegrationTest extends BaseIntegrationTest {
     @Test
     void save_whenSameNameIsUsedInDifferentWorkspaces_returnsSavedRoles() {
         var roleName = nextString();
-        var firstWorkspace = createWorkspace();
-        var secondWorkspace = createWorkspace();
+        var firstWorkspace = createWorkspaceViaService();
+        var secondWorkspace = createWorkspaceViaService();
 
         var firstRole = roleRepository.saveAndFlush(buildRole(roleName, firstWorkspace));
         var secondRole = roleRepository.saveAndFlush(buildRole(roleName, secondWorkspace));
@@ -48,7 +48,7 @@ class IdentityRoleRepositoryIntegrationTest extends BaseIntegrationTest {
     @Test
     void save_whenSameNameIsUsedInSameWorkspace_throwsDataIntegrityViolationException() {
         var roleName = nextString();
-        var workspace = createWorkspace();
+        var workspace = createWorkspaceViaService();
 
         roleRepository.saveAndFlush(buildRole(roleName, workspace));
 
@@ -56,7 +56,7 @@ class IdentityRoleRepositoryIntegrationTest extends BaseIntegrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
-    private IdentityWorkspaceEntity createWorkspace() {
+    private IdentityWorkspaceEntity createWorkspaceViaService() {
         var workspace = workspaceService.create(
                 IdentityWorkspace.builder()
                         .name(nextString())

@@ -14,12 +14,18 @@ import vg.identity.entity.IdentityApiKeyEntity;
 import vg.identity.entity.IdentityApplicationEntity;
 import vg.identity.entity.IdentityPrincipalEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
+import vg.identity.entity.IdentityWorkspaceScopeClaimDictionaryEntity;
 import vg.identity.model.IdentityPrincipalStatus;
 import vg.identity.model.IdentityPrincipalType;
 import vg.identity.repository.IdentityApiKeyRepository;
 import vg.identity.repository.IdentityApplicationRepository;
+import vg.identity.repository.IdentityApplicationUserClaimRepository;
+import vg.identity.repository.IdentityApplicationUserRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
+import vg.identity.repository.IdentityUserChannelRepository;
+import vg.identity.repository.IdentityUserRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
+import vg.identity.repository.IdentityWorkspaceScopeClaimDictionaryRepository;
 import vg.identity.service.EncryptionService;
 import vg.test.containers.starters.Mysql8ContainerStarter;
 import vg.unique.id.service.UniqueIdService;
@@ -45,9 +51,19 @@ public abstract class BaseIntegrationTest implements Mysql8ContainerStarter {
     @Autowired
     protected IdentityApplicationRepository applicationRepository;
     @Autowired
+    protected IdentityApplicationUserClaimRepository applicationUserClaimRepository;
+    @Autowired
+    protected IdentityApplicationUserRepository applicationUserRepository;
+    @Autowired
+    protected IdentityWorkspaceScopeClaimDictionaryRepository scopeClaimDictionaryRepository;
+    @Autowired
     protected IdentityWorkspaceRepository workspaceRepository;
     @Autowired
     protected IdentityPrincipalRepository principalRepository;
+    @Autowired
+    protected IdentityUserChannelRepository channelRepository;
+    @Autowired
+    protected IdentityUserRepository userRepository;
     @Autowired
     protected UniqueIdService uniqueIdService;
     @Autowired
@@ -59,9 +75,14 @@ public abstract class BaseIntegrationTest implements Mysql8ContainerStarter {
 
     @AfterEach
     protected void cleanUp() {
+        applicationUserClaimRepository.deleteAll();
+        applicationUserRepository.deleteAll();
+        scopeClaimDictionaryRepository.deleteAll();
         apiKeyRepository.deleteAll();
         applicationRepository.deleteAll();
         workspaceRepository.deleteAll();
+        channelRepository.deleteAll();
+        userRepository.deleteAll();
         principalRepository.deleteAll();
     }
 
@@ -71,6 +92,10 @@ public abstract class BaseIntegrationTest implements Mysql8ContainerStarter {
     }
 
     protected TestApplication createApplicationWithApiKey() {
+        return createApplicationWithApiKey("must-not-be-returned");
+    }
+
+    protected TestApplication createApplicationWithApiKey(String payload) {
         var name = "orders-service-" + nextString();
         var uri = "https://orders-" + nextString() + ".example.test";
         var workspace = workspaceRepository.saveWithNewUniqueId(
@@ -95,7 +120,7 @@ public abstract class BaseIntegrationTest implements Mysql8ContainerStarter {
                     .uniqueId(principal.getUniqueId())
                     .principal(entityManager.getReference(IdentityPrincipalEntity.class, principal.getUniqueId()))
                     .workspace(entityManager.getReference(IdentityWorkspaceEntity.class, workspace.getUniqueId()))
-                    .payload("must-not-be-returned")
+                    .payload(payload)
                     .build();
             entityManager.persist(application);
             entityManager.flush();
@@ -108,6 +133,17 @@ public abstract class BaseIntegrationTest implements Mysql8ContainerStarter {
         });
         createApiKeyFor(res.uniqueId());
         return res;
+    }
+
+    protected IdentityWorkspaceScopeClaimDictionaryEntity getScopeClaim(Long workspaceUniqueId, String value) {
+        var blindIndex = encryptionService.hashCaseSensitive(value);
+        return scopeClaimDictionaryRepository
+                .findByWorkspace_UniqueIdAndNameBlindIndex(workspaceUniqueId, blindIndex)
+                .orElseGet(() -> scopeClaimDictionaryRepository.save(IdentityWorkspaceScopeClaimDictionaryEntity.builder()
+                        .workspace(workspaceRepository.getReferenceById(workspaceUniqueId))
+                        .name(value)
+                        .nameBlindIndex(blindIndex)
+                        .build()));
     }
 
     private static byte[] sha256(byte[] value) {
