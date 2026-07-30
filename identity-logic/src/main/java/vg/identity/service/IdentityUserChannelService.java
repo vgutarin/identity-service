@@ -18,10 +18,10 @@ import vg.identity.model.IdentityUserChannel;
 import vg.identity.model.TelegramUserPrincipal;
 import vg.identity.model.user.channel.IdentityUserChannelEmail;
 import vg.identity.repository.IdentityUserChannelRepository;
+import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
 import java.time.Clock;
-import java.util.function.Function;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -50,6 +50,20 @@ public class IdentityUserChannelService {
         return result;
     }
 
+    /**
+     * Finds the global email channel or creates a pending one. The channel deliberately has no user attached:
+     * the identity is provisioned only after the email confirmation succeeds.
+     */
+    @Transactional
+    IdentityUserChannelEmail getOrCreatePendingEmailChannel(@NotNull @Email String email) {
+        var canonicalEmail = encryptionService.canonicalize(email);
+        var channelUserIdHash = encryptionService.hashCaseSensitive(canonicalEmail);
+        var channel = identityChannelRepository
+                .findByChannelTypeAndChannelUserIdHash(IdentityChannelType.EMAIL, channelUserIdHash)
+                .orElseGet(() -> create(IdentityChannelType.EMAIL, canonicalEmail, null));
+        return mapper.toEmailModel(channel);
+    }
+
     @Transactional(readOnly = true)
     IdentityUserChannelEmail findEmailChannel(@NotNull @Email String email) {
         return identityChannelRepository.findByChannelTypeAndChannelUserIdHash(
@@ -60,14 +74,41 @@ public class IdentityUserChannelService {
                 .orElse(null);
     }
 
+    IdentityUserChannelEntity getEntityById(@NotNull UniqueId uniqueId) {
+        return identityChannelRepository.findById(uniqueId.getLongValue())
+                .orElseThrow(EntityNotFoundException::new);
+    }
+
+    IdentityUserChannel toModel(IdentityUserChannelEntity entity) {
+        return mapper.toModel(entity);
+    }
+
+    IdentityUserChannelEmail toEmailModel(IdentityUserChannelEntity entity) {
+        if (entity.getChannelType() != IdentityChannelType.EMAIL) {
+            throw new IllegalArgumentException("Channel is not an email channel");
+        }
+        return mapper.toEmailModel(entity);
+    }
+
     void attachUser(IdentityUserChannel channel, IdentityUserEntity user) {
         var channelEntity = identityChannelRepository.findById(channel.getUniqueId())
                 .orElseThrow(EntityNotFoundException::new);
+        if (attachUser(channelEntity, user)) {
+            mapper.updateModel(channel, channelEntity);
+        }
+    }
+
+    /**
+     * Attaches a channel to a user once, preserving the one-channel/one-user invariant.
+     *
+     * @return {@code true} if this call attached the user, {@code false} if it was already attached to it
+     */
+    boolean attachUser(IdentityUserChannelEntity channelEntity, IdentityUserEntity user) {
         var attachedUser = channelEntity.getIdentityUser();
         if (attachedUser != null && !attachedUser.equals(user)) {
             log.error(
                     "User channel is attached to another user: channelUniqueId={}, requestedUserUniqueId={}, attachedUserUniqueId={}",
-                    channel.getUniqueId(),
+                    channelEntity.getUniqueId(),
                     user.getUniqueId(),
                     attachedUser.getUniqueId()
             );
@@ -78,8 +119,9 @@ public class IdentityUserChannelService {
             channelEntity.setIdentityUser(user);
             identityChannelRepository.save(channelEntity);
             identityChannelRepository.flush();
-            mapper.updateModel(channel, channelEntity);
+            return true;
         }
+        return false;
     }
 
     /**
@@ -155,20 +197,6 @@ public class IdentityUserChannelService {
                         .identityUser(user)
                         .build(),
                 uniqueIdService
-        );
-    }
-
-    private <T extends IdentityUserChannel> T get(
-            IdentityChannelType channelType,
-            String channelUserId,
-            IdentityUserEntity user,
-            Function<IdentityUserChannelEntity, T> toModel
-    ) {
-        var channelUserIdHash = encryptionService.hashCaseSensitive(channelUserId);
-        return toModel.apply(
-                identityChannelRepository
-                        .findByChannelTypeAndChannelUserIdHash(channelType, channelUserIdHash)
-                        .orElseGet(() -> create(channelType, channelUserId, user))
         );
     }
 

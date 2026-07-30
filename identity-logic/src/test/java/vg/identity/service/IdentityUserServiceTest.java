@@ -15,6 +15,7 @@ import vg.identity.mapper.IdentityUserMapper;
 import vg.identity.model.IdentityPrincipalStatus;
 import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.IdentityUser;
+import vg.identity.model.UserProvisioningDetails;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityUserRepository;
 import vg.unique.id.model.UniqueId;
@@ -135,9 +136,14 @@ class IdentityUserServiceTest {
 
         var userId = nextUniqueId();
         var updatedName = nextString();
+        var updatedDisplayName = nextString();
         var nameHash = new byte[]{4, 5, 6};
 
-        var user = IdentityUser.builder().uniqueId(userId).username(updatedName).build();
+        var user = IdentityUser.builder()
+                .uniqueId(userId)
+                .username(updatedName)
+                .displayName(updatedDisplayName)
+                .build();
 
         var entityId = userId.getLongValue();
         var principal = principal(entityId);
@@ -159,6 +165,7 @@ class IdentityUserServiceTest {
         );
 
         assertThat(principal.getName()).isEqualTo(updatedName);
+        assertThat(principal.getDisplayName()).isEqualTo(updatedDisplayName);
         assertThat(principal.getNameHash()).isEqualTo(nameHash);
         verify(principalRepository).save(principal);
         verify(mapper).updateEntity(entity, user);
@@ -241,6 +248,102 @@ class IdentityUserServiceTest {
         var model = IdentityUser.builder().username("scheme://value").build();
 
         assertThatThrownBy(() -> service.create(model)).isInstanceOf(IllegalArgumentException.class);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void getOrCreateEntityForEmailChannel_whenNewUserWithProvisioning_setsDisplayNameAndEncodedPassword() {
+        var email = "john@example.com";
+        var hash = new byte[]{1, 2, 3};
+        var provisioning = new UserProvisioningDetails("John Doe", "Abcdefghi1", true);
+        var entityToSave = IdentityUserEntity.builder().uniqueId(null).build();
+        var entitySaved = entity(1L);
+        var principalSaved = principal(1L);
+
+        when(encryptionService.hashPrincipalName(email)).thenReturn(hash);
+        when(repository.findByPrincipal_NameHash(hash)).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("Abcdefghi1")).thenReturn("encoded_pw");
+        when(mapper.toEntity(any(IdentityUser.class))).thenReturn(entityToSave);
+        when(principalRepository.saveWithNewUniqueId(any(IdentityPrincipalEntity.class), eq(uniqueIdService)))
+                .thenReturn(principalSaved);
+        when(repository.save(entityToSave)).thenReturn(entitySaved);
+
+        assertThat(service.getOrCreateEntityForEmailChannel(email, provisioning)).isSameAs(entitySaved);
+
+        var modelCaptor = ArgumentCaptor.forClass(IdentityUser.class);
+        verify(mapper).toEntity(modelCaptor.capture());
+        assertThat(modelCaptor.getValue().getPassword()).isEqualTo("encoded_pw");
+        assertThat(modelCaptor.getValue().getDisplayName()).isEqualTo("John Doe");
+
+        var principalCaptor = ArgumentCaptor.forClass(IdentityPrincipalEntity.class);
+        verify(principalRepository).saveWithNewUniqueId(principalCaptor.capture(), eq(uniqueIdService));
+        assertThat(principalCaptor.getValue().getName()).isEqualTo(email);
+        assertThat(principalCaptor.getValue().getDisplayName()).isEqualTo("John Doe");
+    }
+
+    @Test
+    void getOrCreateEntityForEmailChannel_whenNewUserWithWeakPassword_throwsAndDoesNotSave() {
+        var email = "john@example.com";
+        var hash = new byte[]{1, 2, 3};
+        var provisioning = new UserProvisioningDetails("John Doe", "weak", true);
+
+        when(encryptionService.hashPrincipalName(email)).thenReturn(hash);
+        when(repository.findByPrincipal_NameHash(hash)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getOrCreateEntityForEmailChannel(email, provisioning))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(passwordEncoder, never()).encode(any());
+        verify(repository, never()).save(any());
+        verify(principalRepository, never()).saveWithNewUniqueId(any(), any());
+    }
+
+    @Test
+    void getOrCreateEntityForEmailChannel_whenNewUserWithoutConsent_throwsAndDoesNotSave() {
+        var email = "john@example.com";
+        var hash = new byte[]{1, 2, 3};
+        var provisioning = new UserProvisioningDetails("John Doe", "Abcdefghi1", false);
+
+        when(encryptionService.hashPrincipalName(email)).thenReturn(hash);
+        when(repository.findByPrincipal_NameHash(hash)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getOrCreateEntityForEmailChannel(email, provisioning))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("exception.user.consent.required");
+
+        verify(passwordEncoder, never()).encode(any());
+        verify(repository, never()).save(any());
+        verify(principalRepository, never()).saveWithNewUniqueId(any(), any());
+    }
+
+    @Test
+    void getOrCreateEntityForEmailChannel_whenNewUserAndNullProvisioning_throwsConsentRequired() {
+        var email = "john@example.com";
+        var hash = new byte[]{1, 2, 3};
+
+        when(encryptionService.hashPrincipalName(email)).thenReturn(hash);
+        when(repository.findByPrincipal_NameHash(hash)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getOrCreateEntityForEmailChannel(email, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("exception.user.consent.required");
+
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void getOrCreateEntityForEmailChannel_whenUserExists_returnsItAndIgnoresProvisioning() {
+        var email = "john@example.com";
+        var hash = new byte[]{1, 2, 3};
+        var existing = entity(1L);
+        var provisioning = new UserProvisioningDetails("John Doe", "Abcdefghi1", true);
+
+        when(encryptionService.hashPrincipalName(email)).thenReturn(hash);
+        when(repository.findByPrincipal_NameHash(hash)).thenReturn(Optional.of(existing));
+
+        assertThat(service.getOrCreateEntityForEmailChannel(email, provisioning)).isSameAs(existing);
+
+        verify(passwordEncoder, never()).encode(any());
         verify(repository, never()).save(any());
     }
 

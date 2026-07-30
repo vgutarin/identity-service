@@ -13,6 +13,7 @@ public class IdentityAction {
     public record ConfirmEmailInfo(
             UUID id,
             UniqueId userUniqueId,
+            String suggestedDisplayName,
             boolean personalInformationConsentGiven
     ) {
     }

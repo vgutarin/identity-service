@@ -17,6 +17,8 @@ import vg.identity.mapper.IdentityUserMapper;
 import vg.identity.model.IdentityPrincipalStatus;
 import vg.identity.model.IdentityPrincipalType;
 import vg.identity.model.IdentityUser;
+import vg.identity.model.PasswordPolicy;
+import vg.identity.model.UserProvisioningDetails;
 import vg.identity.model.access.Permission;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityUserRepository;
@@ -85,7 +87,7 @@ public class IdentityUserService implements UserDetailsService {
         }
 
         mapper.updateEntity(entity, user);
-        updatePrincipalName(entity.getPrincipal(), user.getUsername());
+        updatePrincipalName(entity.getPrincipal(), user.getUsername(), user.getDisplayName());
         entity = repository.save(entity);
         repository.flush();
         mapper.updateModel(user, entity);
@@ -125,6 +127,31 @@ public class IdentityUserService implements UserDetailsService {
     }
 
     /**
+     * Resolves or provisions the user represented by an email channel. A newly provisioned user deliberately
+     * does not create its own email channel because the already-confirmed invitation channel is attached to it.
+     * <p>
+     * Creating a new user requires a {@code provisioning} payload carrying affirmative personal-data consent: a
+     * {@code null} payload or {@code consentGranted == false} is rejected, so no identity is ever created
+     * without consent. The display name is applied and the password is strength-checked and encoded here (the
+     * provisioning path does not otherwise encode). An existing user is reused as-is and the payload is ignored.
+     */
+    IdentityUserEntity getOrCreateEntityForEmailChannel(String email, UserProvisioningDetails provisioning) {
+        return findEntityByUsername(email)
+                .orElseGet(() -> {
+                    if (provisioning == null || !provisioning.consentGranted()) {
+                        throw new IllegalArgumentException("exception.user.consent.required");
+                    }
+                    PasswordPolicy.requireStrong(provisioning.rawPassword());
+                    var user = IdentityUser.builder()
+                            .username(email)
+                            .displayName(provisioning.displayName())
+                            .password(passwordEncoder.encode(provisioning.rawPassword()))
+                            .build();
+                    return newEntity(user, false);
+                });
+    }
+
+    /**
      * Provisions a fresh, anonymous identity user — one with no natural username. The principal is stored
      * under an opaque, unique name purely to satisfy the not-null/unique principal-name index; callers are
      * expected to identify the user by a channel (e.g. Telegram) rather than by name.
@@ -140,20 +167,31 @@ public class IdentityUserService implements UserDetailsService {
     }
 
     private IdentityUserEntity newEntity(IdentityUser user) {
+        return newEntity(user, true);
+    }
+
+    private IdentityUserEntity newEntity(IdentityUser user, boolean createEmailChannel) {
         requireColonFreeUsername(user.getUsername());
-        var principal = createPrincipal(user.getUsername(), hashUsername(user.getUsername()));
+        var displayName = (user.getDisplayName() != null && !user.getDisplayName().isBlank())
+                ? user.getDisplayName()
+                : user.getUsername();
+        var principal = createPrincipal(user.getUsername(), hashUsername(user.getUsername()), displayName);
         var userEntity = saveUserForPrincipal(principal, mapper.toEntity(user));
-        if (emailService.validateEmail(user.getUsername())) {
+        if (createEmailChannel && emailService.validateEmail(user.getUsername())) {
             channelService.createEmailChannel(user.getUsername(), userEntity);
         }
         return userEntity;
     }
 
     private IdentityPrincipalEntity createPrincipal(String name, byte[] nameHash) {
+        return createPrincipal(name, nameHash, name);
+    }
+
+    private IdentityPrincipalEntity createPrincipal(String name, byte[] nameHash, String displayName) {
         var principal = IdentityPrincipalEntity.builder()
                 .name(name)
                 .nameHash(nameHash)
-                .displayName(name)
+                .displayName(displayName)
                 .status(IdentityPrincipalStatus.ACTIVE)
                 .type(IdentityPrincipalType.USER)
                 .build();
@@ -175,14 +213,14 @@ public class IdentityUserService implements UserDetailsService {
         return saved;
     }
 
-    private void updatePrincipalName(IdentityPrincipalEntity principal, String username) {
+    private void updatePrincipalName(IdentityPrincipalEntity principal, String username, String displayName) {
         principal.setName(username);
-        principal.setDisplayName(username);
+        principal.setDisplayName(displayName);
         principal.setNameHash(hashUsername(username));
         principalRepository.save(principal);
     }
 
-    private Optional<IdentityUserEntity> findEntityByUsername(String username) {
+    Optional<IdentityUserEntity> findEntityByUsername(String username) {
         return repository.findByPrincipal_NameHash(hashUsername(username));
     }
 

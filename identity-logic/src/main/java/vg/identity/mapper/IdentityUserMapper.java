@@ -10,16 +10,16 @@ import vg.unique.id.mapper.UniqueIdMapper;
 @Mapper(componentModel = "spring", uses = UniqueIdMapper.class)
 public interface IdentityUserMapper {
     @Mapping(target = "username", source = "principal.name")
+    @Mapping(target = "displayName", source = "principal.displayName")
     IdentityUser toModel(IdentityUserEntity src);
 
     @Mapping(target = "principal", ignore = true)
-    @Mapping(target = "workspaces", ignore = true)
     IdentityUserEntity toEntity(IdentityUser src);
 
     @Mapping(target = "principal", ignore = true)
-    @Mapping(target = "workspaces", ignore = true)
     void updateEntity(@MappingTarget IdentityUserEntity entity, IdentityUser user);
 
     @Mapping(target = "username", source = "principal.name")
+    @Mapping(target = "displayName", source = "principal.displayName")
     void updateModel(@MappingTarget IdentityUser user, IdentityUserEntity entity);
 }

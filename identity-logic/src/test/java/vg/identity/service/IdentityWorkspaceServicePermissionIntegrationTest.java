@@ -41,12 +41,14 @@ class IdentityWorkspaceServicePermissionIntegrationTest extends BaseIntegrationT
     @Test
     void publicMethods_areSecuredWithExpectedPreAuthorizeExpressions() {
         var expectedExpressions = Map.of(
+                "addChannel(UniqueId, UniqueId)", "@authorityChecker.hasAuthority(#workspaceUniqueId, '" + Permission.User.CREATE + "')",
                 "addUser(UniqueId, String)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.User.CREATE + "')",
                 "create(IdentityWorkspace)", "@authorityChecker.hasAuthority('" + Permission.Workspace.CREATE + "')",
                 "createRole(UniqueId, IdentityRole)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.Role.CREATE + "')",
                 "delete(UniqueId)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.Workspace.DELETE + "')",
                 "getAll()", "@authorityChecker.hasAuthority('" + Permission.Workspace.READ + "')",
                 "getById(UniqueId)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.Workspace.READ + "')",
+                "getUserChannels(UniqueId)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.User.READ + "')",
                 "getUsers(UniqueId)", "@authorityChecker.hasAuthority(#uniqueId, '" + Permission.User.READ + "')",
                 "update(IdentityWorkspace)", "@authorityChecker.hasAuthority(#workspace.getUniqueId(), '" + Permission.Workspace.UPDATE + "')"
         );

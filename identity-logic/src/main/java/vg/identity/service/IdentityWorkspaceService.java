@@ -8,10 +8,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
+import vg.identity.entity.IdentityUserChannelEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityWorkspaceMapper;
+import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityUser;
+import vg.identity.model.IdentityUserChannel;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.model.access.Permission;
 import vg.identity.repository.IdentityRoleTemplateRepository;
@@ -20,6 +23,7 @@ import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
 import java.util.List;
+import java.util.Objects;
 
 @RequiredArgsConstructor
 @Service
@@ -30,6 +34,8 @@ public class IdentityWorkspaceService {
     private final IdentityRoleTemplateRepository roleTemplateRepository;
     private final IdentityRoleService roleService;
     private final IdentityUserService userService;
+    private final IdentityUserChannelService channelService;
+    private final IdentityActionTokenService actionTokenService;
     private final IdentityWorkspaceMapper workspaceMapper;
 
     @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.Workspace.CREATE + "')")
@@ -104,12 +110,39 @@ public class IdentityWorkspaceService {
         var workspace = workspaceRepository.findById(uniqueId.getLongValue())
                 .orElseThrow(EntityNotFoundException::new);
 
-        var user = userService.getOrCreateEntityByUsername(email);
-        workspace.getUsers().add(user);
-        user.getWorkspaces().add(workspace);
+        var channel = channelService.getOrCreatePendingEmailChannel(email);
+        if (channel.getIdentityUserUniqueId() == null) {
+            userService.findEntityByUsername(email)
+                    .ifPresent(user -> channelService.attachUser(channel, user));
+        }
 
-        var saved = workspaceRepository.save(workspace);
-        workspaceRepository.flush();
+        var channelEntity = channelService.getEntityById(channel.getUniqueId());
+        var saved = attachChannel(workspace, channelEntity);
+        if (!channel.isVerified()) {
+            actionTokenService.confirm(channel);
+        }
+        return workspaceMapper.toModel(saved);
+    }
+
+    /**
+     * Attaches an existing verified channel to a workspace. Email channels may still be pending; in that case
+     * this method requests their confirmation email using the normal cooldown-protected action flow.
+     */
+    @PreAuthorize("@authorityChecker.hasAuthority(#workspaceUniqueId, '" + Permission.User.CREATE + "')")
+    @Transactional
+    public IdentityWorkspace addChannel(UniqueId workspaceUniqueId, UniqueId channelUniqueId) {
+        var workspace = workspaceRepository.findById(workspaceUniqueId.getLongValue())
+                .orElseThrow(EntityNotFoundException::new);
+        var channel = channelService.getEntityById(channelUniqueId);
+
+        if (channel.getChannelType() != IdentityChannelType.EMAIL && channel.getVerifiedAt() == null) {
+            throw new IllegalArgumentException("A non-email channel must be verified before it can be attached to a workspace");
+        }
+
+        var saved = attachChannel(workspace, channel);
+        if (channel.getChannelType() == IdentityChannelType.EMAIL && channel.getVerifiedAt() == null) {
+            actionTokenService.confirm(channelService.toEmailModel(channel));
+        }
         return workspaceMapper.toModel(saved);
     }
 
@@ -119,9 +152,33 @@ public class IdentityWorkspaceService {
         var workspace = workspaceRepository.findById(uniqueId.getLongValue())
                 .orElseThrow(EntityNotFoundException::new);
 
-        return workspace.getUsers().stream()
+        return workspace.getUserChannels().stream()
+                .map(IdentityUserChannelEntity::getIdentityUser)
+                .filter(Objects::nonNull)
+                .distinct()
                 .map(userService::toModel)
                 .toList();
+    }
+
+    @PreAuthorize("@authorityChecker.hasAuthority(#uniqueId, '" + Permission.User.READ + "')")
+    @Transactional(readOnly = true)
+    public List<IdentityUserChannel> getUserChannels(UniqueId uniqueId) {
+        var workspace = workspaceRepository.findById(uniqueId.getLongValue())
+                .orElseThrow(EntityNotFoundException::new);
+
+        return workspace.getUserChannels().stream()
+                .map(channelService::toModel)
+                .toList();
+    }
+
+    private IdentityWorkspaceEntity attachChannel(
+            IdentityWorkspaceEntity workspace,
+            IdentityUserChannelEntity channel
+    ) {
+        workspace.getUserChannels().add(channel);
+        var saved = workspaceRepository.save(workspace);
+        workspaceRepository.flush();
+        return saved;
     }
 
 }

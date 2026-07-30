@@ -13,8 +13,6 @@ import vg.identity.model.IdentityCommandType;
 import vg.identity.model.IdentityPrincipalType;
 
 import java.time.Duration;
-import java.util.UUID;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static vg.test.TestHelper.nextString;
 
@@ -91,18 +89,4 @@ class IdentityActionTokenServiceIntegrationTest extends BaseIntegrationTest {
         assertThat(commandRepository.findAll()).hasSize(1);
     }
 
-    @Test
-    void confirmEmail_whenVerificationExistsAndIsNotExpired_setsChannelVerifiedAtAndReturnsTrue() {
-        var user = createIdentityUser("john" + nextString());
-        var userEntity = userRepository.findById(user.getUniqueId().getLongValue()).orElseThrow();
-        var channel = channelService.createEmailChannel("john@example.com", userEntity);
-        service.confirm(channel);
-        var verification = actionTokenRepository.findAll().getFirst();
-
-        assertThat(service.confirmEmail(verification.getId()).success()).isTrue();
-        assertThat(service.confirmEmail(UUID.randomUUID()).success()).isFalse();
-
-        var channelEntity = channelRepository.findById(channel.getUniqueId().getLongValue()).orElseThrow();
-        assertThat(channelEntity.getVerifiedAt()).isNotNull();
-    }
 }

@@ -8,11 +8,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import vg.identity.entity.IdentityRoleTemplateEntity;
+import vg.identity.entity.IdentityUserChannelEntity;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityWorkspaceMapper;
+import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityWorkspace;
+import vg.identity.model.user.channel.IdentityUserChannelEmail;
 import vg.identity.repository.IdentityRoleTemplateRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.unique.id.model.UniqueId;
@@ -20,6 +23,7 @@ import vg.unique.id.service.UniqueIdService;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -41,6 +45,10 @@ class IdentityWorkspaceServiceTest {
     IdentityRoleService roleService;
     @Mock
     IdentityUserService userService;
+    @Mock
+    IdentityUserChannelService channelService;
+    @Mock
+    IdentityActionTokenService actionTokenService;
     @Mock
     IdentityWorkspaceMapper workspaceMapper;
 
@@ -194,25 +202,82 @@ class IdentityWorkspaceServiceTest {
     }
 
     @Test
-    void addUser_whenWorkspaceExists_addsExistingOrCreatedUserToWorkspace() {
+    void addUser_whenUserExists_attachesItsUnverifiedEmailChannelAndRequestsConfirmation() {
         var workspaceId = nextLong();
         var email = "john@example.com";
         var workspace = workspaceEntity(workspaceId);
         var user = IdentityUserEntity.builder()
                 .uniqueId(nextLong())
                 .build();
+        var channel = emailChannel(nextLong(), false);
+        var channelEntity = IdentityUserChannelEntity.builder()
+                .uniqueId(channel.getUniqueId().getLongValue())
+                .channelType(IdentityChannelType.EMAIL)
+                .build();
         var savedWorkspace = workspaceEntity(workspaceId);
         var model = workspaceModel(workspaceId);
 
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
-        when(userService.getOrCreateEntityByUsername(email)).thenReturn(user);
+        when(channelService.getOrCreatePendingEmailChannel(email)).thenReturn(channel);
+        when(userService.findEntityByUsername(email)).thenReturn(Optional.of(user));
+        when(channelService.getEntityById(channel.getUniqueId())).thenReturn(channelEntity);
         when(workspaceRepository.save(workspace)).thenReturn(savedWorkspace);
         when(workspaceMapper.toModel(savedWorkspace)).thenReturn(model);
 
         assertThat(service.addUser(new UniqueId(workspaceId), email)).isSameAs(model);
-        assertThat(workspace.getUsers()).contains(user);
-        assertThat(user.getWorkspaces()).contains(workspace);
+        assertThat(workspace.getUserChannels()).contains(channelEntity);
+        verify(channelService).attachUser(channel, user);
+        verify(actionTokenService).confirm(channel);
         verify(workspaceRepository).flush();
+    }
+
+    @Test
+    void addUser_whenUserDoesNotExist_createsPendingChannelWithoutProvisioningAUser() {
+        var workspaceId = nextLong();
+        var email = "pending@example.com";
+        var workspace = workspaceEntity(workspaceId);
+        var channel = emailChannel(nextLong(), false);
+        var channelEntity = IdentityUserChannelEntity.builder()
+                .uniqueId(channel.getUniqueId().getLongValue())
+                .channelType(IdentityChannelType.EMAIL)
+                .build();
+        var savedWorkspace = workspaceEntity(workspaceId);
+        var model = workspaceModel(workspaceId);
+
+        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
+        when(channelService.getOrCreatePendingEmailChannel(email)).thenReturn(channel);
+        when(userService.findEntityByUsername(email)).thenReturn(Optional.empty());
+        when(channelService.getEntityById(channel.getUniqueId())).thenReturn(channelEntity);
+        when(workspaceRepository.save(workspace)).thenReturn(savedWorkspace);
+        when(workspaceMapper.toModel(savedWorkspace)).thenReturn(model);
+
+        assertThat(service.addUser(new UniqueId(workspaceId), email)).isSameAs(model);
+
+        assertThat(workspace.getUserChannels()).contains(channelEntity);
+        verify(actionTokenService).confirm(channel);
+    }
+
+    @Test
+    void addChannel_whenVerifiedTelegramChannelExists_attachesItToWorkspace() {
+        var workspaceId = nextLong();
+        var channelId = nextUniqueId();
+        var workspace = workspaceEntity(workspaceId);
+        var channel = IdentityUserChannelEntity.builder()
+                .uniqueId(channelId.getLongValue())
+                .channelType(IdentityChannelType.TELEGRAM_USER)
+                .verifiedAt(Instant.now())
+                .build();
+        var savedWorkspace = workspaceEntity(workspaceId);
+        var model = workspaceModel(workspaceId);
+
+        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
+        when(channelService.getEntityById(channelId)).thenReturn(channel);
+        when(workspaceRepository.save(workspace)).thenReturn(savedWorkspace);
+        when(workspaceMapper.toModel(savedWorkspace)).thenReturn(model);
+
+        assertThat(service.addChannel(new UniqueId(workspaceId), channelId)).isSameAs(model);
+
+        assertThat(workspace.getUserChannels()).contains(channel);
     }
 
     @Test
@@ -242,5 +307,16 @@ class IdentityWorkspaceServiceTest {
                 .id(id)
                 .name(nextString())
                 .build();
+    }
+
+    private static IdentityUserChannelEmail emailChannel(long id, boolean verified) {
+        var channel = new IdentityUserChannelEmail();
+        channel.setUniqueId(new UniqueId(id));
+        channel.setChannelType(IdentityChannelType.EMAIL);
+        channel.setChannelUserId("john@example.com");
+        if (verified) {
+            channel.setVerifiedAt(Instant.now());
+        }
+        return channel;
     }
 }

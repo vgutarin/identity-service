@@ -14,7 +14,7 @@ import com.vaadin.flow.data.binder.ValidationException;
 import vg.identity.frontend.vaadin.service.LocalizationService;
 import vg.identity.frontend.vaadin.ui.Dialogs;
 import vg.identity.frontend.vaadin.ui.Notifications;
-import vg.identity.model.IdentityUser;
+import vg.identity.model.IdentityUserChannel;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.service.EmailService;
 import vg.identity.service.IdentityWorkspaceService;
@@ -27,7 +27,7 @@ class IdentityWorkspaceUsersTab extends VerticalLayout {
     private final transient EmailService emailService;
     private final LocalizationService localization;
     private final HorizontalLayout actions = new HorizontalLayout();
-    private final Grid<IdentityUser> grid = new Grid<>(IdentityUser.class, false);
+    private final Grid<IdentityUserChannel> grid = new Grid<>(IdentityUserChannel.class, false);
     private IdentityWorkspace workspace;
 
     IdentityWorkspaceUsersTab(
@@ -73,14 +73,23 @@ class IdentityWorkspaceUsersTab extends VerticalLayout {
         grid.setSizeFull();
         grid.setEmptyStateText(localization.i18n("No users found"));
 
-        grid.addColumn(IdentityUser::getUsername)
-                .setHeader(localization.i18n("Email"))
+        grid.addColumn(channel -> localization.i18n(channel.getChannelType().name()))
+                .setHeader(localization.i18n("Channel type"))
                 .setSortable(true)
                 .setAutoWidth(true);
-        grid.addColumn(user -> format(user.getCreatedAt()))
+        grid.addColumn(IdentityUserChannel::getChannelUserId)
+                .setHeader(localization.i18n("Channel"))
+                .setSortable(true)
+                .setAutoWidth(true);
+        grid.addColumn(channel -> localization.i18n(channel.isVerified() ? "Verified" : "Pending"))
+                .setHeader(localization.i18n("Status"))
+                .setSortable(true)
+                .setComparator(IdentityUserChannel::isVerified)
+                .setAutoWidth(true);
+        grid.addColumn(channel -> format(channel.getCreatedAt()))
                 .setHeader(localization.i18n("Created"))
                 .setSortable(true)
-                .setComparator(IdentityUser::getCreatedAt)
+                .setComparator(IdentityUserChannel::getCreatedAt)
                 .setAutoWidth(true);
     }
 
@@ -149,7 +158,7 @@ class IdentityWorkspaceUsersTab extends VerticalLayout {
             return;
         }
 
-        grid.setItems(workspaceService.getUsers(workspace.getUniqueId()));
+        grid.setItems(workspaceService.getUserChannels(workspace.getUniqueId()));
     }
 
     private String format(Instant instant) {

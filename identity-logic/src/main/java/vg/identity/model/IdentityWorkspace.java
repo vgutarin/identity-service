@@ -12,7 +12,7 @@ import java.time.Instant;
 /**
  * Represents workspace.
  * Can contain multiple applications, roles (1:M relationship)
- * Can have users (M:M relationship)
+ * Can have user channels (M:M relationship). A channel may be pending until its recipient confirms it.
  */
 @NoArgsConstructor
 @AllArgsConstructor

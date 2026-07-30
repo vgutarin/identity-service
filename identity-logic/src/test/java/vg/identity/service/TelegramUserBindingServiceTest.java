@@ -27,6 +27,8 @@ class TelegramUserBindingServiceTest {
     @Mock
     private IdentityActionTokenService actionTokenService;
     @Mock
+    private IdentityActionTokenProcessorService actionTokenProcessorService;
+    @Mock
     private TelegramAuthenticationService telegramAuthenticationService;
     @Mock
     private IdentityUserChannelService channelService;
@@ -39,6 +41,7 @@ class TelegramUserBindingServiceTest {
     void setUp() {
         service = new TelegramUserBindingService(
                 actionTokenService,
+                actionTokenProcessorService,
                 telegramAuthenticationService,
                 channelService,
                 userRepository
@@ -67,7 +70,7 @@ class TelegramUserBindingServiceTest {
                 .isEqualTo(new TelegramUserBindingService.Result(false, null));
 
         verify(channelService, never()).bindTelegramUser(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
-        verify(actionTokenService, never()).consumeBindTelegramAction(actionId);
+        verify(actionTokenProcessorService, never()).consumeAction(actionId);
     }
 
     @Test
@@ -88,7 +91,7 @@ class TelegramUserBindingServiceTest {
         assertThat(service.bind("init-data"))
                 .isEqualTo(new TelegramUserBindingService.Result(true, telegramUser));
 
-        verify(actionTokenService).consumeBindTelegramAction(actionId);
+        verify(actionTokenProcessorService).consumeAction(actionId);
     }
 
     @Test
@@ -109,7 +112,7 @@ class TelegramUserBindingServiceTest {
         assertThat(service.bind("init-data"))
                 .isEqualTo(new TelegramUserBindingService.Result(false, null));
 
-        verify(actionTokenService, never()).consumeBindTelegramAction(actionId);
+        verify(actionTokenProcessorService, never()).consumeAction(actionId);
     }
 
     private static IdentityAction.BindTelegramInfo actionInfo(UUID actionId, IdentityPrincipalEntity principal) {

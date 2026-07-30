@@ -8,6 +8,7 @@ import org.springframework.util.StringUtils;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.model.IdentityAction;
 import vg.identity.model.IdentityUser;
+import vg.identity.model.UserProvisioningDetails;
 import vg.identity.model.application.TelegramBot;
 import vg.identity.repository.IdentityUserRepository;
 
@@ -35,6 +36,7 @@ import java.util.UUID;
 public class TelegramLoginService {
 
     private final IdentityActionTokenService actionTokenService;
+    private final IdentityActionTokenProcessorService actionTokenProcessorService;
     private final TelegramAuthenticationService telegramAuthenticationService;
     private final IdentityApplicationService applicationService;
     private final IdentityUserChannelService channelService;
@@ -47,6 +49,7 @@ public class TelegramLoginService {
 
     public TelegramLoginService(
             IdentityActionTokenService actionTokenService,
+            IdentityActionTokenProcessorService actionTokenProcessorService,
             TelegramAuthenticationService telegramAuthenticationService,
             IdentityApplicationService applicationService,
             IdentityUserChannelService channelService,
@@ -58,6 +61,7 @@ public class TelegramLoginService {
             Clock clock
     ) {
         this.actionTokenService = actionTokenService;
+        this.actionTokenProcessorService = actionTokenProcessorService;
         this.telegramAuthenticationService = telegramAuthenticationService;
         this.applicationService = applicationService;
         this.channelService = channelService;
@@ -79,17 +83,31 @@ public class TelegramLoginService {
      */
     @Transactional
     public Result login(String initData, boolean consentGranted) {
+        return login(initData, consentGranted, null);
+    }
+
+    /**
+     * Runs the flow with an optional provisioning payload. The payload is consumed only by the confirm-email
+     * path when a brand-new user is provisioned; all other paths ignore it.
+     */
+    @Transactional
+    public Result login(String initData, boolean consentGranted, UserProvisioningDetails provisioning) {
         var actionId = findActionId(initData);
         if (actionId != null) {
-            return handleAction(actionId, initData, consentGranted);
+            return handleAction(actionId, initData, consentGranted, provisioning);
         }
         return handleGreetingOrLogin(initData);
     }
 
-    private Result handleAction(UUID actionId, String initData, boolean consentGranted) {
+    private Result handleAction(
+            UUID actionId,
+            String initData,
+            boolean consentGranted,
+            UserProvisioningDetails provisioning
+    ) {
         var confirmEmailInfo = actionTokenService.findConfirmEmailActionInfo(actionId);
         if (confirmEmailInfo != null) {
-            return handleConfirmEmail(confirmEmailInfo, initData, consentGranted);
+            return handleConfirmEmail(confirmEmailInfo, initData, consentGranted, provisioning);
         }
 
         var bindInfo = actionTokenService.findBindTelegramActionInfo(actionId);
@@ -101,7 +119,12 @@ public class TelegramLoginService {
         return Result.failed();
     }
 
-    private Result handleConfirmEmail(IdentityAction.ConfirmEmailInfo info, String initData, boolean consentGranted) {
+    private Result handleConfirmEmail(
+            IdentityAction.ConfirmEmailInfo info,
+            String initData,
+            boolean consentGranted,
+            UserProvisioningDetails provisioning
+    ) {
         if (!info.personalInformationConsentGiven() && !consentGranted) {
             return Result.consentRequired();
         }
@@ -117,27 +140,18 @@ public class TelegramLoginService {
             return Result.failed();
         }
 
-        if (info.userUniqueId() == null) {
-            log.warn("Confirm-email action {} is not attached to a user", info.id());
+        IdentityUserEntity user;
+        try {
+            user = actionTokenProcessorService.confirmEmailWithTelegram(info.id(), telegramUser, provisioning);
+        } catch (IdentityActionTokenProcessorService.TelegramChannelConflictException e) {
+            log.warn("Telegram bind conflicted for confirm-email action {}", info.id());
             return Result.failed();
+        } catch (IdentityActionTokenProcessorService.CredentialsRequiredException e) {
+            return Result.credentialsRequired(telegramUser.displayName());
         }
-
-        var user = userRepository.findById(info.userUniqueId()).orElse(null);
         if (user == null) {
-            log.warn("User {} is not found for confirm-email action {}", info.userUniqueId(), info.id());
+            log.warn("Confirm-email action {} cannot resolve a single user", info.id());
             return Result.failed();
-        }
-
-        // Bind first: on conflict bindTelegramUser makes no changes, so the email stays unconfirmed and the
-        // action reusable. Only once the channel is safely bound do we verify the email and consume the action.
-        var bindResult = channelService.bindTelegramUser(telegramUser, user);
-        if (bindResult != IdentityUserChannelService.TelegramBindResult.SUCCESS) {
-            log.warn("Telegram bind failed with {} for confirm-email action {}", bindResult, info.id());
-            return Result.failed();
-        }
-
-        if (actionTokenService.confirmEmailChannel(info.id()) == null) {
-            throw new IllegalStateException("Cannot confirm email for action " + info.id() + " after Telegram bind");
         }
 
         return Result.authenticated(toAuthenticatedUser(bot, user));
@@ -170,7 +184,7 @@ public class TelegramLoginService {
             user.setConsentToKeepPersonalDataAt(clock.instant());
             userRepository.save(user);
         }
-        actionTokenService.consumeBindTelegramAction(info.id());
+        actionTokenProcessorService.consumeAction(info.id());
 
         return Result.authenticated(toAuthenticatedUser(info.telegramBot(), user));
     }
@@ -225,29 +239,34 @@ public class TelegramLoginService {
         }
     }
 
-    public record Result(Outcome outcome, IdentityUser user, String greetingName) {
+    public record Result(Outcome outcome, IdentityUser user, String greetingName, String suggestedDisplayName) {
 
         public enum Outcome {
             AUTHENTICATED,
             GREETING,
             CONSENT_REQUIRED,
+            CREDENTIALS_REQUIRED,
             FAILED
         }
 
         static Result authenticated(IdentityUser user) {
-            return new Result(Outcome.AUTHENTICATED, user, null);
+            return new Result(Outcome.AUTHENTICATED, user, null, null);
         }
 
         static Result greeting(String greetingName) {
-            return new Result(Outcome.GREETING, null, greetingName);
+            return new Result(Outcome.GREETING, null, greetingName, null);
         }
 
         static Result consentRequired() {
-            return new Result(Outcome.CONSENT_REQUIRED, null, null);
+            return new Result(Outcome.CONSENT_REQUIRED, null, null, null);
+        }
+
+        static Result credentialsRequired(String suggestedDisplayName) {
+            return new Result(Outcome.CREDENTIALS_REQUIRED, null, null, suggestedDisplayName);
         }
 
         static Result failed() {
-            return new Result(Outcome.FAILED, null, null);
+            return new Result(Outcome.FAILED, null, null, null);
         }
     }
 }

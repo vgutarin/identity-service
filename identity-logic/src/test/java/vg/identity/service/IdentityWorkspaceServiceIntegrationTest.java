@@ -10,6 +10,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
+import vg.identity.entity.IdentityUserChannelEntity;
+import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityRole;
 import vg.identity.model.IdentityRoleTemplate;
 import vg.identity.model.IdentityWorkspace;
@@ -17,7 +19,6 @@ import vg.unique.id.model.UniqueId;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.HashSet;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,6 +36,8 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     IdentityRoleTemplateService roleTemplateService;
     @Autowired
     JdbcTemplate jdbcTemplate;
+    @Autowired
+    IdentityUserChannelService channelService;
 
     private String name;
 
@@ -194,54 +197,91 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void workspaceUsers_whenUserIsAdded_persistsManyToManyRelation() {
+    void workspaceUserChannels_whenChannelIsAdded_persistsManyToManyRelation() {
         var workspace = service.create(buildWorkspace());
-        var user = createIdentityUser(nextString());
+        var email = "user" + nextLong() + "@example.com";
+        var user = createIdentityUser(email);
         var userEntity = userRepository.findById(user.getUniqueId().getLongValue()).orElseThrow();
+        var userChannel = channelService.createEmailChannel(email, userEntity);
+        var channelEntity = channelRepository.findById(userChannel.getUniqueId().getLongValue()).orElseThrow();
         var workspaceEntity = workspaceRepository.findById(workspace.getUniqueId().getLongValue()).orElseThrow();
-        workspaceEntity.setUsers(new HashSet<>(Set.of(userEntity)));
+        workspaceEntity.setUserChannels(Set.of(channelEntity));
 
         workspaceRepository.saveAndFlush(workspaceEntity);
 
         var relationCount = jdbcTemplate.queryForObject(
                 """
                         SELECT COUNT(*)
-                        FROM identity_workspace_user
-                        WHERE workspace_unique_id = ? AND user_unique_id = ?
+                        FROM identity_workspace_user_channel
+                        WHERE workspace_unique_id = ? AND user_channel_unique_id = ?
                         """,
                 Long.class,
                 workspace.getUniqueId().getLongValue(),
-                user.getUniqueId().getLongValue()
+                userChannel.getUniqueId().getLongValue()
         );
         assertThat(relationCount).isEqualTo(1);
     }
 
     @Test
-    void addUser_whenUserExists_attachesUserToWorkspace() {
+    void addUser_whenUserExists_attachesEmailChannelToWorkspace() {
         var workspace = service.create(buildWorkspace());
         var email = "user" + nextLong() + "@example.com";
         var user = createIdentityUser(email);
+        var userEntity = userRepository.findById(user.getUniqueId().getLongValue()).orElseThrow();
+        var channel = channelService.createEmailChannel(email, userEntity);
 
         var updated = service.addUser(workspace.getUniqueId(), email);
 
         assertThat(updated.getUniqueId()).isEqualTo(workspace.getUniqueId());
-        assertThat(workspaceUserRelationCount(workspace.getUniqueId().getLongValue(), user.getUniqueId().getLongValue()))
+        assertThat(workspaceChannelRelationCount(workspace.getUniqueId().getLongValue(), channel.getUniqueId().getLongValue()))
                 .isEqualTo(1);
     }
 
     @Test
-    void addUser_whenUserDoesNotExist_createsUserAndAttachesToWorkspace() {
+    void addUser_whenUserDoesNotExist_createsPendingChannelWithoutCreatingAUser() {
         var workspace = service.create(buildWorkspace());
         var email = "user" + nextLong() + "@example.com";
 
         service.addUser(workspace.getUniqueId(), email);
 
-        var user = userRepository.findAll().stream()
-                .filter(entity -> email.equals(entity.getPrincipal().getName()))
-                .findFirst()
-                .orElseThrow();
-        assertThat(workspaceUserRelationCount(workspace.getUniqueId().getLongValue(), user.getUniqueId()))
+        var channel = channelRepository.findById(channelService.findEmailChannel(email).getUniqueId()).orElseThrow();
+        assertThat(channel.getIdentityUser()).isNull();
+        assertThat(userRepository.findAll())
+                .noneMatch(entity -> email.equals(entity.getPrincipal().getName()));
+        assertThat(workspaceChannelRelationCount(workspace.getUniqueId().getLongValue(), channel.getUniqueId()))
                 .isEqualTo(1);
+        assertThat(service.getUserChannels(workspace.getUniqueId()))
+                .singleElement()
+                .satisfies(member -> {
+                    assertThat(member.getIdentityUserUniqueId()).isNull();
+                    assertThat(member.isVerified()).isFalse();
+                });
+    }
+
+    @Test
+    void addChannel_whenVerifiedTelegramChannelExists_attachesItToWorkspace() {
+        var workspace = service.create(buildWorkspace());
+        var user = createIdentityUser(nextString());
+        var userEntity = userRepository.findById(user.getUniqueId().getLongValue()).orElseThrow();
+        var channel = channelRepository.saveWithNewUniqueId(
+                IdentityUserChannelEntity.builder()
+                        .channelType(IdentityChannelType.TELEGRAM_USER)
+                        .channelUserId(String.valueOf(nextLong()))
+                        .channelUserIdHash(new byte[32])
+                        .identityUser(userEntity)
+                        .verifiedAt(Instant.now())
+                        .build(),
+                uniqueIdService
+        );
+        channelRepository.flush();
+
+        service.addChannel(workspace.getUniqueId(), new UniqueId(channel.getUniqueId()));
+
+        assertThat(workspaceChannelRelationCount(workspace.getUniqueId().getLongValue(), channel.getUniqueId()))
+                .isEqualTo(1);
+        assertThat(service.getUserChannels(workspace.getUniqueId()))
+                .singleElement()
+                .satisfies(member -> assertThat(member.getChannelType()).isEqualTo(IdentityChannelType.TELEGRAM_USER));
     }
 
     @Test
@@ -258,16 +298,16 @@ class IdentityWorkspaceServiceIntegrationTest extends BaseIntegrationTest {
                 .build();
     }
 
-    private Long workspaceUserRelationCount(long workspaceUniqueId, long userUniqueId) {
+    private Long workspaceChannelRelationCount(long workspaceUniqueId, long channelUniqueId) {
         return jdbcTemplate.queryForObject(
                 """
                         SELECT COUNT(*)
-                        FROM identity_workspace_user
-                        WHERE workspace_unique_id = ? AND user_unique_id = ?
+                        FROM identity_workspace_user_channel
+                        WHERE workspace_unique_id = ? AND user_channel_unique_id = ?
                         """,
                 Long.class,
                 workspaceUniqueId,
-                userUniqueId
+                channelUniqueId
         );
     }
 }

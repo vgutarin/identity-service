@@ -167,13 +167,14 @@ class IdentityActionTokenServiceTest {
     }
 
     @Test
-    void confirm_whenChannelIdentityUserUniqueIdIsMissing_throwsNullPointerException() {
+    void confirm_whenChannelIdentityUserUniqueIdIsMissing_createsPendingVerification() {
         var channel = emailChannel(7L, "john@example.com");
         channel.setIdentityUserUniqueId(null);
 
-        assertThatThrownBy(() -> service.confirm(channel))
-                .isInstanceOf(NullPointerException.class)
-                .hasMessage("channel identityUserUniqueId is required");
+        service.confirm(channel);
+
+        verify(principalRepository, never()).getReferenceById(any());
+        verify(actionTokenRepository).save(any(IdentityActionTokenEntity.class));
     }
 
     @Test
@@ -268,39 +269,7 @@ class IdentityActionTokenServiceTest {
     }
 
     @Test
-    void confirmEmail_whenVerificationExistsAndIsNotExpired_setsChannelVerifiedAtConsentsPrincipalAndReturnsTrue() {
-        var id = UUID.randomUUID();
-        var principal = IdentityUserEntity.builder()
-                .uniqueId(17L)
-                .build();
-        var channelEntity = IdentityUserChannelEntity.builder()
-                .uniqueId(7L)
-                .identityUser(principal)
-                .channelType(IdentityChannelType.EMAIL)
-                .channelUserId("john@example.com")
-                .build();
-        var verification = IdentityActionTokenEntity.builder()
-                .id(id)
-                .actionType(IdentityActionType.CONFIRM_EMAIL)
-                .identityUserChannel(channelEntity)
-                .createdAt(clock.instant().minus(Duration.ofMinutes(1)))
-                .expireAt(clock.instant().plus(Duration.ofHours(2)))
-                .build();
-        when(actionTokenRepository.findById(id)).thenReturn(Optional.of(verification));
-        when(channelRepository.save(channelEntity)).thenReturn(channelEntity);
-
-        assertThat(service.confirmEmail(id).success()).isTrue();
-
-        assertThat(channelEntity.getVerifiedAt()).isEqualTo(clock.instant());
-        assertThat(principal.getConsentToKeepPersonalDataAt()).isEqualTo(clock.instant());
-        verify(channelRepository).save(channelEntity);
-        verify(channelRepository).flush();
-        verify(actionTokenRepository).deleteById(id);
-    }
-
-    @Test
-    void confirmEmail_whenTelegramBotExistsAndPrincipalHasTelegramChannel_returnsNullBindTelegramUrl() {
-        var id = UUID.randomUUID();
+    void createBindTelegramUrlIfTelegramIsMissing_whenPrincipalHasTelegramChannel_returnsNull() {
         var user = IdentityUserEntity.builder()
                 .uniqueId(17L)
                 .build();
@@ -308,37 +277,19 @@ class IdentityActionTokenServiceTest {
                 .uniqueId(17L)
                 .type(IdentityPrincipalType.USER)
                 .build();
-        var channelEntity = IdentityUserChannelEntity.builder()
-                .uniqueId(7L)
-                .identityUser(user)
-                .channelType(IdentityChannelType.EMAIL)
-                .channelUserId("john@example.com")
-                .build();
-        var verification = IdentityActionTokenEntity.builder()
-                .id(id)
-                .actionType(IdentityActionType.CONFIRM_EMAIL)
-                .principal(principal)
-                .principalType(IdentityPrincipalType.USER)
-                .identityUserChannel(channelEntity)
-                .createdAt(clock.instant().minus(Duration.ofMinutes(1)))
-                .expireAt(clock.instant().plus(Duration.ofHours(2)))
-                .build();
-        when(actionTokenRepository.findById(id)).thenReturn(Optional.of(verification));
-        when(channelRepository.save(channelEntity)).thenReturn(channelEntity);
+        user.setPrincipal(principal);
         when(applicationService.findTelegramBotByUsername("Identityvgbot")).thenReturn(telegramBot());
         when(channelRepository.existsByIdentityUserUniqueIdAndChannelType(17L, IdentityChannelType.TELEGRAM_USER))
                 .thenReturn(true);
 
-        var result = service.confirmEmail(id);
+        var result = service.createBindTelegramUrlIfTelegramIsMissing(user);
 
-        assertThat(result.success()).isTrue();
-        assertThat(result.bindTelegramUrl()).isNull();
+        assertThat(result).isNull();
         verify(actionTokenRepository, never()).save(any(IdentityActionTokenEntity.class));
     }
 
     @Test
-    void confirmEmail_whenTelegramBotExistsAndPrincipalHasNoTelegramChannel_createsBindTelegramActionAndReturnsBindTelegramUrl() throws Exception {
-        var id = UUID.randomUUID();
+    void createBindTelegramUrlIfTelegramIsMissing_whenPrincipalHasNoTelegramChannel_createsActionAndReturnsUrl() throws Exception {
         var user = IdentityUserEntity.builder()
                 .uniqueId(17L)
                 .build();
@@ -346,23 +297,7 @@ class IdentityActionTokenServiceTest {
                 .uniqueId(17L)
                 .type(IdentityPrincipalType.USER)
                 .build();
-        var channelEntity = IdentityUserChannelEntity.builder()
-                .uniqueId(7L)
-                .identityUser(user)
-                .channelType(IdentityChannelType.EMAIL)
-                .channelUserId("john@example.com")
-                .build();
-        var verification = IdentityActionTokenEntity.builder()
-                .id(id)
-                .actionType(IdentityActionType.CONFIRM_EMAIL)
-                .principal(principal)
-                .principalType(IdentityPrincipalType.USER)
-                .identityUserChannel(channelEntity)
-                .createdAt(clock.instant().minus(Duration.ofMinutes(1)))
-                .expireAt(clock.instant().plus(Duration.ofHours(2)))
-                .build();
-        when(actionTokenRepository.findById(id)).thenReturn(Optional.of(verification));
-        when(channelRepository.save(channelEntity)).thenReturn(channelEntity);
+        user.setPrincipal(principal);
         when(applicationService.findTelegramBotByUsername("Identityvgbot")).thenReturn(telegramBot());
         when(channelRepository.existsByIdentityUserUniqueIdAndChannelType(17L, IdentityChannelType.TELEGRAM_USER))
                 .thenReturn(false);
@@ -376,10 +311,9 @@ class IdentityActionTokenServiceTest {
                     return entity;
                 });
 
-        var result = service.confirmEmail(id);
+        var result = service.createBindTelegramUrlIfTelegramIsMissing(user);
         var bindTelegramAction = savedBindTelegramAction.get();
 
-        assertThat(result.success()).isTrue();
         assertThat(bindTelegramAction.getId()).isNotNull();
         assertThat(bindTelegramAction.getActionType()).isEqualTo(IdentityActionType.BIND_TELEGRAM);
         assertThat(bindTelegramAction.getPrincipalType()).isEqualTo(IdentityPrincipalType.USER);
@@ -388,43 +322,13 @@ class IdentityActionTokenServiceTest {
         assertThat(bindTelegramAction.getPayload()).isEqualTo("{\"botUsername\":\"Identityvgbot\"}");
         assertThat(bindTelegramAction.getCreatedAt()).isEqualTo(clock.instant());
         assertThat(bindTelegramAction.getExpireAt()).isEqualTo(clock.instant().plus(Duration.ofHours(2)));
-        assertThat(result.bindTelegramUrl()).isEqualTo(
+        assertThat(result).isEqualTo(
                 url("https://t.me/identityvgbot?startapp=" + bindTelegramAction.getId())
         );
     }
 
     @Test
-    void confirmEmail_whenPrincipalConsentAlreadyExists_doesNotOverwriteConsent() {
-        var id = UUID.randomUUID();
-        var existingConsent = clock.instant().minus(Duration.ofDays(1));
-        var principal = IdentityUserEntity.builder()
-                .uniqueId(17L)
-                .consentToKeepPersonalDataAt(existingConsent)
-                .build();
-        var channelEntity = IdentityUserChannelEntity.builder()
-                .uniqueId(7L)
-                .identityUser(principal)
-                .channelType(IdentityChannelType.EMAIL)
-                .channelUserId("john@example.com")
-                .build();
-        var verification = IdentityActionTokenEntity.builder()
-                .id(id)
-                .actionType(IdentityActionType.CONFIRM_EMAIL)
-                .identityUserChannel(channelEntity)
-                .createdAt(clock.instant().minus(Duration.ofMinutes(1)))
-                .expireAt(clock.instant().plus(Duration.ofHours(2)))
-                .build();
-        when(actionTokenRepository.findById(id)).thenReturn(Optional.of(verification));
-        when(channelRepository.save(channelEntity)).thenReturn(channelEntity);
-
-        assertThat(service.confirmEmail(id).success()).isTrue();
-
-        assertThat(channelEntity.getVerifiedAt()).isEqualTo(clock.instant());
-        assertThat(principal.getConsentToKeepPersonalDataAt()).isEqualTo(existingConsent);
-    }
-
-    @Test
-    void confirmEmail_whenTokenTypeIsNotConfirmEmail_returnsFalse() {
+    void findConfirmEmailActionForUpdate_whenTokenTypeIsNotConfirmEmail_returnsNull() {
         var id = UUID.randomUUID();
         var channelEntity = IdentityUserChannelEntity.builder()
                 .uniqueId(7L)
@@ -438,29 +342,21 @@ class IdentityActionTokenServiceTest {
                 .createdAt(clock.instant().minus(Duration.ofMinutes(1)))
                 .expireAt(clock.instant().plus(Duration.ofHours(2)))
                 .build();
-        when(actionTokenRepository.findById(id)).thenReturn(Optional.of(token));
+        when(actionTokenRepository.findByIdForUpdate(id)).thenReturn(Optional.of(token));
 
-        assertThat(service.confirmEmail(id).success()).isFalse();
-
-        assertThat(channelEntity.getVerifiedAt()).isNull();
-        verify(channelRepository, never()).save(any(IdentityUserChannelEntity.class));
-        verify(channelRepository, never()).flush();
-        verify(actionTokenRepository, never()).deleteById(id);
+        assertThat(service.findConfirmEmailActionForUpdate(id)).isNull();
     }
 
     @Test
-    void confirmEmail_whenVerificationDoesNotExist_returnsFalse() {
+    void findConfirmEmailActionForUpdate_whenVerificationDoesNotExist_returnsNull() {
         var id = UUID.randomUUID();
-        when(actionTokenRepository.findById(id)).thenReturn(Optional.empty());
+        when(actionTokenRepository.findByIdForUpdate(id)).thenReturn(Optional.empty());
 
-        assertThat(service.confirmEmail(id).success()).isFalse();
-
-        verify(channelRepository, never()).save(any(IdentityUserChannelEntity.class));
-        verify(channelRepository, never()).flush();
+        assertThat(service.findConfirmEmailActionForUpdate(id)).isNull();
     }
 
     @Test
-    void confirmEmail_whenVerificationIsExpired_returnsFalse() {
+    void findConfirmEmailActionForUpdate_whenVerificationIsExpired_returnsNull() {
         var id = UUID.randomUUID();
         var channelEntity = IdentityUserChannelEntity.builder()
                 .uniqueId(7L)
@@ -474,13 +370,9 @@ class IdentityActionTokenServiceTest {
                 .createdAt(clock.instant().minus(Duration.ofHours(3)))
                 .expireAt(clock.instant())
                 .build();
-        when(actionTokenRepository.findById(id)).thenReturn(Optional.of(verification));
+        when(actionTokenRepository.findByIdForUpdate(id)).thenReturn(Optional.of(verification));
 
-        assertThat(service.confirmEmail(id).success()).isFalse();
-
-        assertThat(channelEntity.getVerifiedAt()).isNull();
-        verify(channelRepository, never()).save(any(IdentityUserChannelEntity.class));
-        verify(channelRepository, never()).flush();
+        assertThat(service.findConfirmEmailActionForUpdate(id)).isNull();
     }
 
     @Test
@@ -502,115 +394,6 @@ class IdentityActionTokenServiceTest {
         when(actionTokenRepository.findById(id)).thenReturn(Optional.of(verification));
 
         assertThat(service.findConfirmEmailActionInfo(id).userUniqueId()).isEqualTo(new UniqueId(17L));
-    }
-
-    @Test
-    void confirmEmailChannel_whenActionValid_verifiesChannelConsentsUserDeletesActionAndReturnsUserUniqueId() {
-        var id = UUID.randomUUID();
-        var user = IdentityUserEntity.builder()
-                .uniqueId(17L)
-                .build();
-        var channelEntity = IdentityUserChannelEntity.builder()
-                .uniqueId(7L)
-                .identityUser(user)
-                .channelType(IdentityChannelType.EMAIL)
-                .channelUserId("john@example.com")
-                .build();
-        var verification = IdentityActionTokenEntity.builder()
-                .id(id)
-                .actionType(IdentityActionType.CONFIRM_EMAIL)
-                .identityUserChannel(channelEntity)
-                .createdAt(clock.instant().minus(Duration.ofMinutes(1)))
-                .expireAt(clock.instant().plus(Duration.ofHours(2)))
-                .build();
-        when(actionTokenRepository.findById(id)).thenReturn(Optional.of(verification));
-        when(channelRepository.save(channelEntity)).thenReturn(channelEntity);
-
-        assertThat(service.confirmEmailChannel(id)).isEqualTo(new UniqueId(17L));
-
-        assertThat(channelEntity.getVerifiedAt()).isEqualTo(clock.instant());
-        assertThat(user.getConsentToKeepPersonalDataAt()).isEqualTo(clock.instant());
-        verify(channelRepository).save(channelEntity);
-        verify(channelRepository).flush();
-        verify(actionTokenRepository).deleteById(id);
-        verify(actionTokenRepository, never()).save(any(IdentityActionTokenEntity.class));
-    }
-
-    @Test
-    void confirmEmailChannel_whenUserAlreadyConsented_doesNotOverwriteConsent() {
-        var id = UUID.randomUUID();
-        var existingConsent = clock.instant().minus(Duration.ofDays(1));
-        var user = IdentityUserEntity.builder()
-                .uniqueId(17L)
-                .consentToKeepPersonalDataAt(existingConsent)
-                .build();
-        var channelEntity = IdentityUserChannelEntity.builder()
-                .uniqueId(7L)
-                .identityUser(user)
-                .channelType(IdentityChannelType.EMAIL)
-                .channelUserId("john@example.com")
-                .build();
-        var verification = IdentityActionTokenEntity.builder()
-                .id(id)
-                .actionType(IdentityActionType.CONFIRM_EMAIL)
-                .identityUserChannel(channelEntity)
-                .createdAt(clock.instant().minus(Duration.ofMinutes(1)))
-                .expireAt(clock.instant().plus(Duration.ofHours(2)))
-                .build();
-        when(actionTokenRepository.findById(id)).thenReturn(Optional.of(verification));
-        when(channelRepository.save(channelEntity)).thenReturn(channelEntity);
-
-        assertThat(service.confirmEmailChannel(id)).isEqualTo(new UniqueId(17L));
-
-        assertThat(user.getConsentToKeepPersonalDataAt()).isEqualTo(existingConsent);
-        verify(actionTokenRepository).deleteById(id);
-    }
-
-    @Test
-    void confirmEmailChannel_whenChannelHasNoUser_returnsNullAndDoesNotDeleteAction() {
-        var id = UUID.randomUUID();
-        var channelEntity = IdentityUserChannelEntity.builder()
-                .uniqueId(7L)
-                .channelType(IdentityChannelType.EMAIL)
-                .channelUserId("john@example.com")
-                .build();
-        var verification = IdentityActionTokenEntity.builder()
-                .id(id)
-                .actionType(IdentityActionType.CONFIRM_EMAIL)
-                .identityUserChannel(channelEntity)
-                .expireAt(clock.instant().plus(Duration.ofHours(2)))
-                .build();
-        when(actionTokenRepository.findById(id)).thenReturn(Optional.of(verification));
-
-        assertThat(service.confirmEmailChannel(id)).isNull();
-
-        verify(actionTokenRepository, never()).deleteById(id);
-    }
-
-    @Test
-    void confirmEmailChannel_whenActionMissing_returnsNull() {
-        var id = UUID.randomUUID();
-        when(actionTokenRepository.findById(id)).thenReturn(Optional.empty());
-
-        assertThat(service.confirmEmailChannel(id)).isNull();
-
-        verify(channelRepository, never()).save(any(IdentityUserChannelEntity.class));
-        verify(actionTokenRepository, never()).deleteById(id);
-    }
-
-    @Test
-    void confirmEmailChannel_whenActionIsNotConfirmEmail_returnsNull() {
-        var id = UUID.randomUUID();
-        var token = IdentityActionTokenEntity.builder()
-                .id(id)
-                .actionType(IdentityActionType.BIND_TELEGRAM)
-                .expireAt(clock.instant().plus(Duration.ofHours(2)))
-                .build();
-        when(actionTokenRepository.findById(id)).thenReturn(Optional.of(token));
-
-        assertThat(service.confirmEmailChannel(id)).isNull();
-
-        verify(actionTokenRepository, never()).deleteById(id);
     }
 
     @Test

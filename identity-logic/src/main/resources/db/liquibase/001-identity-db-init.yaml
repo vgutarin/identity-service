@@ -268,7 +268,7 @@ databaseChangeLog:
       author: vg
       changes:
         - createTable:
-            tableName: identity_workspace_user
+            tableName: identity_workspace_user_channel
             columns:
               - column:
                   name: workspace_unique_id
@@ -276,19 +276,19 @@ databaseChangeLog:
                   constraints:
                     nullable: false
                     primaryKey: true
-                    primaryKeyName: pk_identity_workspace_user
-                    foreignKeyName: fk_identity_workspace_user_to_workspace
+                    primaryKeyName: pk_identity_workspace_user_channel
+                    foreignKeyName: fk_identity_workspace_user_channel_to_workspace
                     referencedTableName: identity_workspace
                     referencedColumnNames: unique_id
               - column:
-                  name: user_unique_id
+                  name: user_channel_unique_id
                   type: BIGINT
                   constraints:
                     nullable: false
                     primaryKey: true
-                    primaryKeyName: pk_identity_workspace_user
-                    foreignKeyName: fk_identity_workspace_user_to_user
-                    referencedTableName: identity_user
+                    primaryKeyName: pk_identity_workspace_user_channel
+                    foreignKeyName: fk_identity_workspace_user_channel_to_user_channel
+                    referencedTableName: identity_user_channel
                     referencedColumnNames: unique_id
   - changeSet:
       id: 001-5
@@ -812,4 +812,3 @@ databaseChangeLog:
                   type: DATETIME
                   constraints:
                     nullable: false
-

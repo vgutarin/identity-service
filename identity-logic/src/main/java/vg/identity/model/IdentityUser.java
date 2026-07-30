@@ -24,6 +24,7 @@ public class IdentityUser implements IdentityPrincipal {
     private UniqueId uniqueId;
 
     private String username;
+    private String displayName;
     private String password;
     private Collection<? extends GrantedAuthority> authorities;
 

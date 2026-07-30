@@ -31,7 +31,8 @@ import static vg.utils.HibernateHelper.effectiveClass;
 /**
  * Represents the workspace.
  * Withing the workspace there are multiple applications that can be registered.
- * Users can be assigned to multiple workspaces.
+ * User channels can be assigned to multiple workspaces. A channel can be pending (not attached to a user yet),
+ * which lets a workspace represent an invitation before the recipient confirms it.
  */
 @NoArgsConstructor
 @AllArgsConstructor
@@ -68,11 +69,11 @@ public class IdentityWorkspaceEntity implements UniqueIdEntity {
     @Builder.Default
     @ManyToMany
     @JoinTable(
-            name = "identity_workspace_user",
+            name = "identity_workspace_user_channel",
             joinColumns = @JoinColumn(name = "workspace_unique_id"),
-            inverseJoinColumns = @JoinColumn(name = "user_unique_id")
+            inverseJoinColumns = @JoinColumn(name = "user_channel_unique_id")
     )
-    private Set<IdentityUserEntity> users = new HashSet<>();
+    private Set<IdentityUserChannelEntity> userChannels = new HashSet<>();
 
     @Override
     public final boolean equals(Object o) {

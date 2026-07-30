@@ -15,7 +15,9 @@ import com.vaadin.flow.server.auth.AnonymousAllowed;
 import lombok.extern.slf4j.Slf4j;
 import vg.identity.frontend.vaadin.service.LocalizationService;
 import vg.identity.frontend.vaadin.service.VaadinAuthenticationService;
+import vg.identity.frontend.vaadin.ui.CredentialsForm;
 import vg.identity.frontend.vaadin.ui.LocalePicker;
+import vg.identity.model.UserProvisioningDetails;
 import vg.identity.service.TelegramLoginService;
 
 /**
@@ -38,6 +40,8 @@ public class TelegramAuthView extends VerticalLayout implements HasDynamicTitle 
     private final Span result = new Span();
     private final Button retry;
     private Checkbox consent;
+    private CredentialsForm credentialsForm;
+    private boolean consentGranted;
 
     private String initData;
 
@@ -69,6 +73,8 @@ public class TelegramAuthView extends VerticalLayout implements HasDynamicTitle 
 
     private void requestTelegramInitData() {
         removeConsent();
+        removeCredentialsForm();
+        consentGranted = false;
         retry.setVisible(true);
         result.setText(i18n("telegram.auth.connecting"));
         UI.getCurrent().getPage().executeJs("""
@@ -86,13 +92,13 @@ public class TelegramAuthView extends VerticalLayout implements HasDynamicTitle 
             return;
         }
 
-        login(false);
+        login(false, null);
     }
 
-    private void login(boolean consentGranted) {
+    private void login(boolean consentGranted, UserProvisioningDetails provisioning) {
         TelegramLoginService.Result loginResult;
         try {
-            loginResult = loginService.login(initData, consentGranted);
+            loginResult = loginService.login(initData, consentGranted, provisioning);
         } catch (RuntimeException e) {
             log.error("Telegram login failed", e);
             showFailure();
@@ -103,12 +109,14 @@ public class TelegramAuthView extends VerticalLayout implements HasDynamicTitle 
             case AUTHENTICATED -> onAuthenticated(loginResult);
             case GREETING -> onGreeting(loginResult);
             case CONSENT_REQUIRED -> onConsentRequired();
+            case CREDENTIALS_REQUIRED -> onCredentialsRequired(loginResult);
             case FAILED -> showFailure();
         }
     }
 
     private void onAuthenticated(TelegramLoginService.Result loginResult) {
         removeConsent();
+        removeCredentialsForm();
         retry.setVisible(false);
 
         if (!authenticationService.authenticate(loginResult.user())) {
@@ -122,6 +130,7 @@ public class TelegramAuthView extends VerticalLayout implements HasDynamicTitle 
 
     private void onGreeting(TelegramLoginService.Result loginResult) {
         removeConsent();
+        removeCredentialsForm();
         retry.setVisible(false);
         result.setText(i18n("telegram.auth.greeting") + " " + loginResult.greetingName());
     }
@@ -140,13 +149,41 @@ public class TelegramAuthView extends VerticalLayout implements HasDynamicTitle 
                 return;
             }
             consent.setEnabled(false);
-            login(true);
+            consentGranted = true;
+            login(true, null);
         });
         add(consent);
     }
 
+    /**
+     * A brand-new user is being provisioned via a Telegram-carried email confirmation: collect the display
+     * name (prefilled from the Telegram profile) and a password, then retry the login with them. Consent has
+     * already been granted upstream, so the form does not repeat it.
+     */
+    private void onCredentialsRequired(TelegramLoginService.Result loginResult) {
+        removeConsent();
+        retry.setVisible(false);
+        result.setText(i18n("telegram.auth.credentials.required"));
+
+        if (credentialsForm != null) {
+            return;
+        }
+
+        credentialsForm = new CredentialsForm(
+                localization,
+                credentials -> login(consentGranted, new UserProvisioningDetails(
+                        credentials.displayName(),
+                        credentials.rawPassword(),
+                        consentGranted
+                ))
+        );
+        credentialsForm.setDisplayName(loginResult.suggestedDisplayName());
+        add(credentialsForm);
+    }
+
     private void showFailure() {
         removeConsent();
+        removeCredentialsForm();
         retry.setVisible(true);
         result.setText(i18n("telegram.auth.failed"));
     }
@@ -157,6 +194,14 @@ public class TelegramAuthView extends VerticalLayout implements HasDynamicTitle 
         }
         remove(consent);
         consent = null;
+    }
+
+    private void removeCredentialsForm() {
+        if (credentialsForm == null) {
+            return;
+        }
+        remove(credentialsForm);
+        credentialsForm = null;
     }
 
     private String i18n(String key) {
