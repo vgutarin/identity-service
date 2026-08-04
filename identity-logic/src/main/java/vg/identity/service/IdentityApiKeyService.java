@@ -18,12 +18,8 @@ import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.unique.id.model.UniqueId;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,9 +30,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Service
 public class IdentityApiKeyService {
-    private static final int SECRET_BYTES = 32;
+    private static final char ID_SECRET_SEPARATOR = '.';
     public static final int MAX_LABEL_LENGTH = 256;
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final IdentityApiKeyRepository apiKeyRepository;
     private final IdentityPrincipalRepository principalRepository;
@@ -49,15 +44,14 @@ public class IdentityApiKeyService {
         validateIssueRequest(label, expiresAt);
         assertApplicationExists(applicationUniqueId);
 
-        var rawSecret = new byte[SECRET_BYTES];
-        SECURE_RANDOM.nextBytes(rawSecret);
+        var rawSecret = OpaqueKey.newSecret();
         var id = UUID.randomUUID();
         var now = clock.instant();
         var entity = IdentityApiKeyEntity.builder()
                 .id(id)
                 .principal(principalRepository.getReferenceById(applicationUniqueId.getLongValue()))
                 .label(label.strip())
-                .secretHash(sha256(rawSecret))
+                .secretHash(OpaqueKey.sha256(rawSecret))
                 .createdAt(now)
                 .expiresAt(expiresAt)
                 .build();
@@ -94,7 +88,7 @@ public class IdentityApiKeyService {
     public Optional<IdentityApiKeyPrincipal> authenticate(String value) {
         return parse(value)
                 .flatMap(candidate -> apiKeyRepository.findById(candidate.id())
-                        .filter(apiKey -> MessageDigest.isEqual(apiKey.getSecretHash(), sha256(candidate.secret())))
+                        .filter(apiKey -> OpaqueKey.secretMatches(apiKey.getSecretHash(), candidate.secret()))
                         .filter(apiKey -> isActive(apiKey, clock.instant()))
                         .filter(apiKey -> applicationRepository.existsById(apiKey.getPrincipal().getUniqueId()))
                         .map(apiKey -> new IdentityApiKeyPrincipal(
@@ -137,34 +131,17 @@ public class IdentityApiKeyService {
     }
 
     private Optional<ApiKeyCandidate> parse(String value) {
-        if (!StringUtils.hasText(value)) {
-            return Optional.empty();
-        }
-
-        var separator = value.indexOf('.');
-        if (separator <= 0 || separator != value.lastIndexOf('.')) {
-            return Optional.empty();
-        }
-
-        try {
-            var id = UUID.fromString(value.substring(0, separator));
-            var secret = Base64.getUrlDecoder().decode(value.substring(separator + 1));
-            return secret.length == SECRET_BYTES ? Optional.of(new ApiKeyCandidate(id, secret)) : Optional.empty();
-        } catch (IllegalArgumentException ignored) {
-            return Optional.empty();
-        }
+        return OpaqueKey.parse(value, ID_SECRET_SEPARATOR).flatMap(parsed -> {
+            try {
+                return Optional.of(new ApiKeyCandidate(UUID.fromString(parsed.id()), parsed.secret()));
+            } catch (IllegalArgumentException ignored) {
+                return Optional.empty();
+            }
+        });
     }
 
     private String format(UUID id, byte[] rawSecret) {
-        return id + "." + Base64.getUrlEncoder().withoutPadding().encodeToString(rawSecret);
-    }
-
-    private byte[] sha256(byte[] value) {
-        try {
-            return MessageDigest.getInstance("SHA-256").digest(value);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is not available", e);
-        }
+        return OpaqueKey.format(id.toString(), ID_SECRET_SEPARATOR, rawSecret);
     }
 
     private record ApiKeyCandidate(UUID id, byte[] secret) {

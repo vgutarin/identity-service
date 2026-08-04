@@ -14,7 +14,6 @@ import vg.identity.repository.IdentityUserChannelRepository;
 
 import java.net.URI;
 import java.time.Clock;
-import java.util.UUID;
 
 /**
  * Executes the domain effects requested by action tokens.
@@ -38,8 +37,8 @@ public class IdentityActionTokenProcessorService {
     private final Clock clock;
 
     @Transactional
-    public ConfirmationResult confirmEmail(@NotNull UUID id) {
-        return confirmEmail(id, null);
+    public ConfirmationResult confirmEmail(@NotNull String actionKey) {
+        return confirmEmail(actionKey, null);
     }
 
     /**
@@ -48,8 +47,8 @@ public class IdentityActionTokenProcessorService {
      * an existing user is reused and the payload is ignored.
      */
     @Transactional
-    public ConfirmationResult confirmEmail(@NotNull UUID id, UserProvisioningDetails provisioning) {
-        var verification = actionTokenService.findConfirmEmailActionForUpdate(id);
+    public ConfirmationResult confirmEmail(@NotNull String actionKey, UserProvisioningDetails provisioning) {
+        var verification = actionTokenService.findConfirmEmailActionForUpdate(actionKey);
         if (verification == null) {
             return new ConfirmationResult(false, null);
         }
@@ -68,8 +67,8 @@ public class IdentityActionTokenProcessorService {
      * lazy, downstream mapping in the caller's transaction would fail with a {@code LazyInitializationException}.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public IdentityUserEntity confirmEmailWithTelegram(@NotNull UUID id, @NotNull TelegramUserPrincipal telegramUser) {
-        return confirmEmailWithTelegram(id, telegramUser, null);
+    public IdentityUserEntity confirmEmailWithTelegram(@NotNull String actionKey, @NotNull TelegramUserPrincipal telegramUser) {
+        return confirmEmailWithTelegram(actionKey, telegramUser, null);
     }
 
     /**
@@ -80,11 +79,11 @@ public class IdentityActionTokenProcessorService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public IdentityUserEntity confirmEmailWithTelegram(
-            @NotNull UUID id,
+            @NotNull String actionKey,
             @NotNull TelegramUserPrincipal telegramUser,
             UserProvisioningDetails provisioning
     ) {
-        var verification = actionTokenService.findConfirmEmailActionForUpdate(id);
+        var verification = actionTokenService.findConfirmEmailActionForUpdate(actionKey);
         if (verification == null) {
             return null;
         }
@@ -117,7 +116,7 @@ public class IdentityActionTokenProcessorService {
     }
 
     @Transactional
-    public void consumeAction(@NotNull UUID id) {
+    public void consumeAction(@NotNull Long id) {
         actionTokenService.consumeAction(id);
     }
 

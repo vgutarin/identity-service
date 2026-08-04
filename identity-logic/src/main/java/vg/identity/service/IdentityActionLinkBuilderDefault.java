@@ -3,7 +3,6 @@ package vg.identity.service;
 import vg.identity.IdentityActionTokenProperties;
 
 import java.net.URI;
-import java.util.UUID;
 
 /**
  * Default {@link IdentityActionLinkBuilder} used outside the Vaadin frontend (tests, non-web callers). Registered by
@@ -22,7 +21,7 @@ public class IdentityActionLinkBuilderDefault implements IdentityActionLinkBuild
     }
 
     @Override
-    public URI confirmationEmailUri(UUID actionId) {
-        return URI.create(properties.getVerifyEmailBaseUrl() + actionId);
+    public URI confirmationEmailUri(String actionKey) {
+        return URI.create(properties.getVerifyEmailBaseUrl() + actionKey);
     }
 }

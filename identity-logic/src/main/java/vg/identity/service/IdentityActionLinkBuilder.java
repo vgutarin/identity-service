@@ -1,7 +1,6 @@
 package vg.identity.service;
 
 import java.net.URI;
-import java.util.UUID;
 
 /**
  * Builds the external confirmation link embedded in identity action notifications.
@@ -17,7 +16,7 @@ public interface IdentityActionLinkBuilder {
 
     /**
      * Link that opens the email-verification page for the given action token, e.g.
-     * {@code https://identity.vg/verify/email/<actionId>}.
+     * {@code https://identity.vg/verify/email/<actionKey>}.
      */
-    URI confirmationEmailUri(UUID actionId);
+    URI confirmationEmailUri(String actionKey);
 }

@@ -10,7 +10,6 @@ import vg.identity.frontend.vaadin.auth.IdentityUserEmailVerificationView;
 import vg.identity.service.IdentityActionLinkBuilder;
 
 import java.net.URI;
-import java.util.UUID;
 
 /**
  * Frontend {@link IdentityActionLinkBuilder} that builds absolute links against this deployment's external public
@@ -31,10 +30,10 @@ public class IdentityActionLinkBuilderVaadin implements IdentityActionLinkBuilde
     }
 
     @Override
-    public URI confirmationEmailUri(UUID actionId) {
+    public URI confirmationEmailUri(String actionKey) {
         var route = RouteConfiguration.forApplicationScope().getUrl(
                 IdentityUserEmailVerificationView.class,
-                new RouteParameters(IdentityUserEmailVerificationView.ID_PARAM, actionId.toString())
+                new RouteParameters(IdentityUserEmailVerificationView.ID_PARAM, actionKey)
         );
         var base = StringUtils.trimTrailingCharacter(publicUrl, '/');
         return UriComponentsBuilder.fromUriString(base)

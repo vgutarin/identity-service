@@ -22,7 +22,6 @@ import vg.identity.service.IdentityActionTokenService;
 import vg.identity.service.IdentityActionTokenProcessorService;
 
 import java.net.URI;
-import java.util.UUID;
 
 @Slf4j
 @Route(value = "verify/email/:id?", autoLayout = false)
@@ -71,23 +70,14 @@ public class IdentityUserEmailVerificationView extends VerticalLayout implements
             return;
         }
 
-        UUID verificationId;
-        try {
-            verificationId = UUID.fromString(id);
-        } catch (IllegalArgumentException e) {
-            log.error("Error during email verification: ", e);
-            result.setText(i18n("email.verification.link.invalidOrExpired"));
-            return;
-        }
-
-        var confirmEmailInfo = actionTokenService.findConfirmEmailActionInfo(verificationId);
+        var confirmEmailInfo = actionTokenService.findConfirmEmailActionInfo(id);
         if (confirmEmailInfo == null) {
             result.setText(i18n("email.verification.link.invalidOrExpired"));
             return;
         }
 
         if (confirmEmailInfo.personalInformationConsentGiven()) {
-            verify(verificationId);
+            verify(confirmEmailInfo.actionKey());
             return;
         }
 
@@ -104,18 +94,18 @@ public class IdentityUserEmailVerificationView extends VerticalLayout implements
 
         provisioningForm = new CredentialsForm(
                 localization,
-                credentials -> submitProvisioning(info.id(), credentials)
+                credentials -> submitProvisioning(info.actionKey(), credentials)
         );
         provisioningForm.setDisplayName(info.suggestedDisplayName());
         add(provisioningForm);
     }
 
-    private void submitProvisioning(UUID verificationId, CredentialsForm.Credentials credentials) {
+    private void submitProvisioning(String actionKey, CredentialsForm.Credentials credentials) {
         removeBindTelegramSuggestion();
 
         try {
             var confirmEmailResult = actionTokenProcessorService.confirmEmail(
-                    verificationId,
+                    actionKey,
                     // Consent was granted in the preceding consent step before this form was shown.
                     new UserProvisioningDetails(credentials.displayName(), credentials.rawPassword(), true)
             );
@@ -164,16 +154,16 @@ public class IdentityUserEmailVerificationView extends VerticalLayout implements
             if (confirmEmailInfo.userUniqueId() == null) {
                 showProvisioningForm(confirmEmailInfo);
             } else {
-                verify(confirmEmailInfo.id());
+                verify(confirmEmailInfo.actionKey());
             }
         });
         add(consent);
     }
 
-    private void verify(UUID verificationId) {
+    private void verify(String actionKey) {
         removeBindTelegramSuggestion();
 
-        var confirmEmailResult = actionTokenProcessorService.confirmEmail(verificationId);
+        var confirmEmailResult = actionTokenProcessorService.confirmEmail(actionKey);
         if (confirmEmailResult.success()) {
             result.setText(i18n("email.verification.success"));
             showBindTelegramSuggestion(confirmEmailResult.bindTelegramUrl());

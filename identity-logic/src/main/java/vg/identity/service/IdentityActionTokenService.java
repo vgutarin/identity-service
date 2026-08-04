@@ -27,7 +27,6 @@ import java.net.URI;
 import java.time.Clock;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Issues and inspects short-lived identity action tokens.
@@ -43,6 +42,8 @@ import java.util.UUID;
 @Service
 @Validated
 public class IdentityActionTokenService {
+
+    private static final char ACTION_KEY_SEPARATOR = '_';
 
     private final IdentityActionTokenRepository actionTokenRepository;
     private final IdentityPrincipalRepository principalRepository;
@@ -97,9 +98,9 @@ public class IdentityActionTokenService {
             return;
         }
 
-        var id = UUID.randomUUID();
+        var rawSecret = OpaqueKey.newSecret();
         var verification = IdentityActionTokenEntity.builder()
-                .id(id)
+                .secretHash(OpaqueKey.sha256(rawSecret))
                 .actionType(IdentityActionType.CONFIRM_EMAIL)
                 .identityUserChannel(channelRepository.getReferenceById(channelUniqueId))
                 .createdAt(createdAt)
@@ -112,23 +113,24 @@ public class IdentityActionTokenService {
             );
         }
 
-        actionTokenRepository.save(verification);
+        var savedVerification = actionTokenRepository.save(verification);
+        var actionKey = formatActionKey(savedVerification.getId(), rawSecret);
         commandService.enqueue(
                 confirmEmailMailFactory.create(
                         channel.getEmail(),
-                        actionLinkBuilder.confirmationEmailUri(id),
-                        telegramConfirmUri(id)
+                        actionLinkBuilder.confirmationEmailUri(actionKey),
+                        telegramConfirmUri(actionKey)
                 )
         );
     }
 
     /**
      * Builds the preferred Telegram confirmation link for a {@code CONFIRM_EMAIL} action: the configured bot's
-     * URL with the action id as the {@code startapp} parameter, so opening it runs the Telegram login flow.
+     * URL with the action key as the {@code startapp} parameter, so opening it runs the Telegram login flow.
      *
      * @return the link, or {@code null} when no bot is configured or the configured bot is not registered.
      */
-    private URI telegramConfirmUri(UUID actionId) {
+    private URI telegramConfirmUri(String actionKey) {
         if (!StringUtils.hasText(telegramBotName)) {
             return null;
         }
@@ -138,26 +140,26 @@ public class IdentityActionTokenService {
             return null;
         }
 
-        return telegramDeepLink(telegramBot.uri(), actionId);
+        return telegramDeepLink(telegramBot.uri(), actionKey);
     }
 
     /**
-     * Builds the Telegram deep link for an action: the bot URL carrying the action id in the
-     * {@code startapp} parameter, e.g. {@code https://t.me/<bot>?startapp=<actionId>}. Kept internal to the
+     * Builds the Telegram deep link for an action: the bot URL carrying the action key in the
+     * {@code startapp} parameter, e.g. {@code https://t.me/<bot>?startapp=<actionKey>}. Kept internal to the
      * logic module, as it does not depend on the service's external public origin.
      */
-    private URI telegramDeepLink(URI telegramBotUri, UUID actionId) {
+    private URI telegramDeepLink(URI telegramBotUri, String actionKey) {
         return UriComponentsBuilder.fromUri(telegramBotUri)
-                .queryParam(properties.getTelegramStartAppParam(), actionId)
+                .queryParam(properties.getTelegramStartAppParam(), actionKey)
                 .build()
                 .toUri();
     }
 
-    public IdentityAction.ConfirmEmailInfo findConfirmEmailActionInfo(@NotNull UUID id) {
-        return findConfirmEmailActionTokenEntity(id)
+    public IdentityAction.ConfirmEmailInfo findConfirmEmailActionInfo(@NotNull String actionKey) {
+        return findConfirmEmailActionTokenEntity(actionKey)
                 .map(e ->
                         IdentityAction.ConfirmEmailInfo.builder()
-                                .id(e.getId())
+                                .actionKey(actionKey)
                                 .userUniqueId(identityUserUniqueId(e))
                                 .suggestedDisplayName(channelUserId(e))
                                 .personalInformationConsentGiven(
@@ -167,8 +169,8 @@ public class IdentityActionTokenService {
                 ).orElse(null);
     }
 
-    public IdentityAction.BindTelegramInfo findBindTelegramActionInfo(@NotNull UUID id) {
-        return findActionTokenEntity(id)
+    public IdentityAction.BindTelegramInfo findBindTelegramActionInfo(@NotNull String actionKey) {
+        return findActionTokenEntity(actionKey)
                 .filter(e -> e.getActionType() == IdentityActionType.BIND_TELEGRAM)
                 .filter(e -> e.getPrincipalType() == IdentityPrincipalType.USER)
                 .filter(e -> e.getPrincipal() != null)
@@ -186,26 +188,30 @@ public class IdentityActionTokenService {
                 .orElse(null);
     }
 
-    private Optional<IdentityActionTokenEntity> findActionTokenEntity(@NotNull UUID id) {
-        return actionTokenRepository.findById(id)
-                .filter(e -> e.getExpireAt().isAfter(clock.instant()));
+    private Optional<IdentityActionTokenEntity> findActionTokenEntity(@NotNull String actionKey) {
+        return parseActionKey(actionKey)
+                .flatMap(candidate -> actionTokenRepository.findById(candidate.id())
+                        .filter(e -> OpaqueKey.secretMatches(e.getSecretHash(), candidate.secret()))
+                        .filter(e -> e.getExpireAt().isAfter(clock.instant())));
     }
 
-    private Optional<IdentityActionTokenEntity> findConfirmEmailActionTokenEntity(@NotNull UUID id) {
-        return findActionTokenEntity(id)
+    private Optional<IdentityActionTokenEntity> findConfirmEmailActionTokenEntity(@NotNull String actionKey) {
+        return findActionTokenEntity(actionKey)
                 .filter(e -> e.getActionType() == IdentityActionType.CONFIRM_EMAIL);
     }
 
-    IdentityActionTokenEntity findConfirmEmailActionForUpdate(@NotNull UUID id) {
-        return actionTokenRepository.findByIdForUpdate(id)
-                .filter(action -> action.getActionType() == IdentityActionType.CONFIRM_EMAIL)
-                .filter(action -> action.getExpireAt().isAfter(clock.instant()))
-                .filter(action -> action.getIdentityUserChannel() != null)
-                .filter(action -> action.getIdentityUserChannel().getChannelType() == IdentityChannelType.EMAIL)
+    IdentityActionTokenEntity findConfirmEmailActionForUpdate(@NotNull String actionKey) {
+        return parseActionKey(actionKey)
+                .flatMap(candidate -> actionTokenRepository.findByIdForUpdate(candidate.id())
+                        .filter(action -> OpaqueKey.secretMatches(action.getSecretHash(), candidate.secret()))
+                        .filter(action -> action.getActionType() == IdentityActionType.CONFIRM_EMAIL)
+                        .filter(action -> action.getExpireAt().isAfter(clock.instant()))
+                        .filter(action -> action.getIdentityUserChannel() != null)
+                        .filter(action -> action.getIdentityUserChannel().getChannelType() == IdentityChannelType.EMAIL))
                 .orElse(null);
     }
 
-    void consumeAction(@NotNull UUID id) {
+    void consumeAction(@NotNull Long id) {
         actionTokenRepository.deleteById(id);
     }
 
@@ -248,11 +254,11 @@ public class IdentityActionTokenService {
         if (principal == null) {
             principal = principalRepository.getReferenceById(user.getUniqueId());
         }
-        var actionId = UUID.randomUUID();
+        var rawSecret = OpaqueKey.newSecret();
         var createdAt = clock.instant();
-        actionTokenRepository.save(
+        var action = actionTokenRepository.save(
                 IdentityActionTokenEntity.builder()
-                        .id(actionId)
+                        .secretHash(OpaqueKey.sha256(rawSecret))
                         .actionType(IdentityActionType.BIND_TELEGRAM)
                         .principalType(IdentityPrincipalType.USER)
                         .principal(principal)
@@ -261,7 +267,7 @@ public class IdentityActionTokenService {
                         .expireAt(createdAt.plus(properties.getExpiresIn()))
                         .build()
         );
-        return telegramDeepLink(telegramBot.uri(), actionId);
+        return telegramDeepLink(telegramBot.uri(), formatActionKey(action.getId(), rawSecret));
     }
 
     private String toPayload(TelegramBotToConfirm payload) {
@@ -282,5 +288,23 @@ public class IdentityActionTokenService {
         } catch (JacksonException e) {
             return null;
         }
+    }
+
+    private String formatActionKey(Long id, byte[] rawSecret) {
+        return OpaqueKey.format(String.valueOf(id), ACTION_KEY_SEPARATOR, rawSecret);
+    }
+
+    private Optional<ActionKey> parseActionKey(String value) {
+        return OpaqueKey.parse(value, ACTION_KEY_SEPARATOR).flatMap(parsed -> {
+            try {
+                var id = Long.parseLong(parsed.id());
+                return id > 0 ? Optional.of(new ActionKey(id, parsed.secret())) : Optional.empty();
+            } catch (NumberFormatException ignored) {
+                return Optional.empty();
+            }
+        });
+    }
+
+    private record ActionKey(long id, byte[] secret) {
     }
 }

@@ -8,7 +8,7 @@ import vg.identity.BaseIntegrationTest;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.model.UserProvisioningDetails;
 
-import java.util.UUID;
+import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,10 +35,10 @@ class IdentityActionTokenProcessorServiceIntegrationTest extends BaseIntegration
         var email = "user" + nextLong() + "@example.com";
 
         workspaceService.addUser(workspace.getUniqueId(), email);
-        var action = actionTokenRepository.findAll().getFirst();
+        var action = replaceWithKnownSecretAction(actionTokenRepository.findAll().getFirst());
 
         var result = actionTokenProcessorService.confirmEmail(
-                action.getId(),
+                actionKey(action.getId()),
                 new UserProvisioningDetails("Jane Doe", "Abcdefghi1", true)
         );
 
@@ -61,10 +61,10 @@ class IdentityActionTokenProcessorServiceIntegrationTest extends BaseIntegration
         var email = "user" + nextLong() + "@example.com";
 
         workspaceService.addUser(workspace.getUniqueId(), email);
-        var action = actionTokenRepository.findAll().getFirst();
+        var action = replaceWithKnownSecretAction(actionTokenRepository.findAll().getFirst());
 
         assertThatThrownBy(() -> actionTokenProcessorService.confirmEmail(
-                action.getId(),
+                actionKey(action.getId()),
                 new UserProvisioningDetails("Jane Doe", "weak", true)
         )).isInstanceOf(IllegalArgumentException.class);
 
@@ -78,10 +78,10 @@ class IdentityActionTokenProcessorServiceIntegrationTest extends BaseIntegration
         var email = "user" + nextLong() + "@example.com";
 
         workspaceService.addUser(workspace.getUniqueId(), email);
-        var action = actionTokenRepository.findAll().getFirst();
+        var action = replaceWithKnownSecretAction(actionTokenRepository.findAll().getFirst());
 
         assertThatThrownBy(() -> actionTokenProcessorService.confirmEmail(
-                action.getId(),
+                actionKey(action.getId()),
                 new UserProvisioningDetails("Jane Doe", "Abcdefghi1", false)
         )).isInstanceOf(IllegalArgumentException.class);
 
@@ -96,13 +96,39 @@ class IdentityActionTokenProcessorServiceIntegrationTest extends BaseIntegration
         var userEntity = userRepository.findById(user.getUniqueId().getLongValue()).orElseThrow();
         var channel = channelService.createEmailChannel("john@example.com", userEntity);
         actionTokenService.confirm(channel);
-        var verification = actionTokenRepository.findAll().getFirst();
+        var verification = replaceWithKnownSecretAction(actionTokenRepository.findAll().getFirst());
 
-        assertThat(actionTokenProcessorService.confirmEmail(UUID.randomUUID()).success()).isFalse();
-        assertThat(actionTokenProcessorService.confirmEmail(verification.getId()).success()).isTrue();
-        assertThat(actionTokenProcessorService.confirmEmail(verification.getId()).success()).isFalse();
+        assertThat(actionTokenProcessorService.confirmEmail("1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA").success()).isFalse();
+        assertThat(actionTokenProcessorService.confirmEmail(actionKey(verification.getId())).success()).isTrue();
+        assertThat(actionTokenProcessorService.confirmEmail(actionKey(verification.getId())).success()).isFalse();
 
         var channelEntity = channelRepository.findById(channel.getUniqueId().getLongValue()).orElseThrow();
         assertThat(channelEntity.getVerifiedAt()).isNotNull();
+    }
+
+    private vg.identity.entity.IdentityActionTokenEntity replaceWithKnownSecretAction(
+            vg.identity.entity.IdentityActionTokenEntity action
+    ) {
+        actionTokenRepository.delete(action);
+        return actionTokenRepository.save(
+                vg.identity.entity.IdentityActionTokenEntity.builder()
+                        .secretHash(OpaqueKey.sha256(rawSecret()))
+                        .actionType(action.getActionType())
+                        .principalType(action.getPrincipalType())
+                        .principal(action.getPrincipal())
+                        .identityUserChannel(action.getIdentityUserChannel())
+                        .payload(action.getPayload())
+                        .createdAt(action.getCreatedAt())
+                        .expireAt(action.getExpireAt())
+                        .build()
+        );
+    }
+
+    private static String actionKey(Long id) {
+        return id + "_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    }
+
+    private static byte[] rawSecret() {
+        return Base64.getUrlDecoder().decode("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     }
 }

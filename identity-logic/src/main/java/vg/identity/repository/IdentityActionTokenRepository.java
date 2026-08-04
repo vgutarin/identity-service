@@ -9,13 +9,12 @@ import vg.identity.model.IdentityActionType;
 
 import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
-public interface IdentityActionTokenRepository extends JpaRepository<IdentityActionTokenEntity, UUID> {
+public interface IdentityActionTokenRepository extends JpaRepository<IdentityActionTokenEntity, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select token from IdentityActionTokenEntity token where token.id = ?1")
-    Optional<IdentityActionTokenEntity> findByIdForUpdate(UUID id);
+    Optional<IdentityActionTokenEntity> findByIdForUpdate(Long id);
 
     boolean existsByActionTypeAndIdentityUserChannelUniqueIdAndCreatedAtGreaterThanEqual(
             IdentityActionType actionType,

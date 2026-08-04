@@ -13,7 +13,6 @@ import vg.identity.model.application.TelegramBot;
 import vg.identity.repository.IdentityUserRepository;
 
 import java.time.Clock;
-import java.util.UUID;
 
 /**
  * Drives the preliminary Telegram authentication flow used by the {@code verify/telegram} mini-app view.
@@ -92,30 +91,30 @@ public class TelegramLoginService {
      */
     @Transactional
     public Result login(String initData, boolean consentGranted, UserProvisioningDetails provisioning) {
-        var actionId = findActionId(initData);
-        if (actionId != null) {
-            return handleAction(actionId, initData, consentGranted, provisioning);
+        var actionKey = findActionKey(initData);
+        if (actionKey != null) {
+            return handleAction(actionKey, initData, consentGranted, provisioning);
         }
         return handleGreetingOrLogin(initData);
     }
 
     private Result handleAction(
-            UUID actionId,
+            String actionKey,
             String initData,
             boolean consentGranted,
             UserProvisioningDetails provisioning
     ) {
-        var confirmEmailInfo = actionTokenService.findConfirmEmailActionInfo(actionId);
+        var confirmEmailInfo = actionTokenService.findConfirmEmailActionInfo(actionKey);
         if (confirmEmailInfo != null) {
             return handleConfirmEmail(confirmEmailInfo, initData, consentGranted, provisioning);
         }
 
-        var bindInfo = actionTokenService.findBindTelegramActionInfo(actionId);
+        var bindInfo = actionTokenService.findBindTelegramActionInfo(actionKey);
         if (bindInfo != null) {
             return handleBindTelegram(bindInfo, initData, consentGranted);
         }
 
-        log.warn("No Telegram action found by id {}", actionId);
+        log.warn("No Telegram action found");
         return Result.failed();
     }
 
@@ -136,21 +135,21 @@ public class TelegramLoginService {
 
         var telegramUser = telegramAuthenticationService.parseUser(bot, initData).orElse(null);
         if (telegramUser == null) {
-            log.warn("Telegram init data is invalid for confirm-email action {}", info.id());
+            log.warn("Telegram init data is invalid for confirm-email action");
             return Result.failed();
         }
 
         IdentityUserEntity user;
         try {
-            user = actionTokenProcessorService.confirmEmailWithTelegram(info.id(), telegramUser, provisioning);
+            user = actionTokenProcessorService.confirmEmailWithTelegram(info.actionKey(), telegramUser, provisioning);
         } catch (IdentityActionTokenProcessorService.TelegramChannelConflictException e) {
-            log.warn("Telegram bind conflicted for confirm-email action {}", info.id());
+            log.warn("Telegram bind conflicted for confirm-email action");
             return Result.failed();
         } catch (IdentityActionTokenProcessorService.CredentialsRequiredException e) {
             return Result.credentialsRequired(telegramUser.displayName());
         }
         if (user == null) {
-            log.warn("Confirm-email action {} cannot resolve a single user", info.id());
+            log.warn("Confirm-email action cannot resolve a single user");
             return Result.failed();
         }
 
@@ -160,7 +159,7 @@ public class TelegramLoginService {
     private Result handleBindTelegram(IdentityAction.BindTelegramInfo info, String initData, boolean consentGranted) {
         var user = userRepository.findById(info.principal().getUniqueId()).orElse(null);
         if (user == null) {
-            log.warn("User {} is not found for bind-telegram action {}", info.principal().getUniqueId(), info.id());
+            log.warn("User {} is not found for bind-telegram action {}", info.principal().getUniqueId(), info.tokenId());
             return Result.failed();
         }
 
@@ -170,13 +169,13 @@ public class TelegramLoginService {
 
         var telegramUser = telegramAuthenticationService.parseUser(info.telegramBot(), initData).orElse(null);
         if (telegramUser == null) {
-            log.warn("Telegram init data is invalid for bind-telegram action {}", info.id());
+            log.warn("Telegram init data is invalid for bind-telegram action {}", info.tokenId());
             return Result.failed();
         }
 
         var bindResult = channelService.bindTelegramUser(telegramUser, user);
         if (bindResult != IdentityUserChannelService.TelegramBindResult.SUCCESS) {
-            log.warn("Telegram bind failed with {} for bind-telegram action {}", bindResult, info.id());
+            log.warn("Telegram bind failed with {} for bind-telegram action {}", bindResult, info.tokenId());
             return Result.failed();
         }
 
@@ -184,7 +183,7 @@ public class TelegramLoginService {
             user.setConsentToKeepPersonalDataAt(clock.instant());
             userRepository.save(user);
         }
-        actionTokenProcessorService.consumeAction(info.id());
+        actionTokenProcessorService.consumeAction(info.tokenId());
 
         return Result.authenticated(toAuthenticatedUser(info.telegramBot(), user));
     }
@@ -230,13 +229,8 @@ public class TelegramLoginService {
         return user;
     }
 
-    private UUID findActionId(String initData) {
-        try {
-            var startParam = telegramAuthenticationService.findStartParam(initData);
-            return startParam == null ? null : UUID.fromString(startParam);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
+    private String findActionKey(String initData) {
+        return telegramAuthenticationService.findStartParam(initData);
     }
 
     public record Result(Outcome outcome, IdentityUser user, String greetingName, String suggestedDisplayName) {

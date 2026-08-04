@@ -5,13 +5,11 @@ import vg.identity.entity.IdentityPrincipalEntity;
 import vg.identity.model.application.TelegramBot;
 import vg.unique.id.model.UniqueId;
 
-import java.util.UUID;
-
 public class IdentityAction {
 
     @Builder
     public record ConfirmEmailInfo(
-            UUID id,
+            String actionKey,
             UniqueId userUniqueId,
             String suggestedDisplayName,
             boolean personalInformationConsentGiven
@@ -19,7 +17,7 @@ public class IdentityAction {
     }
 
     public record BindTelegramInfo(
-            UUID id,
+            Long tokenId,
             TelegramBot telegramBot,
             IdentityPrincipalEntity principal
     ) {

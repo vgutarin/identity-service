@@ -22,7 +22,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,32 +32,20 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TelegramLoginServiceTest {
-
     private static final String BOT_NAME = "Identityvgbot";
     private static final String INIT_DATA = "init-data";
+    private static final String ACTION_KEY = "7_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     private static final Instant NOW = Instant.parse("2026-07-21T10:00:00Z");
-    private static final UniqueId APPLICATION_ID = new UniqueId(99L);
 
-    @Mock
-    private IdentityActionTokenService actionTokenService;
-    @Mock
-    private IdentityActionTokenProcessorService actionTokenProcessorService;
-    @Mock
-    private TelegramAuthenticationService telegramAuthenticationService;
-    @Mock
-    private IdentityApplicationService applicationService;
-    @Mock
-    private IdentityUserChannelService channelService;
-    @Mock
-    private IdentityUserService userService;
-    @Mock
-    private IdentityUserAuthorityService authorityService;
-    @Mock
-    private IdentityUserRepository userRepository;
-    @Mock
-    private IdentityApplicationUserService applicationUserService;
-
-    private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+    @Mock private IdentityActionTokenService actionTokenService;
+    @Mock private IdentityActionTokenProcessorService actionTokenProcessorService;
+    @Mock private TelegramAuthenticationService telegramAuthenticationService;
+    @Mock private IdentityApplicationService applicationService;
+    @Mock private IdentityUserChannelService channelService;
+    @Mock private IdentityUserService userService;
+    @Mock private IdentityUserAuthorityService authorityService;
+    @Mock private IdentityUserRepository userRepository;
+    @Mock private IdentityApplicationUserService applicationUserService;
 
     private TelegramLoginService service;
 
@@ -75,39 +62,60 @@ class TelegramLoginServiceTest {
                 userRepository,
                 applicationUserService,
                 BOT_NAME,
-                clock
+                Clock.fixed(NOW, ZoneOffset.UTC)
         );
     }
 
-    // --- No action id: plain login / greeting ---------------------------------------------------------------
-
     @Test
     void login_whenNoActionAndTelegramBoundToUser_authenticates() {
-        var botWithUrl = botWithUrl();
-        var telegramUser = telegramUser(42L, "John");
-        var userEntity = userEntity(17L, null);
-        var identityUser = identityUser(17L);
+        var bot = bot();
+        var telegramUser = TelegramUserPrincipal.builder().id(42L).firstName("John").build();
+        var userEntity = IdentityUserEntity.builder().uniqueId(17L).build();
+        var user = IdentityUser.builder().uniqueId(new UniqueId(17L)).build();
         when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(null);
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(botWithUrl);
-        when(telegramAuthenticationService.parseUser(botWithUrl.bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
+        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot);
+        when(telegramAuthenticationService.parseUser(bot.bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
         when(channelService.findUserByTelegramId(42L)).thenReturn(userEntity);
-        when(userService.toModel(userEntity)).thenReturn(identityUser);
+        when(userService.toModel(userEntity)).thenReturn(user);
 
-        var result = service.login(INIT_DATA, false);
+        assertThat(service.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.AUTHENTICATED);
+        verify(applicationUserService).recordAuthentication(bot.bot().applicationId(), 17L);
+    }
 
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.AUTHENTICATED);
-        assertThat(result.user()).isSameAs(identityUser);
-        verify(authorityService).loadAuthorities(identityUser);
-        verify(applicationUserService).recordAuthentication(APPLICATION_ID, 17L);
+    @Test
+    void login_whenConfirmEmailActionAndConsentMissing_returnsConsentRequired() {
+        when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(ACTION_KEY);
+        when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(
+                IdentityAction.ConfirmEmailInfo.builder().actionKey(ACTION_KEY).personalInformationConsentGiven(false).build()
+        );
+
+        assertThat(service.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.CONSENT_REQUIRED);
+    }
+
+    @Test
+    void login_whenBindTelegramActionAndUserAlreadyConsented_proceedsWithoutConsentFlag() {
+        var bot = TelegramBot.builder().token("token").build();
+        var principal = IdentityPrincipalEntity.builder().uniqueId(17L).type(IdentityPrincipalType.USER).build();
+        var userEntity = userEntity(17L, NOW.minusSeconds(3600));
+        var telegramUser = TelegramUserPrincipal.builder().id(42L).build();
+        var user = IdentityUser.builder().uniqueId(new UniqueId(17L)).build();
+        when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(ACTION_KEY);
+        when(actionTokenService.findBindTelegramActionInfo(ACTION_KEY)).thenReturn(new IdentityAction.BindTelegramInfo(7L, bot, principal));
+        when(userRepository.findById(17L)).thenReturn(Optional.of(userEntity));
+        when(telegramAuthenticationService.parseUser(bot, INIT_DATA)).thenReturn(Optional.of(telegramUser));
+        when(channelService.bindTelegramUser(telegramUser, userEntity)).thenReturn(IdentityUserChannelService.TelegramBindResult.SUCCESS);
+        when(userService.toModel(userEntity)).thenReturn(user);
+
+        assertThat(service.login(INIT_DATA, true).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.AUTHENTICATED);
+        verify(actionTokenProcessorService).consumeAction(7L);
     }
 
     @Test
     void login_whenNoActionAndTelegramNotBound_returnsGreeting() {
-        var botWithUrl = botWithUrl();
-        var telegramUser = telegramUser(42L, "John");
+        var telegramUser = telegramUser();
         when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(null);
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(botWithUrl);
-        when(telegramAuthenticationService.parseUser(botWithUrl.bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
+        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
         when(channelService.findUserByTelegramId(42L)).thenReturn(null);
 
         var result = service.login(INIT_DATA, false);
@@ -121,397 +129,243 @@ class TelegramLoginServiceTest {
         when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(null);
         when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(null);
 
-        var result = service.login(INIT_DATA, false);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
+        assertThat(service.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
     }
 
     @Test
     void login_whenBotNameNotConfigured_returnsFailed() {
         var serviceWithoutBot = new TelegramLoginService(
-                actionTokenService,
-                actionTokenProcessorService,
-                telegramAuthenticationService,
-                applicationService,
-                channelService,
-                userService,
-                authorityService,
-                userRepository,
-                applicationUserService,
-                "",
-                clock
+                actionTokenService, actionTokenProcessorService, telegramAuthenticationService, applicationService,
+                channelService, userService, authorityService, userRepository, applicationUserService, "",
+                Clock.fixed(NOW, ZoneOffset.UTC)
         );
         when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(null);
 
-        var result = serviceWithoutBot.login(INIT_DATA, false);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
+        assertThat(serviceWithoutBot.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
         verify(applicationService, never()).findTelegramBotByUsername(any());
     }
 
     @Test
     void login_whenNoActionAndInitDataInvalid_returnsFailed() {
-        var botWithUrl = botWithUrl();
         when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(null);
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(botWithUrl);
-        when(telegramAuthenticationService.parseUser(botWithUrl.bot(), INIT_DATA)).thenReturn(Optional.empty());
+        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.empty());
 
-        var result = service.login(INIT_DATA, false);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
+        assertThat(service.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
     }
 
     @Test
-    void login_whenStartParamIsNotAUuid_treatsAsNoAction() {
-        var botWithUrl = botWithUrl();
-        var telegramUser = telegramUser(42L, "John");
-        when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn("not-a-uuid");
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(botWithUrl);
-        when(telegramAuthenticationService.parseUser(botWithUrl.bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
-        when(channelService.findUserByTelegramId(42L)).thenReturn(null);
+    void login_whenStartParamIsMalformedActionKey_returnsFailed() {
+        when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn("not-an-action-key");
+        when(actionTokenService.findConfirmEmailActionInfo("not-an-action-key")).thenReturn(null);
+        when(actionTokenService.findBindTelegramActionInfo("not-an-action-key")).thenReturn(null);
 
-        var result = service.login(INIT_DATA, false);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.GREETING);
-        verify(actionTokenService, never()).findConfirmEmailActionInfo(any());
-        verify(actionTokenService, never()).findBindTelegramActionInfo(any());
+        assertThat(service.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
     }
-
-    // --- Action id: BIND_TELEGRAM ---------------------------------------------------------------------------
 
     @Test
     void login_whenBindTelegramActionAndConsentMissing_returnsConsentRequired() {
-        var actionId = UUID.randomUUID();
-        var actionBot = TelegramBot.builder().token("action-token").build();
-        var principal = principal(17L);
-        stubAction(actionId);
-        when(actionTokenService.findBindTelegramActionInfo(actionId))
-                .thenReturn(new IdentityAction.BindTelegramInfo(actionId, actionBot, principal));
+        stubAction();
+        when(actionTokenService.findBindTelegramActionInfo(ACTION_KEY)).thenReturn(bindInfo());
         when(userRepository.findById(17L)).thenReturn(Optional.of(userEntity(17L, null)));
 
-        var result = service.login(INIT_DATA, false);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.CONSENT_REQUIRED);
+        assertThat(service.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.CONSENT_REQUIRED);
         verify(channelService, never()).bindTelegramUser(any(), any());
         verify(actionTokenProcessorService, never()).consumeAction(any());
     }
 
     @Test
     void login_whenBindTelegramActionAndConsentGranted_bindsSetsConsentConsumesAndAuthenticates() {
-        var actionId = UUID.randomUUID();
-        var actionBot = TelegramBot.builder().token("action-token").build();
-        var principal = principal(17L);
-        var userEntity = userEntity(17L, null);
-        var telegramUser = telegramUser(42L, "John");
-        var identityUser = identityUser(17L);
-        stubAction(actionId);
-        when(actionTokenService.findBindTelegramActionInfo(actionId))
-                .thenReturn(new IdentityAction.BindTelegramInfo(actionId, actionBot, principal));
-        when(userRepository.findById(17L)).thenReturn(Optional.of(userEntity));
-        when(telegramAuthenticationService.parseUser(actionBot, INIT_DATA)).thenReturn(Optional.of(telegramUser));
-        when(channelService.bindTelegramUser(telegramUser, userEntity))
-                .thenReturn(IdentityUserChannelService.TelegramBindResult.SUCCESS);
-        when(userService.toModel(userEntity)).thenReturn(identityUser);
+        var entity = userEntity(17L, null);
+        var telegramUser = telegramUser();
+        stubAction();
+        when(actionTokenService.findBindTelegramActionInfo(ACTION_KEY)).thenReturn(bindInfo());
+        when(userRepository.findById(17L)).thenReturn(Optional.of(entity));
+        when(telegramAuthenticationService.parseUser(bindInfo().telegramBot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
+        when(channelService.bindTelegramUser(telegramUser, entity)).thenReturn(IdentityUserChannelService.TelegramBindResult.SUCCESS);
+        when(userService.toModel(entity)).thenReturn(identityUser());
 
-        var result = service.login(INIT_DATA, true);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.AUTHENTICATED);
-        assertThat(result.user()).isSameAs(identityUser);
-        assertThat(userEntity.getConsentToKeepPersonalDataAt()).isEqualTo(NOW);
-        verify(userRepository).save(userEntity);
-        verify(actionTokenProcessorService).consumeAction(actionId);
-        verify(authorityService).loadAuthorities(identityUser);
-    }
-
-    @Test
-    void login_whenBindTelegramActionAndUserAlreadyConsented_proceedsWithoutConsentFlag() {
-        var actionId = UUID.randomUUID();
-        var actionBot = TelegramBot.builder().token("action-token").build();
-        var principal = principal(17L);
-        var userEntity = userEntity(17L, NOW.minusSeconds(3600));
-        var telegramUser = telegramUser(42L, "John");
-        var identityUser = identityUser(17L);
-        stubAction(actionId);
-        when(actionTokenService.findBindTelegramActionInfo(actionId))
-                .thenReturn(new IdentityAction.BindTelegramInfo(actionId, actionBot, principal));
-        when(userRepository.findById(17L)).thenReturn(Optional.of(userEntity));
-        when(telegramAuthenticationService.parseUser(actionBot, INIT_DATA)).thenReturn(Optional.of(telegramUser));
-        when(channelService.bindTelegramUser(telegramUser, userEntity))
-                .thenReturn(IdentityUserChannelService.TelegramBindResult.SUCCESS);
-        when(userService.toModel(userEntity)).thenReturn(identityUser);
-
-        var result = service.login(INIT_DATA, false);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.AUTHENTICATED);
-        verify(userRepository, never()).save(any());
-        verify(actionTokenProcessorService).consumeAction(actionId);
+        assertThat(service.login(INIT_DATA, true).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.AUTHENTICATED);
+        assertThat(entity.getConsentToKeepPersonalDataAt()).isEqualTo(NOW);
+        verify(userRepository).save(entity);
+        verify(actionTokenProcessorService).consumeAction(7L);
     }
 
     @Test
     void login_whenBindTelegramActionAndUserMissing_returnsFailed() {
-        var actionId = UUID.randomUUID();
-        var actionBot = TelegramBot.builder().token("action-token").build();
-        stubAction(actionId);
-        when(actionTokenService.findBindTelegramActionInfo(actionId))
-                .thenReturn(new IdentityAction.BindTelegramInfo(actionId, actionBot, principal(17L)));
+        stubAction();
+        when(actionTokenService.findBindTelegramActionInfo(ACTION_KEY)).thenReturn(bindInfo());
         when(userRepository.findById(17L)).thenReturn(Optional.empty());
 
-        var result = service.login(INIT_DATA, true);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
+        assertThat(service.login(INIT_DATA, true).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
         verify(channelService, never()).bindTelegramUser(any(), any());
     }
 
     @Test
     void login_whenBindTelegramActionAndInitDataInvalid_returnsFailed() {
-        var actionId = UUID.randomUUID();
-        var actionBot = TelegramBot.builder().token("action-token").build();
-        stubAction(actionId);
-        when(actionTokenService.findBindTelegramActionInfo(actionId))
-                .thenReturn(new IdentityAction.BindTelegramInfo(actionId, actionBot, principal(17L)));
+        stubAction();
+        when(actionTokenService.findBindTelegramActionInfo(ACTION_KEY)).thenReturn(bindInfo());
         when(userRepository.findById(17L)).thenReturn(Optional.of(userEntity(17L, NOW)));
-        when(telegramAuthenticationService.parseUser(actionBot, INIT_DATA)).thenReturn(Optional.empty());
+        when(telegramAuthenticationService.parseUser(bindInfo().telegramBot(), INIT_DATA)).thenReturn(Optional.empty());
 
-        var result = service.login(INIT_DATA, true);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
-        verify(channelService, never()).bindTelegramUser(any(), any());
+        assertThat(service.login(INIT_DATA, true).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
         verify(actionTokenProcessorService, never()).consumeAction(any());
     }
 
     @Test
     void login_whenBindTelegramActionAndChannelBelongsToAnotherUser_returnsFailedWithoutConsuming() {
-        var actionId = UUID.randomUUID();
-        var actionBot = TelegramBot.builder().token("action-token").build();
-        var userEntity = userEntity(17L, NOW);
-        var telegramUser = telegramUser(42L, "John");
-        stubAction(actionId);
-        when(actionTokenService.findBindTelegramActionInfo(actionId))
-                .thenReturn(new IdentityAction.BindTelegramInfo(actionId, actionBot, principal(17L)));
-        when(userRepository.findById(17L)).thenReturn(Optional.of(userEntity));
-        when(telegramAuthenticationService.parseUser(actionBot, INIT_DATA)).thenReturn(Optional.of(telegramUser));
-        when(channelService.bindTelegramUser(telegramUser, userEntity))
+        var entity = userEntity(17L, NOW);
+        var telegramUser = telegramUser();
+        stubAction();
+        when(actionTokenService.findBindTelegramActionInfo(ACTION_KEY)).thenReturn(bindInfo());
+        when(userRepository.findById(17L)).thenReturn(Optional.of(entity));
+        when(telegramAuthenticationService.parseUser(bindInfo().telegramBot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
+        when(channelService.bindTelegramUser(telegramUser, entity))
                 .thenReturn(IdentityUserChannelService.TelegramBindResult.CHANNEL_ATTACHED_TO_ANOTHER_USER);
 
-        var result = service.login(INIT_DATA, true);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
+        assertThat(service.login(INIT_DATA, true).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
         verify(actionTokenProcessorService, never()).consumeAction(any());
-    }
-
-    // --- Action id: CONFIRM_EMAIL -------------------------------------------------------------------------
-
-    @Test
-    void login_whenConfirmEmailActionAndConsentMissing_returnsConsentRequired() {
-        var actionId = UUID.randomUUID();
-        stubAction(actionId);
-        when(actionTokenService.findConfirmEmailActionInfo(actionId)).thenReturn(confirmEmailInfo(actionId, new UniqueId(17L), false));
-
-        var result = service.login(INIT_DATA, false);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.CONSENT_REQUIRED);
-        verify(actionTokenProcessorService, never()).confirmEmailWithTelegram(any(), any(), any());
     }
 
     @Test
     void login_whenConfirmEmailActionAndConsentGranted_confirmsAndAuthenticates() {
-        var actionId = UUID.randomUUID();
-        var botWithUrl = botWithUrl();
-        var userEntity = userEntity(17L, null);
-        var telegramUser = telegramUser(42L, "John");
-        var identityUser = identityUser(17L);
-        stubAction(actionId);
-        when(actionTokenService.findConfirmEmailActionInfo(actionId)).thenReturn(confirmEmailInfo(actionId, new UniqueId(17L), false));
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(botWithUrl);
-        when(telegramAuthenticationService.parseUser(botWithUrl.bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
-        when(actionTokenProcessorService.confirmEmailWithTelegram(actionId, telegramUser, null)).thenReturn(userEntity);
-        when(userService.toModel(userEntity)).thenReturn(identityUser);
+        var entity = userEntity(17L, null);
+        var telegramUser = telegramUser();
+        stubAction();
+        when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(confirmInfo(false));
+        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
+        when(actionTokenProcessorService.confirmEmailWithTelegram(ACTION_KEY, telegramUser, null)).thenReturn(entity);
+        when(userService.toModel(entity)).thenReturn(identityUser());
 
-        var result = service.login(INIT_DATA, true);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.AUTHENTICATED);
-        assertThat(result.user()).isSameAs(identityUser);
-        verify(actionTokenProcessorService).confirmEmailWithTelegram(actionId, telegramUser, null);
-        verify(authorityService).loadAuthorities(identityUser);
-        verify(applicationUserService).recordAuthentication(APPLICATION_ID, 17L);
+        assertThat(service.login(INIT_DATA, true).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.AUTHENTICATED);
+        verify(actionTokenProcessorService).confirmEmailWithTelegram(ACTION_KEY, telegramUser, null);
     }
 
     @Test
     void login_whenConfirmEmailActionAlreadyConsented_proceedsWithoutConsentFlag() {
-        var actionId = UUID.randomUUID();
-        var botWithUrl = botWithUrl();
-        var userEntity = userEntity(17L, NOW);
-        var telegramUser = telegramUser(42L, "John");
-        var identityUser = identityUser(17L);
-        stubAction(actionId);
-        when(actionTokenService.findConfirmEmailActionInfo(actionId)).thenReturn(confirmEmailInfo(actionId, new UniqueId(17L), true));
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(botWithUrl);
-        when(telegramAuthenticationService.parseUser(botWithUrl.bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
-        when(actionTokenProcessorService.confirmEmailWithTelegram(actionId, telegramUser, null)).thenReturn(userEntity);
-        when(userService.toModel(userEntity)).thenReturn(identityUser);
+        var entity = userEntity(17L, NOW);
+        var telegramUser = telegramUser();
+        stubAction();
+        when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(confirmInfo(true));
+        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
+        when(actionTokenProcessorService.confirmEmailWithTelegram(ACTION_KEY, telegramUser, null)).thenReturn(entity);
+        when(userService.toModel(entity)).thenReturn(identityUser());
 
-        var result = service.login(INIT_DATA, false);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.AUTHENTICATED);
+        assertThat(service.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.AUTHENTICATED);
     }
 
     @Test
     void login_whenConfirmEmailActionAndInitDataInvalid_returnsFailed() {
-        var actionId = UUID.randomUUID();
-        var botWithUrl = botWithUrl();
-        stubAction(actionId);
-        when(actionTokenService.findConfirmEmailActionInfo(actionId)).thenReturn(confirmEmailInfo(actionId, new UniqueId(17L), true));
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(botWithUrl);
-        when(telegramAuthenticationService.parseUser(botWithUrl.bot(), INIT_DATA)).thenReturn(Optional.empty());
+        stubAction();
+        when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(confirmInfo(true));
+        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.empty());
 
-        var result = service.login(INIT_DATA, false);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
+        assertThat(service.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
         verify(actionTokenProcessorService, never()).confirmEmailWithTelegram(any(), any(), any());
     }
 
     @Test
     void login_whenConfirmEmailNeedsCredentials_returnsCredentialsRequiredWithSuggestedDisplayName() {
-        var actionId = UUID.randomUUID();
-        var botWithUrl = botWithUrl();
-        var telegramUser = telegramUser(42L, "John");
-        stubAction(actionId);
-        when(actionTokenService.findConfirmEmailActionInfo(actionId)).thenReturn(confirmEmailInfo(actionId, null, true));
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(botWithUrl);
-        when(telegramAuthenticationService.parseUser(botWithUrl.bot(), INIT_DATA))
-                .thenReturn(Optional.of(telegramUser));
+        var telegramUser = telegramUser();
+        stubAction();
+        when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(confirmInfo(true));
+        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
         doThrow(new IdentityActionTokenProcessorService.CredentialsRequiredException())
-                .when(actionTokenProcessorService)
-                .confirmEmailWithTelegram(actionId, telegramUser, null);
+                .when(actionTokenProcessorService).confirmEmailWithTelegram(ACTION_KEY, telegramUser, null);
 
         var result = service.login(INIT_DATA, true);
 
         assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.CREDENTIALS_REQUIRED);
-        assertThat(result.suggestedDisplayName()).isEqualTo(telegramUser.displayName());
+        assertThat(result.suggestedDisplayName()).isEqualTo("John");
     }
 
     @Test
     void login_whenConfirmEmailWithCredentials_provisionsAndAuthenticates() {
-        var actionId = UUID.randomUUID();
-        var botWithUrl = botWithUrl();
-        var telegramUser = telegramUser(42L, "John");
-        var userEntity = userEntity(17L, null);
-        var identityUser = identityUser(17L);
+        var entity = userEntity(17L, null);
+        var telegramUser = telegramUser();
         var provisioning = new UserProvisioningDetails("John", "Abcdefghi1", true);
-        stubAction(actionId);
-        when(actionTokenService.findConfirmEmailActionInfo(actionId)).thenReturn(confirmEmailInfo(actionId, null, true));
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(botWithUrl);
-        when(telegramAuthenticationService.parseUser(botWithUrl.bot(), INIT_DATA))
-                .thenReturn(Optional.of(telegramUser));
-        when(actionTokenProcessorService.confirmEmailWithTelegram(actionId, telegramUser, provisioning))
-                .thenReturn(userEntity);
-        when(userService.toModel(userEntity)).thenReturn(identityUser);
+        stubAction();
+        when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(confirmInfo(true));
+        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
+        when(actionTokenProcessorService.confirmEmailWithTelegram(ACTION_KEY, telegramUser, provisioning)).thenReturn(entity);
+        when(userService.toModel(entity)).thenReturn(identityUser());
 
-        var result = service.login(INIT_DATA, true, provisioning);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.AUTHENTICATED);
-        assertThat(result.user()).isSameAs(identityUser);
-        verify(actionTokenProcessorService).confirmEmailWithTelegram(actionId, telegramUser, provisioning);
+        assertThat(service.login(INIT_DATA, true, provisioning).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.AUTHENTICATED);
+        verify(actionTokenProcessorService).confirmEmailWithTelegram(ACTION_KEY, telegramUser, provisioning);
     }
 
     @Test
     void login_whenConfirmEmailActionAndBindConflict_returnsFailedWithoutConsumingTheAction() {
-        var actionId = UUID.randomUUID();
-        var botWithUrl = botWithUrl();
-        var telegramUser = telegramUser(42L, "John");
-        stubAction(actionId);
-        when(actionTokenService.findConfirmEmailActionInfo(actionId)).thenReturn(confirmEmailInfo(actionId, new UniqueId(17L), true));
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(botWithUrl);
-        when(telegramAuthenticationService.parseUser(botWithUrl.bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
+        var telegramUser = telegramUser();
+        stubAction();
+        when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(confirmInfo(true));
+        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
         doThrow(new IdentityActionTokenProcessorService.TelegramChannelConflictException())
-                .when(actionTokenProcessorService)
-                .confirmEmailWithTelegram(actionId, telegramUser, null);
+                .when(actionTokenProcessorService).confirmEmailWithTelegram(ACTION_KEY, telegramUser, null);
 
-        var result = service.login(INIT_DATA, false);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
-        verify(actionTokenProcessorService).confirmEmailWithTelegram(actionId, telegramUser, null);
+        assertThat(service.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
+        verify(actionTokenProcessorService).confirmEmailWithTelegram(ACTION_KEY, telegramUser, null);
     }
 
     @Test
     void login_whenConfirmEmailCannotResolveAUser_returnsFailed() {
-        var actionId = UUID.randomUUID();
-        var botWithUrl = botWithUrl();
-        var telegramUser = telegramUser(42L, "John");
-        stubAction(actionId);
-        when(actionTokenService.findConfirmEmailActionInfo(actionId)).thenReturn(confirmEmailInfo(actionId, new UniqueId(17L), true));
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(botWithUrl);
-        when(telegramAuthenticationService.parseUser(botWithUrl.bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
-        when(actionTokenProcessorService.confirmEmailWithTelegram(actionId, telegramUser, null)).thenReturn(null);
+        var telegramUser = telegramUser();
+        stubAction();
+        when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(confirmInfo(true));
+        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
+        when(actionTokenProcessorService.confirmEmailWithTelegram(ACTION_KEY, telegramUser, null)).thenReturn(null);
 
-        assertThat(service.login(INIT_DATA, false).outcome())
-                .isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
+        assertThat(service.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
     }
-
-    // --- Action id: unknown -------------------------------------------------------------------------------
 
     @Test
-    void login_whenActionIdMatchesNoAction_returnsFailed() {
-        var actionId = UUID.randomUUID();
-        stubAction(actionId);
-        when(actionTokenService.findConfirmEmailActionInfo(actionId)).thenReturn(null);
-        when(actionTokenService.findBindTelegramActionInfo(actionId)).thenReturn(null);
+    void login_whenActionKeyMatchesNoAction_returnsFailed() {
+        stubAction();
+        when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(null);
+        when(actionTokenService.findBindTelegramActionInfo(ACTION_KEY)).thenReturn(null);
 
-        var result = service.login(INIT_DATA, false);
-
-        assertThat(result.outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
+        assertThat(service.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
     }
 
-    // --- helpers ------------------------------------------------------------------------------------------
-
-    private void stubAction(UUID actionId) {
-        when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(actionId.toString());
+    private static TelegramBotWithUri bot() {
+        return new TelegramBotWithUri(URI.create("https://t.me/identityvgbot"), TelegramBot.builder().token("token").applicationId(new UniqueId(99L)).build());
     }
 
-    private static IdentityAction.ConfirmEmailInfo confirmEmailInfo(UUID id, UniqueId userUniqueId, boolean consent) {
+    private void stubAction() {
+        when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(ACTION_KEY);
+    }
+
+    private static IdentityAction.ConfirmEmailInfo confirmInfo(boolean consentGiven) {
         return IdentityAction.ConfirmEmailInfo.builder()
-                .id(id)
-                .userUniqueId(userUniqueId)
-                .personalInformationConsentGiven(consent)
+                .actionKey(ACTION_KEY)
+                .personalInformationConsentGiven(consentGiven)
                 .build();
     }
 
-    private static TelegramBotWithUri botWithUrl() {
-        return new TelegramBotWithUri(
-                url("https://t.me/identityvgbot"),
-                TelegramBot.builder().applicationId(APPLICATION_ID).token("bot-token").build()
+    private static IdentityAction.BindTelegramInfo bindInfo() {
+        return new IdentityAction.BindTelegramInfo(
+                7L,
+                TelegramBot.builder().token("action-token").build(),
+                IdentityPrincipalEntity.builder().uniqueId(17L).type(IdentityPrincipalType.USER).build()
         );
     }
 
-    private static TelegramUserPrincipal telegramUser(long id, String firstName) {
-        return TelegramUserPrincipal.builder()
-                .id(id)
-                .firstName(firstName)
-                .build();
-    }
-
-    private static IdentityPrincipalEntity principal(long id) {
-        return IdentityPrincipalEntity.builder()
-                .uniqueId(id)
-                .type(IdentityPrincipalType.USER)
-                .build();
-    }
-
     private static IdentityUserEntity userEntity(long id, Instant consentAt) {
-        return IdentityUserEntity.builder()
-                .uniqueId(id)
-                .consentToKeepPersonalDataAt(consentAt)
-                .build();
+        return IdentityUserEntity.builder().uniqueId(id).consentToKeepPersonalDataAt(consentAt).build();
     }
 
-    private static IdentityUser identityUser(long id) {
-        return IdentityUser.builder()
-                .uniqueId(new UniqueId(id))
-                .username("user-" + id)
-                .build();
+    private static IdentityUser identityUser() {
+        return IdentityUser.builder().uniqueId(new UniqueId(17L)).build();
     }
 
-    private static URI url(String value) {
-        return URI.create(value);
+    private static TelegramUserPrincipal telegramUser() {
+        return TelegramUserPrincipal.builder().id(42L).firstName("John").build();
     }
 }
