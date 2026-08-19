@@ -12,6 +12,7 @@ dependencyManagement {
 
 dependencies {
 	implementation project(":identity-logic")
+	implementation project(":identity-rest-server")
 
 	implementation "com.vaadin:vaadin-spring-boot-starter"
 	implementation "com.vaadin:vaadin-dev-server"

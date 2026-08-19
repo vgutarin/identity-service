@@ -97,6 +97,15 @@ public class IdentityApiKeyService {
                         )));
     }
 
+    /**
+     * Extracts the key id (the UUID portion) from a raw key value for audit logging, without exposing the
+     * secret. Returns empty when the value is absent or not in the expected {@code id.secret} form. The
+     * returned id is not a credential on its own.
+     */
+    public Optional<String> extractKeyId(String value) {
+        return parse(value).map(candidate -> candidate.id().toString());
+    }
+
     private void assertApplicationExists(UniqueId applicationUniqueId) {
         if (applicationUniqueId == null || !applicationRepository.existsById(applicationUniqueId.getLongValue())) {
             throw new EntityNotFoundException("exception.application.notFound");

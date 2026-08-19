@@ -26,6 +26,7 @@ import vg.identity.repository.IdentityUserChannelRepository;
 import vg.identity.repository.IdentityUserRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.identity.repository.IdentityWorkspaceScopeClaimDictionaryRepository;
+import vg.identity.app.IdentityApplication;
 import vg.identity.service.EncryptionService;
 import vg.test.containers.starters.Mysql8ContainerStarter;
 import vg.unique.id.service.UniqueIdService;

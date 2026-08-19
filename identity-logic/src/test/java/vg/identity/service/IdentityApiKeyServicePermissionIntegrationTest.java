@@ -24,7 +24,7 @@ class IdentityApiKeyServicePermissionIntegrationTest extends BaseIntegrationTest
                 "findForApplication(UniqueId)", "@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.READ + "')",
                 "revokeForApplication(UniqueId, UUID)", "@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.UPDATE + "')"
         );
-        var intentionallyUnsecuredMethods = Set.of("authenticate(String)");
+        var intentionallyUnsecuredMethods = Set.of("authenticate(String)", "extractKeyId(String)");
         var expectedPublicMethods = new HashSet<>(expectedExpressions.keySet());
         expectedPublicMethods.addAll(intentionallyUnsecuredMethods);
 

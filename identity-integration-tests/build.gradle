@@ -1,6 +1,6 @@
 dependencies {
     testImplementation project(":identity-logic")
-    testImplementation project(":identity-rest-service")
+    testImplementation project(":identity-rest-app")
     testImplementation project(":identity-rest-client")
 
     testImplementation "vg.lib:test:0.0.1-SNAPSHOT"

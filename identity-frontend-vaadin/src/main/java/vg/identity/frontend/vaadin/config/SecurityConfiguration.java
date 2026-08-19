@@ -5,6 +5,7 @@ import org.springframework.boot.security.autoconfigure.web.servlet.PathRequest;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationEventPublisher;
 import org.springframework.security.authentication.DefaultAuthenticationEventPublisher;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -17,7 +18,11 @@ import vg.identity.frontend.vaadin.auth.LoginView;
 @Configuration
 public class SecurityConfiguration {
 
+    // Lower precedence than the optional REST API chain (@Order(1) in identity-rest-server): when the REST
+    // API is enabled, /api/** is matched by the API-key chain first; this catch-all Vaadin chain handles
+    // everything else.
     @Bean
+    @Order(2)
     SecurityFilterChain securityFilterChain(HttpSecurity http) {
         /**
          * Delegating the responsibility of general configuration

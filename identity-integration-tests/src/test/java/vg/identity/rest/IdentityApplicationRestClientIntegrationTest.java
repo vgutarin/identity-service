@@ -10,7 +10,11 @@ import vg.unique.id.model.UniqueId;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.net.URI;
 import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HexFormat;
@@ -23,6 +27,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 class IdentityApplicationRestClientIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private IdentityApplicationApiRestClient restClient;
+
+    @Test
+    void me_whenApiKeyHeaderIsMissing_returnsUnauthorized() throws Exception {
+        createApplicationWithApiKey();
+
+        var response = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:8082/api/v1/applications/me"))
+                        .GET()
+                        .build(),
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        assertThat(response.statusCode()).isEqualTo(401);
+    }
 
     @Test
     void me_whenConfiguredApiKeyIsValid_returnsOnlyAuthenticatedApplicationMetadata() {
