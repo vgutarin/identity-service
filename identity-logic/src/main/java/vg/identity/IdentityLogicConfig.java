@@ -16,6 +16,7 @@ import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
 import vg.identity.service.IdentityActionLinkBuilder;
 import vg.identity.service.IdentityActionLinkBuilderDefault;
+import vg.identity.service.RequestRateLimiter;
 
 import java.time.Clock;
 import java.util.Map;
@@ -70,5 +71,15 @@ public class IdentityLogicConfig {
     @ConditionalOnMissingBean
     public IdentityActionLinkBuilder actionLinkBuilder(IdentityActionTokenProperties properties) {
         return new IdentityActionLinkBuilderDefault(properties);
+    }
+
+    /**
+     * Per-client rate limiter for the password-recovery request surface (FR-007a). Configured from
+     * {@code identity.action-token.reset-rate-limit.*} and the shared clock.
+     */
+    @Bean
+    public RequestRateLimiter passwordResetRequestRateLimiter(IdentityActionTokenProperties properties, Clock clock) {
+        var config = properties.getResetRateLimit();
+        return new RequestRateLimiter(config.getMaxRequests(), config.getWindow(), clock);
     }
 }

@@ -55,6 +55,9 @@ class IdentityActionTokenServiceTest {
     @Mock private IdentityCommandService commandService;
     @Mock private IdentityApplicationService applicationService;
     @Mock private ConfirmEmailMailFactory confirmEmailMailFactory;
+    @Mock private ResetPasswordMailFactory resetPasswordMailFactory;
+    @Mock private EncryptionService encryptionService;
+    @Mock private RequestRateLimiter passwordResetRequestRateLimiter;
     @Mock private ObjectMapper objectMapper;
 
     private IdentityActionTokenProperties properties;
@@ -75,6 +78,9 @@ class IdentityActionTokenServiceTest {
                 new IdentityActionLinkBuilderDefault(properties),
                 applicationService,
                 confirmEmailMailFactory,
+                resetPasswordMailFactory,
+                encryptionService,
+                passwordResetRequestRateLimiter,
                 objectMapper,
                 "Identityvgbot",
                 clock
@@ -323,6 +329,188 @@ class IdentityActionTokenServiceTest {
         assertThat(savedAction.get().getExpireAt()).isEqualTo(clock.instant().plus(Duration.ofHours(2)));
         assertThat(savedAction.get().getSecretHash()).hasSize(32);
         assertThat(url.toString()).matches("https://t\\.me/identityvgbot\\?startapp=7_[A-Za-z0-9_-]{43}");
+    }
+
+    @Test
+    void requestPasswordReset_whenVerifiedChannelWithUser_issuesResetTokenAndEnqueuesEmail() {
+        properties.setResetPasswordBaseUrl("https://example.com/reset/");
+        var user = IdentityUserEntity.builder().uniqueId(17L).build();
+        var channel = verifiedEmailChannel(user);
+        var hash = "hash".getBytes();
+        when(passwordResetRequestRateLimiter.tryAcquire("1.2.3.4")).thenReturn(true);
+        when(encryptionService.canonicalize("john@example.com")).thenReturn("john@example.com");
+        when(encryptionService.hashCaseSensitive("john@example.com")).thenReturn(hash);
+        when(channelRepository.findByChannelTypeAndChannelUserIdHash(eq(IdentityChannelType.EMAIL), eq(hash)))
+                .thenReturn(Optional.of(channel));
+        when(actionTokenRepository.existsByActionTypeAndIdentityUserChannelUniqueIdAndCreatedAtGreaterThanEqual(
+                IdentityActionType.RESET_PASSWORD, 7L, clock.instant().minus(Duration.ofMinutes(5))
+        )).thenReturn(false);
+        when(principalRepository.getReferenceById(17L)).thenReturn(IdentityPrincipalEntity.builder().uniqueId(17L).build());
+        when(channelRepository.getReferenceById(7L)).thenReturn(IdentityUserChannelEntity.builder().uniqueId(7L).build());
+        var saved = new AtomicReference<IdentityActionTokenEntity>();
+        when(actionTokenRepository.save(any(IdentityActionTokenEntity.class))).thenAnswer(invocation -> {
+            var token = invocation.getArgument(0, IdentityActionTokenEntity.class);
+            token.setId(7L);
+            saved.set(token);
+            return token;
+        });
+        var email = EmailMessage.builder().build();
+        when(resetPasswordMailFactory.create(any(), any())).thenReturn(email);
+
+        service.requestPasswordReset("john@example.com", "1.2.3.4");
+
+        assertThat(saved.get().getActionType()).isEqualTo(IdentityActionType.RESET_PASSWORD);
+        assertThat(saved.get().getPrincipalType()).isEqualTo(IdentityPrincipalType.USER);
+        assertThat(saved.get().getPrincipal().getUniqueId()).isEqualTo(17L);
+        assertThat(saved.get().getIdentityUserChannel().getUniqueId()).isEqualTo(7L);
+        assertThat(saved.get().getSecretHash()).hasSize(32);
+        assertThat(saved.get().getSecretHash()).isNotEqualTo(new byte[32]);
+        assertThat(saved.get().getPayload()).isNull();
+        assertThat(saved.get().getCreatedAt()).isEqualTo(clock.instant());
+        assertThat(saved.get().getExpireAt()).isEqualTo(clock.instant().plus(Duration.ofHours(2)));
+        var url = ArgumentCaptor.forClass(URI.class);
+        verify(resetPasswordMailFactory).create(eq("john@example.com"), url.capture());
+        assertThat(url.getValue().toString()).matches("https://example\\.com/reset/7_[A-Za-z0-9_-]{43}");
+        verify(commandService).enqueue(email);
+    }
+
+    @Test
+    void requestPasswordReset_whenRateLimited_issuesNothing() {
+        when(passwordResetRequestRateLimiter.tryAcquire("1.2.3.4")).thenReturn(false);
+
+        service.requestPasswordReset("john@example.com", "1.2.3.4");
+
+        verify(channelRepository, never()).findByChannelTypeAndChannelUserIdHash(any(), any());
+        verify(actionTokenRepository, never()).save(any());
+        verify(commandService, never()).enqueue(any());
+    }
+
+    @Test
+    void requestPasswordReset_whenEmailUnknown_issuesNothing() {
+        var hash = "hash".getBytes();
+        when(passwordResetRequestRateLimiter.tryAcquire("1.2.3.4")).thenReturn(true);
+        when(encryptionService.canonicalize("john@example.com")).thenReturn("john@example.com");
+        when(encryptionService.hashCaseSensitive("john@example.com")).thenReturn(hash);
+        when(channelRepository.findByChannelTypeAndChannelUserIdHash(eq(IdentityChannelType.EMAIL), eq(hash)))
+                .thenReturn(Optional.empty());
+
+        service.requestPasswordReset("john@example.com", "1.2.3.4");
+
+        verify(actionTokenRepository, never()).save(any());
+        verify(commandService, never()).enqueue(any());
+    }
+
+    @Test
+    void requestPasswordReset_whenChannelUnverified_issuesNothing() {
+        var channel = verifiedEmailChannel(IdentityUserEntity.builder().uniqueId(17L).build());
+        channel.setVerifiedAt(null);
+        var hash = "hash".getBytes();
+        when(passwordResetRequestRateLimiter.tryAcquire("1.2.3.4")).thenReturn(true);
+        when(encryptionService.canonicalize("john@example.com")).thenReturn("john@example.com");
+        when(encryptionService.hashCaseSensitive("john@example.com")).thenReturn(hash);
+        when(channelRepository.findByChannelTypeAndChannelUserIdHash(eq(IdentityChannelType.EMAIL), eq(hash)))
+                .thenReturn(Optional.of(channel));
+
+        service.requestPasswordReset("john@example.com", "1.2.3.4");
+
+        verify(actionTokenRepository, never()).save(any());
+        verify(commandService, never()).enqueue(any());
+    }
+
+    @Test
+    void requestPasswordReset_whenVerifiedChannelHasNoUser_issuesNothing() {
+        var channel = verifiedEmailChannel(null);
+        var hash = "hash".getBytes();
+        when(passwordResetRequestRateLimiter.tryAcquire("1.2.3.4")).thenReturn(true);
+        when(encryptionService.canonicalize("john@example.com")).thenReturn("john@example.com");
+        when(encryptionService.hashCaseSensitive("john@example.com")).thenReturn(hash);
+        when(channelRepository.findByChannelTypeAndChannelUserIdHash(eq(IdentityChannelType.EMAIL), eq(hash)))
+                .thenReturn(Optional.of(channel));
+
+        service.requestPasswordReset("john@example.com", "1.2.3.4");
+
+        verify(actionTokenRepository, never()).save(any());
+        verify(commandService, never()).enqueue(any());
+    }
+
+    @Test
+    void requestPasswordReset_whenWithinCooldown_issuesNothing() {
+        var channel = verifiedEmailChannel(IdentityUserEntity.builder().uniqueId(17L).build());
+        var hash = "hash".getBytes();
+        when(passwordResetRequestRateLimiter.tryAcquire("1.2.3.4")).thenReturn(true);
+        when(encryptionService.canonicalize("john@example.com")).thenReturn("john@example.com");
+        when(encryptionService.hashCaseSensitive("john@example.com")).thenReturn(hash);
+        when(channelRepository.findByChannelTypeAndChannelUserIdHash(eq(IdentityChannelType.EMAIL), eq(hash)))
+                .thenReturn(Optional.of(channel));
+        when(actionTokenRepository.existsByActionTypeAndIdentityUserChannelUniqueIdAndCreatedAtGreaterThanEqual(
+                IdentityActionType.RESET_PASSWORD, 7L, clock.instant().minus(Duration.ofMinutes(5))
+        )).thenReturn(true);
+
+        service.requestPasswordReset("john@example.com", "1.2.3.4");
+
+        verify(actionTokenRepository, never()).save(any());
+        verify(commandService, never()).enqueue(any());
+    }
+
+    @Test
+    void findResetPasswordActionInfo_whenValid_returnsInfoWithActionKey() {
+        when(actionTokenRepository.findById(7L)).thenReturn(Optional.of(token(7L, IdentityActionType.RESET_PASSWORD)));
+
+        var result = service.findResetPasswordActionInfo(actionKey(7L));
+
+        assertThat(result).isNotNull();
+        assertThat(result.actionKey()).isEqualTo(actionKey(7L));
+    }
+
+    @Test
+    void findResetPasswordActionInfo_whenTokenTypeIsNotResetPassword_returnsNull() {
+        when(actionTokenRepository.findById(7L)).thenReturn(Optional.of(token(7L, IdentityActionType.CONFIRM_EMAIL)));
+
+        assertThat(service.findResetPasswordActionInfo(actionKey(7L))).isNull();
+    }
+
+    @Test
+    void findResetPasswordActionInfo_whenKeyIsMalformed_returnsNullWithoutLookup() {
+        assertThat(service.findResetPasswordActionInfo("not-an-action-key")).isNull();
+
+        verify(actionTokenRepository, never()).findById(any());
+    }
+
+    @Test
+    void findResetPasswordActionForUpdate_whenValid_returnsLockedToken() {
+        var token = token(7L, IdentityActionType.RESET_PASSWORD);
+        token.setPrincipal(IdentityPrincipalEntity.builder().uniqueId(17L).build());
+        when(actionTokenRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(token));
+
+        assertThat(service.findResetPasswordActionForUpdate(actionKey(7L))).isSameAs(token);
+        verify(actionTokenRepository).findByIdForUpdate(7L);
+    }
+
+    @Test
+    void findResetPasswordActionForUpdate_whenPrincipalMissing_returnsNull() {
+        when(actionTokenRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(token(7L, IdentityActionType.RESET_PASSWORD)));
+
+        assertThat(service.findResetPasswordActionForUpdate(actionKey(7L))).isNull();
+    }
+
+    @Test
+    void findResetPasswordActionForUpdate_whenExpired_returnsNull() {
+        var token = token(7L, IdentityActionType.RESET_PASSWORD);
+        token.setPrincipal(IdentityPrincipalEntity.builder().uniqueId(17L).build());
+        token.setExpireAt(clock.instant());
+        when(actionTokenRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(token));
+
+        assertThat(service.findResetPasswordActionForUpdate(actionKey(7L))).isNull();
+    }
+
+    private static IdentityUserChannelEntity verifiedEmailChannel(IdentityUserEntity user) {
+        return IdentityUserChannelEntity.builder()
+                .uniqueId(7L)
+                .channelType(IdentityChannelType.EMAIL)
+                .channelUserId("john@example.com")
+                .identityUser(user)
+                .verifiedAt(Instant.parse("2026-07-07T17:00:00Z"))
+                .build();
     }
 
     private IdentityActionTokenEntity token(long id, IdentityActionType type) {

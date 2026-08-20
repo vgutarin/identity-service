@@ -157,6 +157,67 @@ class IdentityActionTokenProcessorServiceTest {
         verify(actionTokenService).consumeAction(7L);
     }
 
+    @Test
+    void resetPassword_whenValid_setsPasswordConsumesTokenAndReturnsUsername() {
+        var user = user(17L);
+        var channel = emailChannel(user);
+        when(actionTokenService.findResetPasswordActionForUpdate(ACTION_KEY)).thenReturn(resetToken(channel));
+
+        var result = service.resetPassword(ACTION_KEY, "Abcdefghi1");
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.username()).isEqualTo("john@example.com");
+        verify(userService).setPassword(user, "Abcdefghi1");
+        verify(actionTokenService).consumeAction(7L);
+    }
+
+    @Test
+    void resetPassword_whenPasswordWeak_throwsAndLeavesTokenUnconsumed() {
+        var channel = emailChannel(user(17L));
+        when(actionTokenService.findResetPasswordActionForUpdate(ACTION_KEY)).thenReturn(resetToken(channel));
+
+        assertThatThrownBy(() -> service.resetPassword(ACTION_KEY, "weak"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("exception.user.password.weak");
+
+        // Ordering contract (FR-008): weak password is rejected before any mutation or consume.
+        verify(userService, never()).setPassword(any(), any());
+        verify(actionTokenService, never()).consumeAction(any());
+    }
+
+    @Test
+    void resetPassword_whenTokenNotFound_returnsFailureAndDoesNothing() {
+        when(actionTokenService.findResetPasswordActionForUpdate(ACTION_KEY)).thenReturn(null);
+
+        var result = service.resetPassword(ACTION_KEY, "Abcdefghi1");
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.username()).isNull();
+        verify(userService, never()).setPassword(any(), any());
+        verify(actionTokenService, never()).consumeAction(any());
+    }
+
+    @Test
+    void resetPassword_whenChannelHasNoUser_returnsFailureWithoutSettingPassword() {
+        when(actionTokenService.findResetPasswordActionForUpdate(ACTION_KEY)).thenReturn(resetToken(emailChannel(null)));
+
+        var result = service.resetPassword(ACTION_KEY, "Abcdefghi1");
+
+        assertThat(result.success()).isFalse();
+        verify(userService, never()).setPassword(any(), any());
+        verify(actionTokenService, never()).consumeAction(any());
+    }
+
+    private static IdentityActionTokenEntity resetToken(IdentityUserChannelEntity channel) {
+        return IdentityActionTokenEntity.builder()
+                .id(7L)
+                .actionType(IdentityActionType.RESET_PASSWORD)
+                .identityUserChannel(channel)
+                .createdAt(NOW.minusSeconds(60))
+                .expireAt(NOW.plusSeconds(60))
+                .build();
+    }
+
     private static IdentityActionTokenEntity verification(IdentityUserChannelEntity channel) {
         return IdentityActionTokenEntity.builder()
                 .id(7L)

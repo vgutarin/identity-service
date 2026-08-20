@@ -19,6 +19,10 @@ import org.springframework.stereotype.Service;
  * in the HTTP session, so a subsequent full-page navigation is served as an authenticated request. Because we
  * bypass the {@code AuthenticationManager}, we also publish the {@code AuthenticationSuccessEvent} ourselves so
  * that success listeners fire exactly as they would for a form login.
+ * <p>
+ * The HTTP session id is rotated on login to defend against session fixation. Spring Security's form login
+ * does this automatically via its {@code SessionManagementFilter}; this programmatic path bypasses that
+ * filter, so the rotation is performed explicitly here.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -51,8 +55,12 @@ public class VaadinAuthenticationService {
             return false;
         }
 
-        request.getHttpServletRequest()
-                .getSession(true)
+        var httpRequest = request.getHttpServletRequest();
+        // Ensure a session exists, then rotate its id before storing the authenticated context, so a
+        // pre-login (possibly attacker-known) session id cannot outlive the login (session-fixation defense).
+        httpRequest.getSession(true);
+        httpRequest.changeSessionId();
+        httpRequest.getSession()
                 .setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
 
         authenticationEventPublisher.publishAuthenticationSuccess(authentication);

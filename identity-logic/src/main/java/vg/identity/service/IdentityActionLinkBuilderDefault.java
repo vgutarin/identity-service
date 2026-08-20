@@ -24,4 +24,9 @@ public class IdentityActionLinkBuilderDefault implements IdentityActionLinkBuild
     public URI confirmationEmailUri(String actionKey) {
         return URI.create(properties.getVerifyEmailBaseUrl() + actionKey);
     }
+
+    @Override
+    public URI resetPasswordUri(String actionKey) {
+        return URI.create(properties.getResetPasswordBaseUrl() + actionKey);
+    }
 }

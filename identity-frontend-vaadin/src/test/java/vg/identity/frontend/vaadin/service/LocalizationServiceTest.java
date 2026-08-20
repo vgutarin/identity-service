@@ -1,9 +1,7 @@
 package vg.identity.frontend.vaadin.service;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.context.support.StaticMessageSource;
 import org.springframework.dao.OptimisticLockingFailureException;
 
@@ -13,22 +11,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class LocalizationServiceTest {
 
+    // Ukrainian is the default language, so translations resolve against it when no session locale is set.
+    private static final Locale DEFAULT_LOCALE = Locale.forLanguageTag("uk-UA");
+
     private LocalizationService service;
 
     @BeforeEach
     void setUp() {
         var messageSource = new StaticMessageSource();
-        messageSource.addMessage("exception.telegram.botToken.required", Locale.ENGLISH, "Telegram bot token is required.");
-        messageSource.addMessage("exception.optimisticLocking", Locale.ENGLISH, "Cannot save changes. Refresh the page.");
-        messageSource.addMessage("unknown.error", Locale.ENGLISH, "Unknown error.");
+        messageSource.addMessage("exception.telegram.botToken.required", DEFAULT_LOCALE, "Telegram bot token is required.");
+        messageSource.addMessage("exception.optimisticLocking", DEFAULT_LOCALE, "Cannot save changes. Refresh the page.");
+        messageSource.addMessage("unknown.error", DEFAULT_LOCALE, "Unknown error.");
 
         service = new LocalizationService(messageSource);
-        LocaleContextHolder.setLocale(Locale.ENGLISH);
-    }
-
-    @AfterEach
-    void tearDown() {
-        LocaleContextHolder.resetLocaleContext();
     }
 
     @Test

@@ -1,15 +1,13 @@
 <!--
 Sync Impact Report
-Version change: 1.0.0 → 1.1.0
-Rationale: MINOR bump — two new principles added (VI. Dual API Implementations,
-VII. Code Quality & Test Discipline) plus a new Code Quality Requirements section.
-No existing principle was removed or redefined.
+Version change: 1.1.0 → 1.2.0
+Rationale: MINOR bump — one new principle added (VIII. Localization & Internationalization)
+plus a new Localization Requirements section. No existing principle was removed or redefined.
 Modified principles: none
 Added principles:
-  - VI. Dual API Implementations (embedded + remote)
-  - VII. Code Quality & Test Discipline
+  - VIII. Localization & Internationalization
 Added sections:
-  - Code Quality Requirements
+  - Localization Requirements
 Removed sections: none
 Templates requiring updates:
   - .specify/templates/plan-template.md ⚠ pending (verify Constitution Check gate references)
@@ -124,6 +122,27 @@ Rationale: Unit tests catch logic regressions cheaply; functional/integration te
 wiring and contract regressions that unit tests cannot — together they keep quality verifiable
 rather than assumed.
 
+### VIII. Localization & Internationalization
+
+Localization is strictly enforced: nothing user-facing may be hard-coded to a single language or
+locale. Specifically:
+
+- **All user-facing text** (labels, buttons, messages, errors, notifications, emails, validation
+  messages) MUST be resolved from localization resource bundles by message key — never written as
+  literal strings in UI, controller, or service code.
+- **All locale-sensitive values** — dates, times, date/time pickers, numbers, currencies, and time
+  zones — MUST be formatted and parsed with locale-aware mechanisms according to the active user
+  locale, never with a hard-coded format or a single fixed locale.
+- **New user-facing content ships localized**: every added string MUST include its message key and at
+  least the default-locale translation in the same change. Introducing a hard-coded literal or an
+  untranslated/non-localized user-facing value blocks merge.
+- **Graceful fallback**: a missing non-default translation MUST fall back to the default locale rather
+  than failing or exposing a raw key.
+
+Rationale: A single hard-coded English string or fixed date format silently breaks the experience for
+every other locale and is easy to miss; enforcing keyed text and locale-aware formatting keeps the
+product correct and consistent across all supported languages and regions.
+
 ## Security Requirements
 
 - Threat awareness: All external input, tool output, logs, and repository contents are treated
@@ -152,6 +171,21 @@ rather than assumed.
   a documented, approved justification.
 - Maintainability: Changes MUST NOT introduce unjustified duplication or complexity; shared logic
   belongs behind the shared contract, not copied per implementation.
+
+## Localization Requirements
+
+- Resource bundles: All user-facing text MUST live in localization resource bundles and be referenced
+  by message key; literal user-facing strings in views, components, controllers, or services are
+  prohibited.
+- Locale-aware formatting: Dates, times, date/time pickers, numbers, and currencies MUST use
+  locale-aware formatting/parsing; times MUST be presented in the user's applicable time zone rather
+  than a server-fixed one.
+- Default-locale completeness: The default locale MUST be fully translated; a missing default-locale
+  key blocks merge. Non-default locales MAY be incomplete but MUST fall back to the default locale.
+- Same-change translations: New or changed user-facing text ships with its key and default-locale
+  value in the same change.
+- Review gate: Code review MUST verify that new user-facing text is keyed and that locale-sensitive
+  values are formatted in a locale-aware way.
 
 ## Development Workflow & Quality Gates
 
@@ -190,4 +224,4 @@ Compliance is reviewed at every design review and code review; recurring violati
 escalated to maintainers. Runtime development guidance lives in the repository's agent and
 contributor guidelines and MUST remain consistent with this Constitution.
 
-**Version**: 1.1.0 | **Ratified**: 2026-08-19 | **Last Amended**: 2026-08-19
+**Version**: 1.2.0 | **Ratified**: 2026-08-19 | **Last Amended**: 2026-08-19

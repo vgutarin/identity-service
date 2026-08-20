@@ -6,7 +6,6 @@ import com.vaadin.flow.i18n.I18NProvider;
 import com.vaadin.flow.server.VaadinSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -121,6 +120,8 @@ public class LocalizationService implements I18NProvider {
     }
 
     private Locale currentLocale() {
+        // Ukrainian is the default language: fall back to it unless the user has explicitly chosen a
+        // language for this session (stored by setCurrentLocale), rather than following the browser locale.
         var session = VaadinSession.getCurrent();
         if (null != session) {
             var sessionLocale = session.getAttribute(Locale.class);
@@ -129,11 +130,7 @@ public class LocalizationService implements I18NProvider {
             }
         }
 
-        var ui = UI.getCurrent();
-        if (null != ui && null != ui.getLocale()) {
-            return ui.getLocale();
-        }
-        return normalizeLocale(LocaleContextHolder.getLocale());
+        return DEFAULT_LOCALE;
     }
 
     private Locale normalizeLocale(Locale locale) {

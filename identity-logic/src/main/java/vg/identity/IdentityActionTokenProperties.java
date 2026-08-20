@@ -17,6 +17,9 @@ public class IdentityActionTokenProperties {
     @NotBlank
     private String verifyEmailBaseUrl = "/verify/email/";
 
+    @NotBlank
+    private String resetPasswordBaseUrl = "/reset/password/";
+
     @NotNull
     private Duration expiresIn = Duration.ofDays(1);
 
@@ -25,4 +28,22 @@ public class IdentityActionTokenProperties {
 
     @NotBlank
     private String telegramStartAppParam = "startapp";
+
+    @NotNull
+    private ResetRateLimit resetRateLimit = new ResetRateLimit();
+
+    /**
+     * Per-IP/client rate limit for the password-recovery request surface (FR-007a), on top of the
+     * per-email {@link #requestCooldown}. Bounds how many recovery requests a single client may make in a
+     * window, so the endpoint cannot be used to email-bomb many addresses or probe for accounts.
+     */
+    @Getter
+    @Setter
+    public static class ResetRateLimit {
+        @NotNull
+        private Integer maxRequests = 10;
+
+        @NotNull
+        private Duration window = Duration.ofMinutes(10);
+    }
 }

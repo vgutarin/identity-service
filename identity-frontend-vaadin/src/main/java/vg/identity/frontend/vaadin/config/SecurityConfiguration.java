@@ -11,7 +11,10 @@ import org.springframework.security.authentication.DefaultAuthenticationEventPub
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.session.HttpSessionEventPublisher;
 import vg.identity.frontend.vaadin.auth.LoginView;
 
 @EnableWebSecurity
@@ -23,7 +26,7 @@ public class SecurityConfiguration {
     // everything else.
     @Bean
     @Order(2)
-    SecurityFilterChain securityFilterChain(HttpSecurity http) {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, SessionRegistry sessionRegistry) {
         /**
          * Delegating the responsibility of general configuration
          * of HTTP security to the VaadinSecurityConfigurer.
@@ -56,6 +59,13 @@ public class SecurityConfiguration {
 
         http.headers(headers -> headers
                 .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
+        );
+
+        // Track authenticated sessions per principal so the password-reset flow can expire a user's other
+        // sessions after a reset (FR-014). Unlimited concurrent sessions; registration is the point.
+        http.sessionManagement(session -> session
+                .maximumSessions(-1)
+                .sessionRegistry(sessionRegistry)
         );
 
         http.with(VaadinSecurityConfigurer.vaadin(), configurer -> {
@@ -102,6 +112,24 @@ public class SecurityConfiguration {
     public AuthenticationEventPublisher authenticationEventPublisher
         (ApplicationEventPublisher applicationEventPublisher) {
         return new DefaultAuthenticationEventPublisher(applicationEventPublisher);
+    }
+
+    /**
+     * Tracks active sessions per principal. Used by the password-reset flow to expire a user's other
+     * sessions after their password changes (FR-014). In-memory / per-instance, matching the current
+     * single-instance deployment (see research.md).
+     */
+    @Bean
+    public SessionRegistry sessionRegistry() {
+        return new SessionRegistryImpl();
+    }
+
+    /**
+     * Publishes {@code HttpSessionDestroyedEvent}s so {@link SessionRegistryImpl} prunes ended sessions.
+     */
+    @Bean
+    public HttpSessionEventPublisher httpSessionEventPublisher() {
+        return new HttpSessionEventPublisher();
     }
 
 //    @Override

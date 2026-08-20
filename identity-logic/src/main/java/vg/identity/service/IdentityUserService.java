@@ -95,6 +95,19 @@ public class IdentityUserService implements UserDetailsService {
     }
 
 
+    /**
+     * Sets a new password on the given user entity, encoding it with the configured one-way {@code argon2}
+     * encoder and persisting immediately. Used by the password-recovery/reset flow, which authorizes the
+     * change via a single-use action token rather than the caller's own authority (so this is intentionally
+     * not {@code @PreAuthorize}-guarded and is package-private). Callers MUST validate password strength
+     * (e.g. {@link PasswordPolicy#requireStrong}) before invoking; this method only encodes and stores.
+     */
+    void setPassword(IdentityUserEntity entity, String rawPassword) {
+        entity.setPassword(passwordEncoder.encode(rawPassword));
+        repository.save(entity);
+        repository.flush();
+    }
+
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(@NonNull String username) throws UsernameNotFoundException {

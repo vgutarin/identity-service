@@ -19,4 +19,15 @@ public interface IdentityActionLinkBuilder {
      * {@code https://identity.vg/verify/email/<actionKey>}.
      */
     URI confirmationEmailUri(String actionKey);
+
+    /**
+     * Link that opens the password-reset page for the given action token, e.g.
+     * {@code https://identity.vg/reset/password/<actionKey>}.
+     * <p>
+     * Like {@link #confirmationEmailUri(String)} this is deliberately abstract: the host-relative
+     * {@link IdentityActionLinkBuilderDefault} serves tests/non-web callers, while the Vaadin frontend
+     * supplies an absolute link. A missing implementation is a compile error, not a silent host-relative
+     * link in an email.
+     */
+    URI resetPasswordUri(String actionKey);
 }

@@ -1,6 +1,8 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version "${spring_boot_version}"
+    // Applied to subprojects below (not to this aggregator root, which has no main class and must not
+    // produce an executable bootJar). `apply false` keeps the versioned plugin available on the classpath.
+    id 'org.springframework.boot' version "${spring_boot_version}" apply false
     id 'io.spring.dependency-management' version "${spring_dependency_management_version}"
 }
 
@@ -37,6 +39,15 @@ subprojects {
         useJUnitPlatform()
         testLogging {
             events "PASSED", "SKIPPED", "FAILED", "STANDARD_OUT", "STANDARD_ERROR"
+        }
+    }
+
+    // Only the runnable application modules produce an executable bootJar. Library modules publish a plain
+    // jar (consumable as a project dependency) and skip bootJar, which would otherwise fail the build with
+    // "Main class name has not been configured". The plain `jar` stays enabled everywhere for project deps.
+    plugins.withId("org.springframework.boot") {
+        tasks.named("bootJar") {
+            enabled = project.name in ["identity-rest-app", "identity-frontend-vaadin"]
         }
     }
 

@@ -13,13 +13,17 @@ class IdentityActionTypeTest {
 
         assertThat(IdentityActionType.BIND_TELEGRAM.name()).isEqualTo("BIND_TELEGRAM");
         assertThat(IdentityActionType.BIND_TELEGRAM.ordinal()).isEqualTo(1);
+
+        assertThat(IdentityActionType.RESET_PASSWORD.name()).isEqualTo("RESET_PASSWORD");
+        assertThat(IdentityActionType.RESET_PASSWORD.ordinal()).isEqualTo(2);
     }
 
     @Test
     void values_whenCalled_returnsExpectedOrder() {
         assertThat(IdentityActionType.values()).containsExactly(
                 IdentityActionType.CONFIRM_EMAIL,
-                IdentityActionType.BIND_TELEGRAM
+                IdentityActionType.BIND_TELEGRAM,
+                IdentityActionType.RESET_PASSWORD
         );
     }
 }

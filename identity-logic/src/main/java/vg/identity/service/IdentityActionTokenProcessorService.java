@@ -2,12 +2,14 @@ package vg.identity.service;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import vg.identity.entity.IdentityActionTokenEntity;
 import vg.identity.entity.IdentityUserChannelEntity;
 import vg.identity.entity.IdentityUserEntity;
+import vg.identity.model.PasswordPolicy;
 import vg.identity.model.TelegramUserPrincipal;
 import vg.identity.model.UserProvisioningDetails;
 import vg.identity.repository.IdentityUserChannelRepository;
@@ -26,6 +28,7 @@ import java.time.Clock;
  * processor owns the transactional business workflow around those records, so issuing an action never creates
  * a dependency on the user or channel services needed to process it.
  */
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class IdentityActionTokenProcessorService {
@@ -115,6 +118,38 @@ public class IdentityActionTokenProcessorService {
         return user;
     }
 
+    /**
+     * Completes a password recovery: validates the presented action key under a pessimistic lock, enforces the
+     * password policy server-side, sets the new one-way-hashed password on the target user, and consumes the
+     * token (single-use). A weak password throws {@code IllegalArgumentException("exception.user.password.weak")}
+     * <em>before</em> the token is consumed, so the link stays usable for another attempt (FR-008). A missing,
+     * expired, tampered, or already-used key yields {@code ResetResult(false, null)} (FR-011).
+     *
+     * @return on success, {@code ResetResult(true, username)} carrying the user's login name so the caller can
+     * sign the user in and invalidate their other sessions (FR-014/FR-015).
+     */
+    @Transactional
+    public ResetResult resetPassword(@NotNull String actionKey, @NotNull String rawPassword) {
+        var token = actionTokenService.findResetPasswordActionForUpdate(actionKey);
+        if (token == null) {
+            return new ResetResult(false, null);
+        }
+
+        // Server-side policy net (mirrors the UI). Throwing here leaves the token unconsumed and reusable.
+        PasswordPolicy.requireStrong(rawPassword);
+
+        var channel = token.getIdentityUserChannel();
+        var user = channel != null ? channel.getIdentityUser() : null;
+        if (user == null) {
+            return new ResetResult(false, null);
+        }
+
+        userService.setPassword(user, rawPassword);
+        actionTokenService.consumeAction(token.getId());
+        log.info("Password reset completed and token consumed: tokenId={}", token.getId());
+        return new ResetResult(true, channel.getChannelUserId());
+    }
+
     @Transactional
     public void consumeAction(@NotNull Long id) {
         actionTokenService.consumeAction(id);
@@ -149,6 +184,13 @@ public class IdentityActionTokenProcessorService {
     }
 
     public record ConfirmationResult(boolean success, URI bindTelegramUrl) {
+    }
+
+    /**
+     * Outcome of {@link #resetPassword}. On success, {@code username} is the login name to sign the user in
+     * with (via the frontend's authentication + session-invalidation step); it is {@code null} on failure.
+     */
+    public record ResetResult(boolean success, String username) {
     }
 
     static final class TelegramChannelConflictException extends RuntimeException {
