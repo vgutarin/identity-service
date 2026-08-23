@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.entity.IdentityApplicationUserClaimEntity;
 import vg.identity.model.IdentityApplicationUserPrincipal;
+import vg.identity.model.TelegramAuthenticationRequest;
 import vg.identity.rest.v1.IdentityApplicationApiRestClient;
 import vg.unique.id.model.UniqueId;
 
@@ -19,7 +20,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,16 +59,40 @@ class IdentityApplicationRestClientIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void authenticateTelegram_whenInitDataIsValid_returnsStableApplicationUserPrincipal() throws Exception {
+    void authenticateTelegram_whenConsentNotGiven_returnsProvisionalPrincipalAndStoresNothing() throws Exception {
+        var botToken = "123456:integration-test-token";
+        createApplicationWithApiKey("{\"token\":\"" + botToken + "\"}");
+        var initData = initData(botToken, "{\"id\":42,\"first_name\":\"John\"}");
+
+        var result = restClient.authenticateTelegram(TelegramAuthenticationRequest.builder().telegramInitData(initData).consentToKeepPersonalData(false).build());
+
+        assertThat(result).isPresent();
+        var principal = result.orElseThrow();
+        assertThat(principal.sub()).isNull();
+        assertThat(principal.name()).isEqualTo("John");
+        assertThat(principal.permissions()).isEmpty();
+        assertThat(principal.consentGiven()).isFalse();
+
+        // Consent-before-storage: no user/channel was persisted for this Telegram identity.
+        assertThat(channelRepository.findByChannelTypeAndChannelUserIdHash(
+                vg.identity.model.IdentityChannelType.TELEGRAM_USER,
+                encryptionService.hashCaseSensitive("42")
+        )).isEmpty();
+    }
+
+    @Test
+    void authenticateTelegram_whenConsentGiven_establishesUserWithStableSubjectAndScopedPermissions() throws Exception {
         var botToken = "123456:integration-test-token";
         var application = createApplicationWithApiKey("{\"token\":\"" + botToken + "\"}");
         var initData = initData(botToken, "{\"id\":42,\"first_name\":\"John\"}");
 
-        var first = restClient.authenticateTelegram(initData);
+        var first = restClient.authenticateTelegram(TelegramAuthenticationRequest.builder().telegramInitData(initData).consentToKeepPersonalData(true).build());
         assertThat(first).isPresent();
-        assertThat(first.orElseThrow().applicationUniqueId()).isEqualTo(new UniqueId(application.uniqueId()).toString());
-        assertThat(first.orElseThrow().identityUserUniqueId()).isNotBlank();
-        assertThat(first.orElseThrow().claimsByScope()).isEmpty();
+        var principal = first.orElseThrow();
+        assertThat(principal.sub()).isNotBlank();
+        assertThat(principal.name()).isEqualTo("John");
+        assertThat(principal.consentGiven()).isTrue();
+        assertThat(principal.permissions()).isEmpty();
 
         var user = channelRepository.findByChannelTypeAndChannelUserIdHash(
                         vg.identity.model.IdentityChannelType.TELEGRAM_USER,
@@ -83,13 +107,15 @@ class IdentityApplicationRestClientIntegrationTest extends BaseIntegrationTest {
                 .claim(getScopeClaim(application.workspaceUniqueId(), "orders.read"))
                 .build());
 
-        var second = restClient.authenticateTelegram(initData);
-        var third = restClient.authenticateTelegram(initData);
+        var second = restClient.authenticateTelegram(TelegramAuthenticationRequest.builder().telegramInitData(initData).consentToKeepPersonalData(true).build());
+        var third = restClient.authenticateTelegram(TelegramAuthenticationRequest.builder().telegramInitData(initData).consentToKeepPersonalData(false).build());
 
-        assertThat(second.orElseThrow().identityUserUniqueId()).isEqualTo(first.orElseThrow().identityUserUniqueId());
-        assertThat(second.orElseThrow().claimsByScope())
-                .containsExactly(Map.entry(IdentityApplicationUserPrincipal.PERMISSIONS_SCOPE, Set.of("orders.read")));
-        assertThat(third).contains(second.orElseThrow());
+        assertThat(second.orElseThrow().sub()).isEqualTo(principal.sub());
+        assertThat(second.orElseThrow().permissions()).containsExactly("orders.read");
+        // Once established, an already-consented user still resolves to its subject even when the request
+        // omits consent (FR-007: a non-null sub always means consent was given).
+        assertThat(third.orElseThrow().sub()).isEqualTo(principal.sub());
+        assertThat(third.orElseThrow().consentGiven()).isTrue();
     }
 
     private static String initData(String botToken, String userJson) throws Exception {

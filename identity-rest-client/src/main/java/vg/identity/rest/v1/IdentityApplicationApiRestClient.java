@@ -7,6 +7,7 @@ import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
 import vg.identity.model.AuthenticatedIdentityApplication;
 import vg.identity.model.IdentityApplicationUserPrincipal;
+import vg.identity.model.TelegramAuthenticationRequest;
 import vg.identity.service.IdentityApplicationApi;
 
 import java.util.Optional;
@@ -25,6 +26,6 @@ public interface IdentityApplicationApiRestClient extends IdentityApplicationApi
     AuthenticatedIdentityApplication me();
 
     @Override
-    @PostExchange(url = "/me/authentications/telegram", contentType = MediaType.TEXT_PLAIN_VALUE)
-    Optional<IdentityApplicationUserPrincipal> authenticateTelegram(@RequestBody String initData);
+    @PostExchange(url = "/me/authentications/telegram", contentType = MediaType.APPLICATION_JSON_VALUE)
+    Optional<IdentityApplicationUserPrincipal> authenticateTelegram(@RequestBody TelegramAuthenticationRequest request);
 }

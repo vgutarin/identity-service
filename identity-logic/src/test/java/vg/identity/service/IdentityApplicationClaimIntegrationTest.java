@@ -13,6 +13,7 @@ import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.entity.IdentityWorkspaceScopeClaimDictionaryEntity;
 import vg.identity.model.IdentityApiKeyPrincipal;
 import vg.identity.model.IdentityApplicationUserPrincipal;
+import vg.identity.model.TelegramAuthenticationRequest;
 import vg.unique.id.model.UniqueId;
 
 import javax.crypto.Mac;
@@ -23,7 +24,6 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,7 +50,7 @@ class IdentityApplicationClaimIntegrationTest extends BaseIntegrationTest {
         authenticateAs(applicationA);
 
         var initData = initData(applicationA.botToken(), "{\"id\":42,\"first_name\":\"John\"}");
-        applicationApi.authenticateTelegram(initData).orElseThrow();
+        applicationApi.authenticateTelegram(TelegramAuthenticationRequest.builder().telegramInitData(initData).consentToKeepPersonalData(true).build()).orElseThrow();
         var user = channelRepository.findByChannelTypeAndChannelUserIdHash(
                         vg.identity.model.IdentityChannelType.TELEGRAM_USER,
                         encryptionService.hashCaseSensitive("42")
@@ -60,12 +60,25 @@ class IdentityApplicationClaimIntegrationTest extends BaseIntegrationTest {
 
         grantPermission(applicationB.uniqueId(), user.getUniqueId(), "app.update");
 
-        assertThat(applicationApi.authenticateTelegram(initData).orElseThrow().claimsByScope()).isEmpty();
+        assertThat(
+                applicationApi.authenticateTelegram(
+                        TelegramAuthenticationRequest.builder()
+                                .telegramInitData(initData)
+                                .consentToKeepPersonalData(true)
+                                .build()
+                ).orElseThrow().permissions()
+        ).isEmpty();
 
         grantPermission(applicationA.uniqueId(), user.getUniqueId(), "app.update");
 
-        assertThat(applicationApi.authenticateTelegram(initData).orElseThrow().claimsByScope())
-                .containsExactly(Map.entry(IdentityApplicationUserPrincipal.PERMISSIONS_SCOPE, Set.of("app.update")));
+        assertThat(
+                applicationApi.authenticateTelegram(
+                        TelegramAuthenticationRequest.builder()
+                                .telegramInitData(initData)
+                                .consentToKeepPersonalData(true)
+                                .build()
+                ).orElseThrow().permissions()
+        ).containsExactly("app.update");
         assertThat(authorityChecker.hasAuthority(new UniqueId(applicationA.uniqueId()), "app.update")).isFalse();
     }
 

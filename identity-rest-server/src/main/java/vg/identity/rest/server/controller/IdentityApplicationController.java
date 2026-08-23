@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import vg.identity.model.AuthenticatedIdentityApplication;
 import vg.identity.model.IdentityApplicationPrincipal;
 import vg.identity.model.IdentityApplicationUserPrincipal;
+import vg.identity.model.TelegramAuthenticationRequest;
 import vg.identity.service.IdentityApplicationApiService;
 import vg.identity.service.IdentityApplicationService;
 
@@ -43,9 +44,9 @@ public class IdentityApplicationController {
         );
     }
 
-    @PostMapping(value = "/me/authentications/telegram", consumes = MediaType.TEXT_PLAIN_VALUE)
-    public ResponseEntity<IdentityApplicationUserPrincipal> authenticateTelegram(@RequestBody(required = false) String initData) {
-        return applicationApi.authenticateTelegram(initData)
+    @PostMapping(value = "/me/authentications/telegram", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<IdentityApplicationUserPrincipal> authenticateTelegram(@RequestBody TelegramAuthenticationRequest request) {
+        return applicationApi.authenticateTelegram(request)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }

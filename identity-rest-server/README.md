@@ -51,6 +51,54 @@ It returns `uniqueId`, `workspaceUniqueId`, `name`, and `uri`. It never returns 
 application payload. Missing, malformed, expired, revoked, or otherwise invalid keys receive
 `401 Unauthorized` without credential-specific details.
 
+## Telegram authentication → consent-gated principal
+
+Applications resolve a user from Telegram Mini App sign-in data and receive an OIDC-claim-compatible
+**principal**:
+
+```sh
+curl --fail-with-body \
+  -H "X-VG-Identity-API-Key: ${IDENTITY_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"telegramInitData":"<raw Telegram initData>","consentToKeepPersonalData":false}' \
+  https://identity.example.com/api/v1/applications/me/authentications/telegram
+```
+
+The request body carries the raw Telegram `initData` (verified server-side; kept out of the URL) and a
+`consentToKeepPersonalData` flag that defaults to `false` when omitted.
+
+Consent gates whether any user data is stored:
+
+| Case | Result |
+|------|--------|
+| Data invalid / unverifiable / not resolvable | `204 No Content` — nothing is persisted (does not reveal which input failed). |
+| Valid, **consent not given**, user not yet established | `200` — principal with `sub: null`, empty `permissions`, `consentGiven: false`. **No user is created or stored.** |
+| Valid, **consent given** | `200` — the user is created (or a pre-existing one reused), `sub` is a stable id, `permissions` are the caller-application's scoped set, `consentGiven: true`. |
+| Already-established user | `200` — resolves to the same stable `sub` even if the request omits consent. |
+
+Response body:
+
+```json
+{ "sub": "…stable-id or null…", "name": "Ada Lovelace", "permissions": ["orders.read"], "consentGiven": true }
+```
+
+- Identity fields use **OIDC standard claim names**: `sub` (subject) and `name`. `permissions` and
+  `consentGiven` are additional, non-standard fields.
+- A non-null `sub` always means consent was given; a null `sub` always means it was not (the two never
+  disagree).
+- The object is OIDC **claim-shape** compatible only. Additional optional claims such as `locale` are
+  reserved for a future, additive change (adding one will not break existing consumers). Full OIDC
+  protocol support (discovery, token, UserInfo endpoints, signed ID tokens) is out of scope.
+
+> **⚠️ Breaking change (feature 003).** The earlier version of this operation accepted a `text/plain`
+> `initData` body, **provisioned a user unconditionally (no consent)**, and returned
+> `{ applicationUniqueId, identityUserUniqueId, claimsByScope }`. It now requires a **JSON** body with the
+> consent flag, **creates no user until consent is given**, and returns the reshaped principal above
+> (`sub` / `name` / `permissions` / `consentGiven`). Consumers must migrate:
+> - send `Content-Type: application/json` with `{ "telegramInitData": …, "consentToKeepPersonalData": … }`;
+> - read `sub` instead of `identityUserUniqueId`, and `permissions` instead of `claimsByScope[...]`;
+> - treat a null `sub` (consent pending) as "not yet established" rather than an error.
+
 ## Security audit logging
 
 When the REST API is enabled, authentication events are recorded through a dedicated logger,
@@ -61,6 +109,10 @@ When the REST API is enabled, authentication events are recorded through a dedic
   never the secret).
 - **Successes** are **counted** per `(applicationUniqueId, method, path)` and flushed periodically as
   aggregates (count + window bounds), to avoid flooding the log on the high-volume success path.
+- **Telegram authentication** additionally emits two per-event records on the same logger: a
+  `telegram.user.provision` event when consent creates a new user, and a `telegram.auth` success event.
+  Both reference the user by stable `sub` only — never the raw `initData`, Telegram profile fields, or the
+  API key.
 
 | Property | Default | Meaning |
 |----------|---------|---------|
