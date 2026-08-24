@@ -5,7 +5,7 @@ plugins {
     id "io.spring.dependency-management"
 }
 
-version = "0.0.1-SNAPSHOT"
+version = "0.0.1"
 
 publishing {
     publications {
@@ -27,7 +27,7 @@ dependencies {
     implementation "org.springframework:spring-web"
     implementation "tools.jackson.core:jackson-databind"
 
-    implementation "vg.unique-id:unique-id-jpa-lib:0.0.1-SNAPSHOT"
+    implementation "vg.unique-id:unique-id-jpa-lib:0.0.1"
     implementation "org.liquibase:liquibase-core"
 
     compileOnly "org.projectlombok:lombok"
@@ -46,7 +46,7 @@ dependencies {
     testImplementation "org.springframework.boot:spring-boot-starter-jdbc:${spring_boot_version}"
     testRuntimeOnly "com.mysql:mysql-connector-j:${mysql_connector_version}"
 
-    testImplementation "vg.unique-id:unique-id-logic:0.0.1-SNAPSHOT"
+    testImplementation "vg.unique-id:unique-id-logic:0.0.1"
 
 }
 

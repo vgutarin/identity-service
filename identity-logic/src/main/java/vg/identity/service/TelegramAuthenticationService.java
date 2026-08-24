@@ -129,14 +129,14 @@ public class TelegramAuthenticationService {
         if (node == null || node.isNull()) {
             return null;
         }
-        return node.asText();
+        return node.asString();
     }
 
     private Boolean booleanOrNull(JsonNode node) {
         if (node == null || node.isNull()) {
             return null;
         }
-        return Boolean.parseBoolean(node.asText());
+        return Boolean.parseBoolean(node.asString());
     }
 
     private String decode(String value) {

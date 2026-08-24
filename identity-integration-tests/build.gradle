@@ -4,7 +4,7 @@ dependencies {
     testImplementation project(":identity-rest-client")
 
     testImplementation "vg.lib:test:0.0.1-SNAPSHOT"
-    testImplementation "vg.unique-id:unique-id-logic:0.0.1-SNAPSHOT"
+    testImplementation "vg.unique-id:unique-id-logic:0.0.1"
 
     testImplementation "org.springframework.boot:spring-boot-starter-test"
     testImplementation "org.springframework.boot:spring-boot-starter-data-jpa"

@@ -5,7 +5,7 @@ plugins {
     id "io.spring.dependency-management"
 }
 
-version = "0.0.1-SNAPSHOT"
+version = "0.0.1"
 
 publishing {
     publications {
@@ -36,7 +36,7 @@ dependencies {
     testImplementation project(":identity-rest-client")
 
     testRuntimeOnly "com.h2database:h2"
-    testRuntimeOnly "vg.unique-id:unique-id-logic:0.0.1-SNAPSHOT"
+    testRuntimeOnly "vg.unique-id:unique-id-logic:0.0.1"
 
 }
 
