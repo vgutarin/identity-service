@@ -3,15 +3,15 @@ dependencies {
     testImplementation project(":identity-rest-app")
     testImplementation project(":identity-rest-client")
 
-    testImplementation "vg.lib:test:0.0.1-SNAPSHOT"
-    testImplementation "vg.unique-id:unique-id-logic:0.0.1"
+    testImplementation "vg.lib:test:${vg_lib_version}"
+    testImplementation "vg.unique-id:unique-id-logic:${vg_unique_id_version}"
 
     testImplementation "org.springframework.boot:spring-boot-starter-test"
     testImplementation "org.springframework.boot:spring-boot-starter-data-jpa"
     testImplementation "org.springframework.boot:spring-boot-starter-liquibase"
     testImplementation "org.springframework.boot:spring-boot-starter-web"
 
-    testRuntimeOnly "com.mysql:mysql-connector-j:${mysql_connector_version}"
+    testRuntimeOnly "com.mysql:mysql-connector-j"
 }
 
 test {

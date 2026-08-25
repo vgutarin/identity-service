@@ -11,10 +11,8 @@ publishing {
     }
 }
 
-version = "0.0.1"
-
 dependencies {
-    api "vg.unique-id:unique-id-api:0.0.1"
+    api "vg.unique-id:unique-id-api:${vg_unique_id_version}"
     api "org.springframework.security:spring-security-core"
 
     compileOnly "org.projectlombok:lombok"

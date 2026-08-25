@@ -2,8 +2,6 @@ plugins {
 	id "com.vaadin" version "${vaadin_version}"
 }
 
-version = "0.0.1"
-
 dependencyManagement {
 	imports {
 		mavenBom "com.vaadin:vaadin-bom:${vaadin_version}"
@@ -19,13 +17,13 @@ dependencies {
 	implementation "org.springframework.boot:spring-boot-starter-data-jpa"
 	implementation "org.springframework.boot:spring-boot-starter-liquibase"
 	implementation "org.springframework.boot:spring-boot-starter-security"
-	implementation "vg.unique-id:unique-id-jpa-lib:0.0.1"
+	implementation "vg.unique-id:unique-id-jpa-lib:${vg_unique_id_version}"
 	implementation "com.oracle.cloud.spring:spring-cloud-oci-starter-vault:${spring_cloud_oci_version}"
 
 	runtimeOnly "com.h2database:h2"
-//	runtimeOnly "vg.unique-id:unique-id-logic:0.0.1"
-	runtimeOnly "vg.unique-id:unique-id-rest-client:0.0.1"
-	runtimeOnly "com.mysql:mysql-connector-j:${mysql_connector_version}"
+//	runtimeOnly "vg.unique-id:unique-id-logic:${unique_id_version}"
+	runtimeOnly "vg.unique-id:unique-id-rest-client:${vg_unique_id_version}"
+	runtimeOnly "com.mysql:mysql-connector-j"
 
 	compileOnly "org.projectlombok:lombok"
 	annotationProcessor "org.projectlombok:lombok"
