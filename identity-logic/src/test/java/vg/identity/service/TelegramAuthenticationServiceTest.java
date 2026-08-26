@@ -55,7 +55,7 @@ class TelegramAuthenticationServiceTest {
     }
 
     @Test
-    void authenticate_whenInitDataIsValid_returnsAuthenticatedTelegramPrincipal() throws Exception {
+    void authenticate_whenInitDataIsValid_returnsAuthenticatedTelegramPrincipal() {
         stubValidUserJson();
 
         var authentication = service.authenticate(bot, initData(USER_JSON, NOW.minusSeconds(60)));
@@ -72,7 +72,7 @@ class TelegramAuthenticationServiceTest {
     }
 
     @Test
-    void parseUser_whenInitDataIsValid_returnsTelegramPrincipal() throws Exception {
+    void parseUser_whenInitDataIsValid_returnsTelegramPrincipal() {
         stubValidUserJson();
 
         var principal = service.parseUser(bot, initData(USER_JSON, NOW.minusSeconds(60)));
@@ -82,7 +82,7 @@ class TelegramAuthenticationServiceTest {
     }
 
     @Test
-    void authenticate_whenHashIsInvalid_returnsEmptyAndDoesNotParseUser() throws Exception {
+    void authenticate_whenHashIsInvalid_returnsEmptyAndDoesNotParseUser() {
         var initData = initData(USER_JSON, NOW.minusSeconds(60)) + "0";
 
         assertThat(service.authenticate(bot, initData)).isEmpty();
@@ -91,7 +91,7 @@ class TelegramAuthenticationServiceTest {
     }
 
     @Test
-    void authenticate_whenAuthDateIsExpired_returnsEmptyAndDoesNotParseUser() throws Exception {
+    void authenticate_whenAuthDateIsExpired_returnsEmptyAndDoesNotParseUser() {
         var initData = initData(USER_JSON, NOW.minus(Duration.ofHours(2)));
 
         assertThat(service.authenticate(bot, initData)).isEmpty();
@@ -108,7 +108,7 @@ class TelegramAuthenticationServiceTest {
     }
 
     @Test
-    void authenticate_whenUserIdIsMissing_returnsEmpty() throws Exception {
+    void authenticate_whenUserIdIsMissing_returnsEmpty() {
         when(objectMapper.readTree(USER_JSON)).thenReturn(userNode);
         when(userNode.get("id")).thenReturn(null);
 
@@ -119,8 +119,7 @@ class TelegramAuthenticationServiceTest {
         when(userNode.get(field)).thenReturn(value);
     }
 
-    private void stubValidUserJson() throws Exception {
-        when(objectMapper.readTree(USER_JSON)).thenReturn(userNode);
+    private void stubValidUserJson() {
         stubUserField("id", idNode(42L));
         stubUserField("is_bot", textNode("false"));
         stubUserField("first_name", textNode("John"));
@@ -131,6 +130,7 @@ class TelegramAuthenticationServiceTest {
         stubUserField("added_to_attachment_menu", textNode("false"));
         stubUserField("allows_write_to_pm", textNode("true"));
         stubUserField("photo_url", textNode("https://example.com/photo.jpg"));
+        when(objectMapper.readTree(USER_JSON)).thenReturn(userNode);
     }
 
     private void assertValidPrincipal(TelegramUserPrincipal principal) {
@@ -156,7 +156,7 @@ class TelegramAuthenticationServiceTest {
     private JsonNode textNode(String text) {
         var node = org.mockito.Mockito.mock(JsonNode.class);
         when(node.isNull()).thenReturn(false);
-        when(node.asText()).thenReturn(text);
+        when(node.asString()).thenReturn(text);
         return node;
     }
 

@@ -12,6 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class IdentityRestClientAutoConfigTest {
     private static final String TEST_API_KEY = UUID.randomUUID().toString();
+    private static final String PREFIX = IdentityRestClientProperties.CONFIG_PREFIX;
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(IdentityRestClientAutoConfig.class));
@@ -19,7 +20,7 @@ class IdentityRestClientAutoConfigTest {
     @Test
     void createsTypedClient_whenApiKeyIsConfigured() {
         contextRunner
-                .withPropertyValues("vg.identity.rest-client.api-key=" + TEST_API_KEY)
+                .withPropertyValues(PREFIX + ".api-key=" + TEST_API_KEY)
                 .run(context -> {
                     assertThat(context).hasSingleBean(IdentityApplicationApiRestClient.class);
                     assertThat(context).hasSingleBean(IdentityApplicationApi.class);
@@ -32,7 +33,7 @@ class IdentityRestClientAutoConfigTest {
             assertThat(context).hasFailed();
             assertThat(context.getStartupFailure())
                     .hasRootCauseInstanceOf(IllegalStateException.class)
-                    .hasRootCauseMessage("Property 'vg.identity.rest-client.api-key' must not be blank");
+                    .hasRootCauseMessage("Property '" + PREFIX + ".api-key' must not be blank");
         });
     }
 }

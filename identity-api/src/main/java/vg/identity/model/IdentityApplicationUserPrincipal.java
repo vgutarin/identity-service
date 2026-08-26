@@ -2,6 +2,8 @@ package vg.identity.model;
 
 import lombok.Builder;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -33,7 +35,10 @@ public record IdentityApplicationUserPrincipal(
         String name,
         Set<String> permissions,
         boolean consentGiven
-) {
+) implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     /** Scope name under which the identity service stores a user's unfolded permission strings. */
     public static final String PERMISSIONS_SCOPE = "permissions";
 
