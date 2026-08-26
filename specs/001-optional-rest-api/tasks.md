@@ -201,7 +201,7 @@ invalid flag value halts startup.
 - [X] T026 [P] [US3] `EmbeddedVsRemoteConformanceTest`
   (`identity-integration-tests/src/test/java/vg/identity/rest/EmbeddedVsRemoteConformanceTest.java`): invokes
   `me()` via the embedded `IdentityApplicationApiService` (running as the same application principal) and via
-  `IdentityApplicationApiRestClient`, asserting equal `AuthenticatedIdentityApplication`. (Principle VI,
+  `IdentityApplicationApiRestClient`, asserting equal `IdentityApplicationPrincipal`. (Principle VI,
   FR-008, SC-003) **Executed and passing** against the MySQL Testcontainer. `authenticateTelegram` conformance
   is also exercised remotely by `IdentityApplicationRestClientIntegrationTest`.
 - **[X] Fix**: the conformance test originally used `PreAuthenticatedAuthenticationToken` (spring-security-web,

@@ -8,7 +8,10 @@
 
 **Correction**: "Principal should distinguish whether consent to keep personal data is given. If consent is not given, uniqueId is null and the identity service stores no user data. Once consent is given, the identity service creates the user and returns a principal with a uniqueId."
 
-**Clarification**: "The returned object must be OIDC-compatible. It is acceptable for it to be only partially OIDC-compatible until consent is given."
+**Clarification (superseded on 2026-08-27)**: An earlier clarification required the returned object to
+be OIDC-compatible (fully once consent is given, only partially before). This requirement has been
+**dropped** — see the 2026-08-27 Clarifications session. The principal is no longer required to be
+OIDC-compatible and uses domain-native, self-explaining identifiers instead of OIDC standard claims.
 
 **Clarification**: "No actual manipulation of additional data (such as preferred locale) is expected. The returned object only needs to reserve a placeholder for it — no derivation, population, or persistence of that additional data is to be implemented now."
 
@@ -21,12 +24,25 @@
   authentication operation becomes consent-gated (a breaking change to current callers). The current
   REST path provisions and persists a user with no consent check, which is a consent-before-storage
   violation being corrected.
-- Q: What should the returned object be called, given it spans the pre-consent (no `sub`) and
-  established (`sub` present) states? → A: A single "principal" object with a consent indicator and a
-  nullable `sub` — one stable contract type across both states (not two distinct types).
+- Q: What should the returned object be called, given it spans the pre-consent (no unique identifier)
+  and established (unique identifier present) states? → A: A single "principal" object with a consent
+  indicator and a nullable unique identifier — one stable contract type across both states (not two
+  distinct types).
 - Q: When consent is granted and the user is created, should that consent+creation event be audited
   (in addition to authentication)? → A: Yes — record an audit event for both the consent-triggered
   user creation and the authentication; audit entries carry no raw Telegram personal data or secrets.
+
+### Session 2026-08-27
+
+- Q: Must the returned principals (the application principal and the Telegram user principal) be
+  OIDC-compatible? → A: No. OIDC compatibility (claim-name/shape and protocol) is dropped for both.
+  Identity fields use domain-native, self-explaining names rather than OIDC standard claim names such
+  as `sub`, `name`, or `locale`.
+- Q: How are identifiers represented on the principals? → A: As the system's unique-identifier type
+  (UniqueId) with self-explaining field names (for example `userUniqueId`, `applicationUniqueId`,
+  `workspaceUniqueId`), never raw strings or numbers.
+- Q: How is the application's location/URL represented on the application principal? → A: As a URI
+  value type, not a raw string.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -107,9 +123,9 @@ on-demand localization feature, but delivering actual locale data is explicitly 
 feature, so it sits below the P1 identity/consent behavior.
 
 **Independent Test**: Inspect the principal contract and confirm the optional additional-data
-placeholder (e.g. preferred locale) exists and, when it maps to an OIDC standard claim, uses the
-correct claim name and format; confirm that in every resolution today the placeholder is absent
-(unpopulated), and that no derivation or persistence of it occurs.
+placeholder (e.g. preferred locale) exists with a domain-native, self-explaining name; confirm that in
+every resolution today the placeholder is absent (unpopulated), and that no derivation or persistence
+of it occurs.
 
 **Acceptance Scenarios**:
 
@@ -117,9 +133,9 @@ correct claim name and format; confirm that in every resolution today the placeh
    additional-data placeholder (such as preferred locale) is defined and reserved.
 2. **Given** any resolution performed by this feature, **When** the principal is returned, **Then**
    the additional-data placeholder is absent (this feature performs no derivation or population of it).
-3. **Given** the placeholder maps to an OIDC standard claim (e.g. `locale`), **When** it is defined,
-   **Then** it uses that claim's standard name and value format, so a later feature can populate it
-   without a contract change.
+3. **Given** the placeholder is defined, **When** a consumer inspects it, **Then** it has a
+   domain-native, self-explaining name and a well-defined value type, so a later feature can populate
+   it without a contract change.
 4. **Given** any resolution, **When** it completes, **Then** no additional data (such as locale) is
    persisted, in either the pre-consent or established state.
 
@@ -197,9 +213,9 @@ consumer continues to work unchanged and ignores the new field.
 - **FR-010**: The principal contract MUST reserve an OPTIONAL placeholder for additional data such as
   preferred locale. This feature MUST NOT derive, populate, or persist that additional data; the
   placeholder MUST be absent in every resolution this feature produces.
-- **FR-011**: If a reserved additional-data placeholder maps to an OIDC standard claim (e.g. preferred
-  locale → `locale`), it MUST be defined with that claim's standard name and value format (a
-  recognized language tag), so a future feature can populate it without a contract change.
+- **FR-011**: A reserved additional-data placeholder (e.g. preferred locale) MUST be defined with a
+  domain-native, self-explaining name and a well-defined value type, so a future feature can populate
+  it without a contract change.
 - **FR-012**: Optional principal fields (such as preferred locale and any future additions) MUST be
   omitted when they have no value, and their absence MUST NOT be treated as an error.
 - **FR-013**: When the Telegram data is invalid, unverifiable, or does not resolve to a user, the API
@@ -210,20 +226,19 @@ consumer continues to work unchanged and ignores the new field.
   NOT leak permissions or claims from other applications or workspaces.
 - **FR-016**: The principal contract MUST be extensible so that adding a new optional field does not
   require changes to existing consumers that read only previously defined fields.
-- **FR-017**: The returned object MUST be OIDC-compatible: its identity fields MUST be expressed as
-  the corresponding OIDC standard claims so an OIDC-aware consumer can consume it directly — the
-  unique identifier as the subject (`sub`) claim and the display name as the `name` claim. Any
-  reserved additional-data placeholder that maps to a standard claim (e.g. preferred locale → `locale`)
-  MUST use that claim's standard name even though it is unpopulated by this feature. Non-standard data
-  (e.g. application-scoped permissions) MUST be carried without colliding with, redefining, or
-  overloading OIDC standard claim names.
-- **FR-018**: The established (post-consent) principal MUST be fully OIDC-compatible, including a
-  non-null subject (`sub`) claim.
-- **FR-019**: The pre-consent principal MAY be only partially OIDC-compatible: because no user is
-  established, the subject (`sub`) claim is absent/null, which is permitted in this state only. All
-  other claims that are present (e.g. `name`) MUST still follow OIDC standard claim conventions.
-- **FR-020**: Any OIDC standard claim included in the principal MUST use the value format defined for
-  that claim (e.g. `locale` as a language tag, `sub` as a stable, non-reassigned subject identifier).
+- **FR-017**: The returned principals MUST NOT be required to be OIDC-compatible. Their identity fields
+  MUST use domain-native, self-explaining names (e.g. `userUniqueId`, `applicationUniqueId`) rather
+  than OIDC standard claim names (`sub`, `name`, `locale`), and the contract MUST NOT commit to OIDC
+  claim shape or protocol.
+- **FR-018**: Every unique identifier carried by a principal MUST be represented using the system's
+  unique-identifier type (UniqueId), never a raw string or number, and MUST be named to state what it
+  identifies (e.g. `userUniqueId` for the resolved user, `applicationUniqueId` for the calling
+  application, `workspaceUniqueId` for the workspace).
+- **FR-019**: The application principal's location/reference MUST be represented as a URI value type,
+  not a raw string, so consumers receive an already-validated, well-formed address.
+- **FR-020**: Unique identifiers exposed on a principal MUST be stable and MUST NOT be reassigned or
+  recycled across the lifetime of the entity they identify, so a consumer can rely on them to recognize
+  the same user or application over time.
 - **FR-021**: The consent-gated behavior MUST replace the existing Telegram authentication operation's
   behavior in place. The existing operation currently provisions and persists an identity user with no
   consent check; after this change it MUST NOT create or persist a user until consent is given
@@ -239,21 +254,24 @@ consumer continues to work unchanged and ignores the new field.
 - **Principal (from Telegram data)**: The consumer-facing result of resolving supplied Telegram
   sign-in data for one application scope. It exists in two states distinguished by a consent
   indicator:
-  - *Pre-consent (provisional)*: display name (OIDC `name`, required), subject/unique identifier (OIDC
-    `sub`) **null/absent**, permissions empty, consent indicator = "not given", additional-data
-    placeholder (e.g. `locale`) reserved but unpopulated. Only partially OIDC-compatible (no `sub`).
-    Backed by **no** stored record.
-  - *Established*: non-null stable subject/unique identifier (OIDC `sub`), display name (OIDC
-    `name`), application-scoped permissions (possibly empty), consent indicator = "given",
-    additional-data placeholder (e.g. `locale`) reserved but unpopulated. Fully OIDC-compatible.
-    Backed by a persisted user created at the moment consent was granted.
-  The identity fields map to OIDC standard claims (`sub`, `name`); reserved additional-data
-  placeholders that map to standard claims (e.g. `locale`) keep those claim names but are not
-  populated by this feature; application-scoped permissions and the consent indicator are additional
-  data carried without colliding with OIDC standard claim names.
+  - *Pre-consent (provisional)*: display name (required), user unique identifier **null/absent**,
+    permissions empty, consent indicator = "not given", additional-data placeholder (e.g. preferred
+    locale) reserved but unpopulated. Backed by **no** stored record.
+  - *Established*: non-null stable user unique identifier, display name, application-scoped permissions
+    (possibly empty), consent indicator = "given", additional-data placeholder (e.g. preferred locale)
+    reserved but unpopulated. Backed by a persisted user created at the moment consent was granted.
+  The identity fields use domain-native, self-explaining names; the user unique identifier is the
+  system's unique-identifier type (UniqueId), never a raw string. The principal is **not** required to
+  be OIDC-compatible — it does not use OIDC standard claim names or commit to OIDC claim shape.
+  Application-scoped permissions and the consent indicator are ordinary fields on the object.
   Naming note (decided, see Clarifications): a single object named "principal", carrying a consent
   indicator plus a nullable unique identifier, is used across both states — not two differently named
   objects.
+- **Application principal**: The safe metadata describing the calling application (returned when the
+  application inspects itself). Its identifiers — the application unique identifier and the workspace
+  unique identifier — are the system's unique-identifier type (UniqueId) with self-explaining names,
+  and its location/reference is a URI value type. Like the Telegram user principal, it is not required
+  to be OIDC-compatible.
 - **Consent to keep personal data**: The user's permission for the identity service to store their
   personal data. It gates user creation: no consent → no storage and no identifier; consent →
   user created and identifier issued.
@@ -261,8 +279,8 @@ consumer continues to work unchanged and ignores the new field.
   passes to the API. The source from which the user is verified and the display name is derived.
   Treated as untrusted input until verified, and never persisted before consent.
 - **Additional-data placeholder**: A reserved optional slot on the principal (e.g. preferred locale)
-  intended for a future feature. Defined for contract stability and OIDC claim-name alignment, but not
-  derived, populated, or persisted by this feature.
+  intended for a future feature. Defined for contract stability with a domain-native, self-explaining
+  name, but not derived, populated, or persisted by this feature.
 - **Permission**: A single capability a user holds within a specific application's authorization
   scope; the established principal carries the flattened set of these.
 
@@ -288,17 +306,19 @@ consumer continues to work unchanged and ignores the new field.
   read only previously defined fields.
 - **SC-008**: The principal exposes 0 fields containing secrets, credentials, or tokens, and returned
   permissions show 0 cross-application or cross-workspace leakage.
-- **SC-009**: 100% of established (post-consent) principals validate as OIDC-compatible, including a
-  present, non-null subject (`sub`) claim; pre-consent principals validate against every OIDC standard
-  claim they include while being permitted to omit `sub`.
+- **SC-009**: 100% of principals represent every unique identifier as the system's unique-identifier
+  type (UniqueId) with a self-explaining name (0 identifiers exposed as raw strings or numbers), the
+  application principal's location is a valid URI in 100% of cases, and 0 principals use OIDC standard
+  claim names.
 - **SC-010**: 100% of consent-triggered user creations produce an audit record (plus the
   authentication record), and 0 audit entries contain secrets, tokens, or raw Telegram personal data.
 
 ## Out of Scope / Deferred
 
-- **Full OIDC protocol support is deferred** to a future feature, to be added on demand. This
-  specification commits only to **claim-shape compatibility**: the returned object uses OIDC standard
-  claim names and value formats (`sub`, `name`, `locale`) as defined in FR-017 through FR-020.
+- **OIDC compatibility is out of scope** for these principals — both claim-shape compatibility (using
+  OIDC standard claim names/value formats) and full protocol support. The principals use domain-native
+  identifiers instead (FR-017). Should an OIDC-conformant surface be needed later, it would be a
+  separate, additive feature that maps these domain fields onto OIDC claims at its own boundary.
 - Explicitly out of scope now: OIDC protocol endpoints (discovery / `.well-known`, authorization,
   token, UserInfo), signed ID tokens and the signing-key infrastructure (JWKS, key rotation), the
   redirect-based authorization-code flow (PKCE, nonce/state), and token lifecycle (expiry, refresh,
@@ -306,12 +326,10 @@ consumer continues to work unchanged and ignores the new field.
 - **Populating additional data (e.g. preferred locale) is deferred.** This feature only reserves the
   placeholder in the contract (FR-010, FR-011); deriving, populating, and persisting locale (or any
   other additional data) is a future feature.
-- **Why deferral stays cheap**: the costly-to-retrofit part is the claim contract, which is locked
-  now. Adding the protocol layer later is expected to be additive and non-breaking for existing
-  consumers, provided two guarantees from this spec hold: `sub` is a stable subject identifier that is
-  never reassigned or recycled (FR-020), and no OIDC standard claim name is overloaded for permissions
-  or the consent indicator (FR-017). The consent gate also aligns with OIDC's own consent step ("no
-  `sub` until consent" simply means a future flow cannot complete before consent).
+- **Why a later OIDC surface stays cheap**: the identifier the contract locks now is stable and never
+  reassigned or recycled (FR-020), which is the one property that is expensive to retrofit. A future
+  OIDC layer can map the stable user unique identifier onto `sub` and the display name onto `name`
+  without disturbing existing consumers of the domain-native contract.
 
 ## Assumptions
 
@@ -328,8 +346,8 @@ consumer continues to work unchanged and ignores the new field.
 - Consent to keep personal data is conveyed by the consumer on the resolution request (the same
   personal-data consent concept the service already uses); how the consumer collects that consent in
   its own UI is out of scope.
-- The unique identifier returned for an established user is the user's existing identity subject; this
-  feature exposes it in a consumer-friendly form rather than introducing a new identifier.
+- The unique identifier returned for an established user is the user's existing identity; this
+  feature exposes it in a typed, self-explaining form rather than introducing a new identifier.
 - "Permissions" means the user's flattened, application-scoped permission strings the service already
   computes for authorization; this feature surfaces them on the established principal rather than
   redefining how they are computed.
@@ -341,11 +359,12 @@ consumer continues to work unchanged and ignores the new field.
 - "Not permitted to store user data until consent is given" is treated as covering the persisted user
   record and personal data derived from the Telegram profile; transient, in-request processing needed
   to verify the data and build the pre-consent principal is not considered "storing".
-- "OIDC-compatible" is interpreted at the level of the identity object/claim shape (using OIDC
-  standard claim names and value formats for the fields it maps — `sub`, `name`, `locale`), not as a
-  commitment to stand up full OIDC protocol endpoints (discovery, token, or UserInfo). Whether these
-  claims are also delivered through an OIDC-conformant token/flow is an implementation decision for
-  `/speckit-plan`.
-- The subject (`sub`) is the OIDC-required claim that is necessarily absent before consent (no user
-  exists); this is exactly why the pre-consent principal is only partially OIDC-compatible, and why
-  full compatibility is guaranteed only once consent establishes the user.
+- OIDC compatibility is **not** a requirement for these principals (decided 2026-08-27). The
+  principals expose domain-native, self-explaining identifiers rather than OIDC standard claims; no
+  commitment is made to OIDC claim shape or protocol.
+- Identifiers on the principals are the system's existing unique-identifier type (UniqueId). This
+  feature surfaces that existing identifier in a typed, self-explaining form (e.g. `userUniqueId`),
+  rather than introducing a new identifier or exposing it as a raw string.
+- The user unique identifier is necessarily absent before consent (no user exists) and non-null once
+  consent establishes the user; its type and name are unchanged across both states — only its presence
+  differs.

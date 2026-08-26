@@ -9,7 +9,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import vg.identity.entity.IdentityApplicationEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
-import vg.identity.model.IdentityApplicationPrincipal;
+import vg.identity.model.principal.IdentityInternalApplicationPrincipal;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityRoleAssignmentRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
@@ -191,7 +191,7 @@ class AuthorityCheckerTest {
     @Test
     void isAuthenticatedApplication_whenCurrentApplicationPrincipalMatchesApplication_returnsTrue() {
         var applicationUniqueId = nextUniqueId();
-        var principal = mock(IdentityApplicationPrincipal.class);
+        var principal = mock(IdentityInternalApplicationPrincipal.class);
         when(principal.getUniqueId()).thenReturn(applicationUniqueId);
         when(currentUserService.findCurrentUserDetails()).thenReturn(principal);
 

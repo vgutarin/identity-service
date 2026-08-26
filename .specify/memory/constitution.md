@@ -187,6 +187,24 @@ product correct and consistent across all supported languages and regions.
 - Review gate: Code review MUST verify that new user-facing text is keyed and that locale-sensitive
   values are formatted in a locale-aware way.
 
+## Specification Artifacts and Organization
+
+Active specifications MUST live under the `specs/current/` directory, which is the single
+authoritative home for the project's current-state specification set. Content that is superseded
+MUST be updated or removed rather than left stale; `specs/current/` MUST describe intended behavior
+as it currently stands.
+
+Specifications MUST be decomposed into focused Markdown files. Each feature MAY be captured in its
+own Markdown file, and each logical area (domain) MUST be represented as a separate Markdown file so
+that ownership and scope stay clear. Files MUST use self-explaining names that identify the feature
+or domain they describe.
+
+Specification files MAY reference one another through relative Markdown links to connect related
+material instead of duplicating it. A defined inter-file order is not required, and specifications
+SHOULD NOT assume one unless a real need exists. If such a need does arise, the order SHOULD be made
+explicit rather than implied; a zero-padded numeric filename prefix (for example, `0001-...`,
+`0002-...`) is one suggested way to express it, and any other clear, explicit scheme is acceptable.
+
 ## Development Workflow & Quality Gates
 
 - Constitution Check: Every plan and design MUST include a review against these principles;
@@ -200,6 +218,11 @@ product correct and consistent across all supported languages and regions.
   requests. Destructive operations require explicit human authorization.
 - Dependencies: Introducing new external services or dependencies that handle sensitive data
   MUST be justified and reviewed for its security posture before adoption.
+- Every task plan (`tasks.md`) MUST end with a final actualization phase whose purpose is to update
+  the current specification set in `specs/current/` so that it reflects the change just implemented. A
+  change is not complete until its corresponding specifications have been actualized: affected feature
+  and domain files MUST be revised, cross-references and ordering prefixes kept consistent, and any
+  superseded content removed. Reviews MUST confirm that this actualization was performed.
 
 ## Governance
 

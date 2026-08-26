@@ -16,6 +16,11 @@ publishing {
 dependencies {
     api project(":identity-api")
 
+    // Exposed transitively: the identity principal types (moved here from identity-api) extend these
+    // and are part of this module's public surface consumed by identity-rest-server.
+    api "vg.unique-id:unique-id-api:${vg_unique_id_version}"
+    api "org.springframework.security:spring-security-core"
+
     api "org.bouncycastle:bcprov-jdk18on:${bouncycastle_version}"
     implementation "org.springframework.boot:spring-boot-starter"
     implementation "org.springframework.boot:spring-boot-starter-mail"

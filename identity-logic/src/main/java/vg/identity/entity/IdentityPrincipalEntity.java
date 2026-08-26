@@ -18,8 +18,8 @@ import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import vg.identity.model.IdentityPrincipalStatus;
-import vg.identity.model.IdentityPrincipalType;
+import vg.identity.model.principal.IdentityInternalPrincipalStatus;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
 import vg.unique.id.jpa.UniqueIdEntity;
 
 import java.time.Instant;
@@ -69,11 +69,11 @@ public class IdentityPrincipalEntity implements UniqueIdEntity {
 
     @Enumerated(EnumType.ORDINAL)
     @Column(nullable = false)
-    private IdentityPrincipalStatus status;
+    private IdentityInternalPrincipalStatus status;
 
     @Enumerated(EnumType.ORDINAL)
     @Column(nullable = false)
-    private IdentityPrincipalType type;
+    private IdentityInternalPrincipalType type;
 
     @Override
     public final boolean equals(Object o) {

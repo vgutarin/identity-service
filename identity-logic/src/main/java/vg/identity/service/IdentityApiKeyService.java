@@ -8,9 +8,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import vg.identity.entity.IdentityApiKeyEntity;
 import vg.identity.model.IdentityApiKey;
-import vg.identity.model.IdentityApiKeyPrincipal;
-import vg.identity.model.IdentityPrincipalStatus;
-import vg.identity.model.IdentityPrincipalType;
+import vg.identity.model.principal.IdentityInternalApiKeyPrincipal;
+import vg.identity.model.principal.IdentityInternalPrincipalStatus;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
 import vg.identity.model.IssuedIdentityApiKey;
 import vg.identity.model.access.Permission;
 import vg.identity.repository.IdentityApiKeyRepository;
@@ -85,13 +85,13 @@ public class IdentityApiKeyService {
      * Resolves an active API key to its application principal. Invalid credentials deliberately produce no detail.
      */
     @Transactional(readOnly = true)
-    public Optional<IdentityApiKeyPrincipal> authenticate(String value) {
+    public Optional<IdentityInternalApiKeyPrincipal> authenticate(String value) {
         return parse(value)
                 .flatMap(candidate -> apiKeyRepository.findById(candidate.id())
                         .filter(apiKey -> OpaqueKey.secretMatches(apiKey.getSecretHash(), candidate.secret()))
                         .filter(apiKey -> isActive(apiKey, clock.instant()))
                         .filter(apiKey -> applicationRepository.existsById(apiKey.getPrincipal().getUniqueId()))
-                        .map(apiKey -> new IdentityApiKeyPrincipal(
+                        .map(apiKey -> new IdentityInternalApiKeyPrincipal(
                                 new UniqueId(apiKey.getPrincipal().getUniqueId()),
                                 apiKey.getPrincipal().getName()
                         )));
@@ -125,8 +125,8 @@ public class IdentityApiKeyService {
         var principal = apiKey.getPrincipal();
         return apiKey.getRevokedAt() == null
                 && apiKey.getExpiresAt().isAfter(now)
-                && principal.getStatus() == IdentityPrincipalStatus.ACTIVE
-                && principal.getType() == IdentityPrincipalType.APPLICATION;
+                && principal.getStatus() == IdentityInternalPrincipalStatus.ACTIVE
+                && principal.getType() == IdentityInternalPrincipalType.APPLICATION;
     }
 
     private IdentityApiKey toModel(IdentityApiKeyEntity entity) {

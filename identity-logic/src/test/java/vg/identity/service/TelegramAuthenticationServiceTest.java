@@ -7,7 +7,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import vg.identity.model.IdentityUserSystemRole;
+import vg.identity.model.IdentityInternalUserSystemRole;
 import vg.identity.model.TelegramUserPrincipal;
 import vg.identity.model.application.TelegramBot;
 
@@ -65,7 +65,7 @@ class TelegramAuthenticationServiceTest {
         assertThat(authentication.get().getCredentials()).isInstanceOf(String.class);
         assertThat(authentication.get().getAuthorities())
                 .extracting("authority")
-                .containsExactly(IdentityUserSystemRole.VERIFIED_USER.name());
+                .containsExactly(IdentityInternalUserSystemRole.VERIFIED_USER.name());
 
         assertThat(authentication.get().getPrincipal())
                 .isInstanceOfSatisfying(TelegramUserPrincipal.class, this::assertValidPrincipal);

@@ -1,6 +1,7 @@
 package vg.identity.model;
 
 import org.junit.jupiter.api.Test;
+import vg.unique.id.model.UniqueId;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -21,7 +22,7 @@ class IdentityApplicationUserPrincipalTest {
     @Test
     void survivesJavaSerializationRoundTrip() throws Exception {
         var original = IdentityApplicationUserPrincipal.builder()
-                .sub("user-42")
+                .userUniqueId(new UniqueId(42L))
                 .name("Ada Lovelace")
                 .permissions(Set.of("read", "write"))
                 .consentGiven(true)
@@ -42,7 +43,7 @@ class IdentityApplicationUserPrincipalTest {
         var restored = roundTrip(provisional);
 
         assertThat(restored).isEqualTo(provisional);
-        assertThat(restored.sub()).isNull();
+        assertThat(restored.userUniqueId()).isNull();
         assertThat(restored.permissions()).isEmpty();
         assertThat(restored.consentGiven()).isFalse();
     }

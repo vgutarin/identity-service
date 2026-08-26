@@ -18,7 +18,7 @@ import vg.identity.entity.IdentityUserEntity;
 import vg.identity.model.IdentityAction;
 import vg.identity.model.IdentityActionType;
 import vg.identity.model.IdentityChannelType;
-import vg.identity.model.IdentityPrincipalType;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
 import vg.identity.model.application.TelegramBotToConfirm;
 import vg.identity.model.user.channel.IdentityUserChannelEmail;
 import vg.identity.repository.IdentityActionTokenRepository;
@@ -120,7 +120,7 @@ public class IdentityActionTokenService {
                 .expireAt(createdAt.plus(properties.getExpiresIn()))
                 .build();
         if (channel.getIdentityUserUniqueId() != null) {
-            verification.setPrincipalType(IdentityPrincipalType.USER);
+            verification.setPrincipalType(IdentityInternalPrincipalType.USER);
             verification.setPrincipal(
                     principalRepository.getReferenceById(channel.getIdentityUserUniqueId().getLongValue())
             );
@@ -178,7 +178,7 @@ public class IdentityActionTokenService {
                 IdentityActionTokenEntity.builder()
                         .secretHash(OpaqueKey.sha256(rawSecret))
                         .actionType(IdentityActionType.RESET_PASSWORD)
-                        .principalType(IdentityPrincipalType.USER)
+                        .principalType(IdentityInternalPrincipalType.USER)
                         .principal(principalRepository.getReferenceById(channel.getIdentityUser().getUniqueId()))
                         .identityUserChannel(channelRepository.getReferenceById(channelUniqueId))
                         .createdAt(createdAt)
@@ -280,7 +280,7 @@ public class IdentityActionTokenService {
     public IdentityAction.BindTelegramInfo findBindTelegramActionInfo(@NotNull String actionKey) {
         return findActionTokenEntity(actionKey)
                 .filter(e -> e.getActionType() == IdentityActionType.BIND_TELEGRAM)
-                .filter(e -> e.getPrincipalType() == IdentityPrincipalType.USER)
+                .filter(e -> e.getPrincipalType() == IdentityInternalPrincipalType.USER)
                 .filter(e -> e.getPrincipal() != null)
                 .map(e -> {
                     var payload = fromPayload(e.getPayload());
@@ -368,7 +368,7 @@ public class IdentityActionTokenService {
                 IdentityActionTokenEntity.builder()
                         .secretHash(OpaqueKey.sha256(rawSecret))
                         .actionType(IdentityActionType.BIND_TELEGRAM)
-                        .principalType(IdentityPrincipalType.USER)
+                        .principalType(IdentityInternalPrincipalType.USER)
                         .principal(principal)
                         .payload(toPayload(new TelegramBotToConfirm(telegramBotName)))
                         .createdAt(createdAt)

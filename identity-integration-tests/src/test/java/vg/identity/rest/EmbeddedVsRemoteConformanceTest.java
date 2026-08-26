@@ -5,19 +5,27 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import vg.identity.BaseIntegrationTest;
-import vg.identity.model.IdentityApiKeyPrincipal;
+import vg.identity.model.TelegramAuthenticationRequest;
+import vg.identity.model.principal.IdentityInternalApiKeyPrincipal;
 import vg.identity.rest.v1.IdentityApplicationApiRestClient;
 import vg.identity.service.IdentityApplicationApiService;
 import vg.unique.id.model.UniqueId;
+
+import java.net.URI;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Constitution Principle VI: the embedded and remote implementations of {@code IdentityApplicationApi} must
- * behave equivalently. Runs {@code me()} through the embedded {@link IdentityApplicationApiService} and the
- * remote {@link IdentityApplicationApiRestClient} for the same application and asserts identical results.
+ * behave equivalently. Runs each public operation through the embedded {@link IdentityApplicationApiService}
+ * and the remote {@link IdentityApplicationApiRestClient} for the same application and asserts identical
+ * results. Covers {@code me()} and {@code authenticateTelegram} (pre-consent and established).
  */
 class EmbeddedVsRemoteConformanceTest extends BaseIntegrationTest {
+
+    private static final String BOT_TOKEN = "123456:conformance-test-token";
+    private static final String TELEGRAM_USER = "{\"id\":42,\"first_name\":\"John\"}";
 
     @Autowired
     private IdentityApplicationApiService embeddedApi;
@@ -29,14 +37,55 @@ class EmbeddedVsRemoteConformanceTest extends BaseIntegrationTest {
         var application = createApplicationWithApiKey();
 
         var remote = remoteApi.me();
+        var embedded = runAsApplication(application, embeddedApi::me);
 
-        var principal = new IdentityApiKeyPrincipal(new UniqueId(application.uniqueId()), application.uri());
+        assertThat(embedded).isEqualTo(remote);
+        // T022: the retyped application principal carries typed, domain-native fields (not OIDC claims).
+        assertThat(remote.applicationUniqueId()).isEqualTo(new UniqueId(application.uniqueId()));
+        assertThat(remote.workspaceUniqueId()).isEqualTo(new UniqueId(application.workspaceUniqueId()));
+        assertThat(remote.uri()).isEqualTo(URI.create(application.uri()));
+    }
+
+    @Test
+    void authenticateTelegram_preConsent_embeddedAndRemote_returnEquivalentProvisionalPrincipal() throws Exception {
+        var application = createApplicationWithApiKey("{\"token\":\"" + BOT_TOKEN + "\"}");
+        var request = TelegramAuthenticationRequest.builder()
+                .telegramInitData(telegramInitData(BOT_TOKEN, TELEGRAM_USER))
+                .consentToKeepPersonalData(false)
+                .build();
+
+        var remote = remoteApi.authenticateTelegram(request);
+        var embedded = runAsApplication(application, () -> embeddedApi.authenticateTelegram(request));
+
+        assertThat(embedded).isEqualTo(remote);
+        assertThat(remote.orElseThrow().userUniqueId()).isNull();
+        assertThat(remote.orElseThrow().consentGiven()).isFalse();
+    }
+
+    @Test
+    void authenticateTelegram_established_embeddedAndRemote_returnEquivalentEstablishedPrincipal() throws Exception {
+        var application = createApplicationWithApiKey("{\"token\":\"" + BOT_TOKEN + "\"}");
+        var request = TelegramAuthenticationRequest.builder()
+                .telegramInitData(telegramInitData(BOT_TOKEN, TELEGRAM_USER))
+                .consentToKeepPersonalData(true)
+                .build();
+
+        // Remote call establishes the user; the embedded call must resolve the same established principal.
+        var remote = remoteApi.authenticateTelegram(request);
+        var embedded = runAsApplication(application, () -> embeddedApi.authenticateTelegram(request));
+
+        assertThat(embedded).isEqualTo(remote);
+        assertThat(remote.orElseThrow().userUniqueId()).isNotNull();
+        assertThat(remote.orElseThrow().consentGiven()).isTrue();
+    }
+
+    private <T> T runAsApplication(TestApplication application, Supplier<T> action) {
+        var principal = new IdentityInternalApiKeyPrincipal(new UniqueId(application.uniqueId()), application.uri());
         var context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
         SecurityContextHolder.setContext(context);
         try {
-            var embedded = embeddedApi.me();
-            assertThat(embedded).isEqualTo(remote);
+            return action.get();
         } finally {
             SecurityContextHolder.clearContext();
         }

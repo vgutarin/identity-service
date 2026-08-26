@@ -47,7 +47,7 @@ curl --fail-with-body \
   https://identity.example.com/api/v1/applications/me
 ```
 
-It returns `uniqueId`, `workspaceUniqueId`, `name`, and `uri`. It never returns the API key, key hash, or
+It returns `sub`, `workspaceUniqueId`, `name`, and `uri`. It never returns the API key, key hash, or
 application payload. Missing, malformed, expired, revoked, or otherwise invalid keys receive
 `401 Unauthorized` without credential-specific details.
 

@@ -1,10 +1,10 @@
-package vg.identity.model;
+package vg.identity.model.principal;
 
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class IdentityPrincipalTypeTest {
+class IdentityInternalPrincipalTypeTest {
 
     /**
      * The ordinals and names of these enum values are persisted in the database and
@@ -13,11 +13,11 @@ class IdentityPrincipalTypeTest {
      */
     @Test
     void values_whenEnumPersistsByOrdinal_returnsStableOrdinalsAndNames() {
-        assertThat(IdentityPrincipalType.USER.name()).isEqualTo("USER");
-        assertThat(IdentityPrincipalType.USER.ordinal()).isEqualTo(0);
+        assertThat(IdentityInternalPrincipalType.USER.name()).isEqualTo("USER");
+        assertThat(IdentityInternalPrincipalType.USER.ordinal()).isEqualTo(0);
 
-        assertThat(IdentityPrincipalType.APPLICATION.name()).isEqualTo("APPLICATION");
-        assertThat(IdentityPrincipalType.APPLICATION.ordinal()).isEqualTo(1);
+        assertThat(IdentityInternalPrincipalType.APPLICATION.name()).isEqualTo("APPLICATION");
+        assertThat(IdentityInternalPrincipalType.APPLICATION.ordinal()).isEqualTo(1);
     }
 
     /**
@@ -27,10 +27,10 @@ class IdentityPrincipalTypeTest {
     @Test
     void values_whenCalled_returnsExpectedOrder() {
         assertThat(
-                IdentityPrincipalType.values()
+                IdentityInternalPrincipalType.values()
         ).containsExactly(
-                IdentityPrincipalType.USER,
-                IdentityPrincipalType.APPLICATION
+                IdentityInternalPrincipalType.USER,
+                IdentityInternalPrincipalType.APPLICATION
         );
     }
 }

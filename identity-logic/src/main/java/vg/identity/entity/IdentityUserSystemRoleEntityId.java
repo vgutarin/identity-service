@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import vg.identity.model.IdentityUserSystemRole;
+import vg.identity.model.IdentityInternalUserSystemRole;
 
 import java.io.Serializable;
 
@@ -14,5 +14,5 @@ import java.io.Serializable;
 @AllArgsConstructor
 public class IdentityUserSystemRoleEntityId implements Serializable {
     private Long identityPrincipalUniqueId;
-    private IdentityUserSystemRole role;
+    private IdentityInternalUserSystemRole role;
 }

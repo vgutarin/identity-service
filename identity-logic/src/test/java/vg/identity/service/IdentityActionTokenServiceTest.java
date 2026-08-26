@@ -15,7 +15,7 @@ import vg.identity.entity.IdentityUserEntity;
 import vg.identity.model.EmailMessage;
 import vg.identity.model.IdentityActionType;
 import vg.identity.model.IdentityChannelType;
-import vg.identity.model.IdentityPrincipalType;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
 import vg.identity.model.application.TelegramBot;
 import vg.identity.model.application.TelegramBotToConfirm;
 import vg.identity.model.application.TelegramBotWithUri;
@@ -111,7 +111,7 @@ class IdentityActionTokenServiceTest {
         assertThat(entity.get().getSecretHash()).hasSize(32);
         assertThat(entity.get().getSecretHash()).isNotEqualTo(new byte[32]);
         assertThat(entity.get().getActionType()).isEqualTo(IdentityActionType.CONFIRM_EMAIL);
-        assertThat(entity.get().getPrincipalType()).isEqualTo(IdentityPrincipalType.USER);
+        assertThat(entity.get().getPrincipalType()).isEqualTo(IdentityInternalPrincipalType.USER);
         assertThat(entity.get().getIdentityUserChannel().getUniqueId()).isEqualTo(7L);
         assertThat(entity.get().getPayload()).isNull();
         assertThat(entity.get().getCreatedAt()).isEqualTo(clock.instant());
@@ -266,9 +266,9 @@ class IdentityActionTokenServiceTest {
 
     @Test
     void findBindTelegramActionInfo_whenKeyIsValid_returnsInternalTokenId() throws Exception {
-        var principal = IdentityPrincipalEntity.builder().uniqueId(17L).type(IdentityPrincipalType.USER).build();
+        var principal = IdentityPrincipalEntity.builder().uniqueId(17L).type(IdentityInternalPrincipalType.USER).build();
         var token = token(7L, IdentityActionType.BIND_TELEGRAM);
-        token.setPrincipalType(IdentityPrincipalType.USER);
+        token.setPrincipalType(IdentityInternalPrincipalType.USER);
         token.setPrincipal(principal);
         token.setPayload("{\"botUsername\":\"Identityvgbot\"}");
         when(actionTokenRepository.findById(7L)).thenReturn(Optional.of(token));
@@ -321,7 +321,7 @@ class IdentityActionTokenServiceTest {
         var url = service.createBindTelegramUrlIfTelegramIsMissing(user);
 
         assertThat(savedAction.get().getActionType()).isEqualTo(IdentityActionType.BIND_TELEGRAM);
-        assertThat(savedAction.get().getPrincipalType()).isEqualTo(IdentityPrincipalType.USER);
+        assertThat(savedAction.get().getPrincipalType()).isEqualTo(IdentityInternalPrincipalType.USER);
         assertThat(savedAction.get().getPrincipal()).isSameAs(user.getPrincipal());
         assertThat(savedAction.get().getIdentityUserChannel()).isNull();
         assertThat(savedAction.get().getPayload()).isEqualTo("{}");
@@ -360,7 +360,7 @@ class IdentityActionTokenServiceTest {
         service.requestPasswordReset("john@example.com", "1.2.3.4");
 
         assertThat(saved.get().getActionType()).isEqualTo(IdentityActionType.RESET_PASSWORD);
-        assertThat(saved.get().getPrincipalType()).isEqualTo(IdentityPrincipalType.USER);
+        assertThat(saved.get().getPrincipalType()).isEqualTo(IdentityInternalPrincipalType.USER);
         assertThat(saved.get().getPrincipal().getUniqueId()).isEqualTo(17L);
         assertThat(saved.get().getIdentityUserChannel().getUniqueId()).isEqualTo(7L);
         assertThat(saved.get().getSecretHash()).hasSize(32);

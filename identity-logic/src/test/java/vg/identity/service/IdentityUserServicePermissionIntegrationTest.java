@@ -7,7 +7,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
-import vg.identity.model.IdentityUser;
+import vg.identity.model.principal.IdentityInternalUser;
 import vg.identity.model.access.Permission;
 
 import java.lang.reflect.Method;
@@ -35,8 +35,8 @@ class IdentityUserServicePermissionIntegrationTest extends BaseIntegrationTest {
     @Test
     void publicMethods_areSecuredWithExpectedPreAuthorizeExpressions() {
         var expectedExpressions = Map.of(
-                "create(IdentityUser)", "@authorityChecker.hasAuthority('" + Permission.User.CREATE + "')",
-                "update(IdentityUser)", "@authorityChecker.hasAuthority('" + Permission.User.UPDATE + "')",
+                "create(IdentityInternalUser)", "@authorityChecker.hasAuthority('" + Permission.User.CREATE + "')",
+                "update(IdentityInternalUser)", "@authorityChecker.hasAuthority('" + Permission.User.UPDATE + "')",
                 "findByUsername(String)", "@authorityChecker.hasAuthority('" + Permission.User.READ + "')",
                 "findAll()", "@authorityChecker.hasAuthority('" + Permission.User.READ + "')"
         );
@@ -62,7 +62,7 @@ class IdentityUserServicePermissionIntegrationTest extends BaseIntegrationTest {
     void create_whenUserDoesNotHavePermission_throwsAccessDeniedException() {
         var count = userRepository.count();
 
-        assertThatThrownBy(() -> service.create(IdentityUser.builder()
+        assertThatThrownBy(() -> service.create(IdentityInternalUser.builder()
                 .username(nextString())
                 .build()))
                 .isInstanceOf(AccessDeniedException.class);

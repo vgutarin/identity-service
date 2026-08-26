@@ -13,7 +13,7 @@ import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityWorkspaceMapper;
 import vg.identity.model.IdentityChannelType;
 import vg.identity.model.IdentityRole;
-import vg.identity.model.IdentityUser;
+import vg.identity.model.principal.IdentityInternalUser;
 import vg.identity.model.IdentityUserChannel;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.model.access.Permission;
@@ -148,7 +148,7 @@ public class IdentityWorkspaceService {
 
     @PreAuthorize("@authorityChecker.hasAuthority(#uniqueId, '" + Permission.User.READ + "')")
     @Transactional(readOnly = true)
-    public List<IdentityUser> getUsers(UniqueId uniqueId) {
+    public List<IdentityInternalUser> getUsers(UniqueId uniqueId) {
         var workspace = workspaceRepository.findById(uniqueId.getLongValue())
                 .orElseThrow(EntityNotFoundException::new);
 

@@ -7,7 +7,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UserDetails;
-import vg.identity.model.IdentityApplicationPrincipal;
+import vg.identity.model.principal.IdentityInternalApplicationPrincipal;
 import vg.unique.id.model.UniqueId;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,7 +30,7 @@ class CurrentIdentityApplicationServiceTest {
     @Test
     void requireApplicationUniqueId_whenApiKeyApplicationIsAuthenticated_returnsItsId() {
         var expected = new UniqueId(42L);
-        var principal = mock(IdentityApplicationPrincipal.class);
+        var principal = mock(IdentityInternalApplicationPrincipal.class);
         when(principal.getUniqueId()).thenReturn(expected);
         when(currentUserService.findCurrentUserDetails()).thenReturn(principal);
 
@@ -56,7 +56,7 @@ class CurrentIdentityApplicationServiceTest {
 
     @Test
     void requireApplicationPrincipal_whenApiKeyApplicationIsAuthenticated_returnsPrincipal() {
-        var principal = mock(IdentityApplicationPrincipal.class);
+        var principal = mock(IdentityInternalApplicationPrincipal.class);
         when(currentUserService.findCurrentUserDetails()).thenReturn(principal);
 
         assertThat(service.requireApplicationPrincipal()).isSameAs(principal);

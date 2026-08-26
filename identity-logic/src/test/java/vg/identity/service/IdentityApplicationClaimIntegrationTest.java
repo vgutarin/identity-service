@@ -11,7 +11,7 @@ import vg.identity.BaseIntegrationTest;
 import vg.identity.entity.IdentityApplicationUserClaimEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.entity.IdentityWorkspaceScopeClaimDictionaryEntity;
-import vg.identity.model.IdentityApiKeyPrincipal;
+import vg.identity.model.principal.IdentityInternalApiKeyPrincipal;
 import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.TelegramAuthenticationRequest;
 import vg.unique.id.model.UniqueId;
@@ -108,7 +108,7 @@ class IdentityApplicationClaimIntegrationTest extends BaseIntegrationTest {
 
     private void authenticateAs(ApplicationFixture application) {
         var context = SecurityContextHolder.createEmptyContext();
-        var principal = new IdentityApiKeyPrincipal(new UniqueId(application.uniqueId()), application.uri());
+        var principal = new IdentityInternalApiKeyPrincipal(new UniqueId(application.uniqueId()), application.uri());
         context.setAuthentication(new PreAuthenticatedAuthenticationToken(principal, null, List.of()));
         SecurityContextHolder.setContext(context);
     }

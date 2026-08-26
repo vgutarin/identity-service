@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import vg.identity.model.IdentityUserSystemRole;
+import vg.identity.model.IdentityInternalUserSystemRole;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -41,7 +41,7 @@ public class IdentityUserSystemRoleEntity {
     @Id
     @Column(nullable = false)
     @Enumerated(EnumType.ORDINAL)
-    private IdentityUserSystemRole role;
+    private IdentityInternalUserSystemRole role;
 
     @Column(nullable = false, updatable = false)
     @CreatedDate

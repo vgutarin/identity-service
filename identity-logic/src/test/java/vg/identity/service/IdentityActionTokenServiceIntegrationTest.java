@@ -10,7 +10,7 @@ import vg.identity.model.EmailMessage;
 import vg.identity.model.IdentityActionType;
 import vg.identity.model.IdentityCommandStatus;
 import vg.identity.model.IdentityCommandType;
-import vg.identity.model.IdentityPrincipalType;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
 
 import java.time.Duration;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,7 +50,7 @@ class IdentityActionTokenServiceIntegrationTest extends BaseIntegrationTest {
         var verification = verifications.getFirst();
         assertThat(verification.getId()).isNotNull();
         assertThat(verification.getActionType()).isEqualTo(IdentityActionType.CONFIRM_EMAIL);
-        assertThat(verification.getPrincipalType()).isEqualTo(IdentityPrincipalType.USER);
+        assertThat(verification.getPrincipalType()).isEqualTo(IdentityInternalPrincipalType.USER);
         assertThat(verification.getPrincipal().getUniqueId()).isEqualTo(user.getUniqueId().getLongValue());
         assertThat(verification.getIdentityUserChannel().getUniqueId()).isEqualTo(channel.getUniqueId().getLongValue());
         assertThat(verification.getPayload()).isNull();
@@ -101,7 +101,7 @@ class IdentityActionTokenServiceIntegrationTest extends BaseIntegrationTest {
         assertThat(tokens).hasSize(1);
         var token = tokens.getFirst();
         assertThat(token.getActionType()).isEqualTo(IdentityActionType.RESET_PASSWORD);
-        assertThat(token.getPrincipalType()).isEqualTo(IdentityPrincipalType.USER);
+        assertThat(token.getPrincipalType()).isEqualTo(IdentityInternalPrincipalType.USER);
         assertThat(token.getPrincipal().getUniqueId()).isEqualTo(verified.userUniqueId());
         assertThat(token.getIdentityUserChannel().getUniqueId()).isEqualTo(verified.channelUniqueId());
         assertThat(token.getExpireAt()).isEqualTo(token.getCreatedAt().plus(Duration.ofHours(2)));

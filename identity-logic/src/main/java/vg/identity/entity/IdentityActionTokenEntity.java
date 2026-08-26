@@ -17,7 +17,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import vg.identity.model.IdentityActionType;
-import vg.identity.model.IdentityPrincipalType;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -46,7 +46,7 @@ public class IdentityActionTokenEntity {
 
     @Enumerated(EnumType.ORDINAL)
     @Column(updatable = false)
-    private IdentityPrincipalType principalType;
+    private IdentityInternalPrincipalType principalType;
 
     @ManyToOne
     @JoinColumn(name = "principal_unique_id", updatable = false)

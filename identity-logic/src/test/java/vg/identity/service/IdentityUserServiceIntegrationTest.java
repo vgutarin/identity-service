@@ -8,7 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.model.IdentityChannelType;
-import vg.identity.model.IdentityUser;
+import vg.identity.model.principal.IdentityInternalUser;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -133,7 +133,7 @@ class IdentityUserServiceIntegrationTest extends BaseIntegrationTest {
         // Every username is canonicalized (lower-cased + trimmed) before hashing, so lookup is
         // case-insensitive while the stored name keeps its original casing.
         var mixedCaseName = "Ab" + nextString();
-        service.create(IdentityUser.builder().username(mixedCaseName).password(password).build());
+        service.create(IdentityInternalUser.builder().username(mixedCaseName).password(password).build());
 
         var found = service.findByUsername(mixedCaseName.toUpperCase());
 
@@ -146,7 +146,7 @@ class IdentityUserServiceIntegrationTest extends BaseIntegrationTest {
         // An email username is canonicalized before hashing, so lookup is case-insensitive while the
         // stored name keeps its original casing.
         var email = "User" + nextLong() + "@Example.com";
-        service.create(IdentityUser.builder().username(email).password(password).build());
+        service.create(IdentityInternalUser.builder().username(email).password(password).build());
 
         var found = service.findByUsername(email.toLowerCase());
 
@@ -157,9 +157,9 @@ class IdentityUserServiceIntegrationTest extends BaseIntegrationTest {
     @Test
     void create_whenEmailAlreadyExistsWithDifferentCase_throwsDataIntegrityViolationException() {
         var email = "user" + nextLong() + "@example.com";
-        service.create(IdentityUser.builder().username(email).password(password).build());
+        service.create(IdentityInternalUser.builder().username(email).password(password).build());
 
-        var duplicate = IdentityUser.builder().username(email.toUpperCase()).password(password).build();
+        var duplicate = IdentityInternalUser.builder().username(email.toUpperCase()).password(password).build();
 
         // Emails collide case-insensitively on the principal name_hash.
         assertThatThrownBy(() -> service.create(duplicate)).isInstanceOf(Exception.class);
@@ -180,7 +180,7 @@ class IdentityUserServiceIntegrationTest extends BaseIntegrationTest {
     @Test
     void create_whenUsernameIsEmail_createsAttachedEmailChannel() {
         var email = "user" + nextLong() + "@example.com";
-        var user = service.create(IdentityUser.builder()
+        var user = service.create(IdentityInternalUser.builder()
                 .username(email)
                 .password(password)
                 .build());
@@ -208,8 +208,8 @@ class IdentityUserServiceIntegrationTest extends BaseIntegrationTest {
         assertThat(channel.getIdentityUser().getUniqueId()).isEqualTo(entity.getUniqueId());
     }
 
-    private IdentityUser buildModel() {
-        return IdentityUser.builder()
+    private IdentityInternalUser buildModel() {
+        return IdentityInternalUser.builder()
                 .uniqueId(null)
                 .username(name)
                 .password(password)

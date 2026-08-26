@@ -1,6 +1,6 @@
 package vg.identity.model;
 
-public enum IdentityUserSystemRole {
+public enum IdentityInternalUserSystemRole {
     /**
      * role have all possible permissions
      */

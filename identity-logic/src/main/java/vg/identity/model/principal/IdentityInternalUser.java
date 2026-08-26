@@ -1,4 +1,4 @@
-package vg.identity.model;
+package vg.identity.model.principal;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,7 +19,7 @@ import java.util.Collection;
 @AllArgsConstructor
 @Data
 @Builder
-public class IdentityUser implements IdentityPrincipal {
+public class IdentityInternalUser implements IdentityInternalPrincipal {
 
     private UniqueId uniqueId;
 

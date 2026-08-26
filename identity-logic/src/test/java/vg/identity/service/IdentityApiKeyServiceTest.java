@@ -7,8 +7,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import vg.identity.entity.IdentityApiKeyEntity;
 import vg.identity.entity.IdentityPrincipalEntity;
-import vg.identity.model.IdentityPrincipalStatus;
-import vg.identity.model.IdentityPrincipalType;
+import vg.identity.model.principal.IdentityInternalPrincipalStatus;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
 import vg.identity.repository.IdentityApiKeyRepository;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
@@ -130,8 +130,8 @@ class IdentityApiKeyServiceTest {
         return IdentityPrincipalEntity.builder()
                 .uniqueId(APPLICATION_ID)
                 .name("https://example.test/application")
-                .status(IdentityPrincipalStatus.ACTIVE)
-                .type(IdentityPrincipalType.APPLICATION)
+                .status(IdentityInternalPrincipalStatus.ACTIVE)
+                .type(IdentityInternalPrincipalType.APPLICATION)
                 .build();
     }
 }

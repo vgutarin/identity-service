@@ -10,15 +10,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Component;
 import vg.identity.model.IdentityPermission;
-import vg.identity.model.IdentityRoleTemplate;
-import vg.identity.model.IdentityUser;
-import vg.identity.model.IdentityUserSystemRole;
+import vg.identity.model.principal.IdentityInternalUser;
+import vg.identity.model.IdentityInternalUserSystemRole;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.model.access.Permission;
 
 import java.util.List;
 
-import static vg.identity.model.IdentityUserSystemRole.OWNER;
+import static vg.identity.model.IdentityInternalUserSystemRole.OWNER;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -37,42 +36,41 @@ public class IdentityApplicationStartup {
         log.info("Identity application started");
         try {
             setCurrentUserAsOwner();
-
-            if (null != userService.findByUsername("vg")) {
-                log.info("User with name {} already exists", userService.findByUsername("vg").getUsername());
+            var ownerEmail = "vgutarin@gmail.com";
+            if (null != userService.findByUsername(ownerEmail)) {
+                log.info("User with name {} already exists", userService.findByUsername(ownerEmail).getUsername());
                 return;
             }
 
-            createUser("vg", "vg", IdentityUserSystemRole.OWNER);
-            createUser("b", "b", null);
-
-            //createUser("app.vgutarin@gmail.com", "g", null);
+            createUser(ownerEmail, "vg", IdentityInternalUserSystemRole.OWNER);
+//            createUser("app.vgutarin@gmail.com", "g", null);
+//            createUser("b", "b", null);
 
             for (var permission : Permission.ALL) {
                 permissionService.create(IdentityPermission.builder().name(permission).build());
             }
 
-            var i = 0;
-            for (var roleName : List.of("Role1", "Role2", "Role3")) {
-                var template = roleTemplateService.create(
-                        IdentityRoleTemplate.builder()
-                                .name(roleName)
-                                .description(roleName + " description " + i)
-                                .build()
-                );
-                roleTemplateService.addPermission(template.getId(), Permission.ALL[i++]);
-                roleTemplateService.addPermission(template.getId(), Permission.ALL[i++]);
-            }
+//            var i = 0;
+//            for (var roleName : List.of("Role1", "Role2", "Role3")) {
+//                var template = roleTemplateService.create(
+//                        IdentityRoleTemplate.builder()
+//                                .name(roleName)
+//                                .description(roleName + " description " + i)
+//                                .build()
+//                );
+//                roleTemplateService.addPermission(template.getId(), Permission.ALL[i++]);
+//                roleTemplateService.addPermission(template.getId(), Permission.ALL[i++]);
+//            }
 
             workspaceService.create(
                     IdentityWorkspace.builder().name("System").build()
             );
 
-            List.of("Workspace1", "Workspace2").forEach(workspaceName ->
-                    workspaceService.create(
-                            IdentityWorkspace.builder().name(workspaceName).build()
-                    )
-            );
+//            List.of("Workspace1", "Workspace2").forEach(workspaceName ->
+//                    workspaceService.create(
+//                            IdentityWorkspace.builder().name(workspaceName).build()
+//                    )
+//            );
         } finally {
             SecurityContextHolder.clearContext();
         }
@@ -85,7 +83,7 @@ public class IdentityApplicationStartup {
                 )
         );
         var authentication = new PreAuthenticatedAuthenticationToken(
-                IdentityUser.builder()
+                IdentityInternalUser.builder()
                         .username("owner")
                         .password("psw")
                         .authorities(authorities)
@@ -96,10 +94,10 @@ public class IdentityApplicationStartup {
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 
-    private void createUser(String username, String psw, IdentityUserSystemRole role) {
+    private void createUser(String username, String psw, IdentityInternalUserSystemRole role) {
 
         var user = userService.create(
-                IdentityUser.builder()
+                IdentityInternalUser.builder()
                         .username(username)
                         .password(psw)
                         .build()

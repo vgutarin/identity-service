@@ -68,10 +68,10 @@ vg.identity
 
 ### Principals: users and applications
 
-Every actor is an `IdentityPrincipal` backed by a shared `identity_principal` row (shared
+Every actor is an `IdentityInternalPrincipal` backed by a shared `identity_principal` row (shared
 primary key). Two principal types exist:
 
-- **User** (`IdentityUser`) — a human account with a username, Argon2-hashed password,
+- **User** (`IdentityInternalUser`) — a human account with a username, Argon2-hashed password,
   authorities, and contact channels. Usernames are canonicalized (trimmed, lower-cased)
   and may not contain `:`.
 - **Application** (`IdentityApplication`) — a machine principal, currently specialized for
@@ -94,7 +94,7 @@ workspace when resolving permissions.
 - **Role** (`IdentityRole`) — a workspace-scoped named bundle of permissions.
 - **Role template** (`IdentityRoleTemplate`) — a reusable, workspace-independent blueprint.
   Creating a workspace seeds roles from the available templates.
-- **System roles** (`IdentityUserSystemRole`) — global roles: `OWNER` (implicitly holds
+- **System roles** (`IdentityInternalUserSystemRole`) — global roles: `OWNER` (implicitly holds
   every permission) and `VERIFIED_USER`.
 
 ### Channels
@@ -175,7 +175,7 @@ non-interactive clients can authenticate without a Mini App proof. `IdentityApiK
   is never stored.
 - **Authenticates** a presented value (`authenticate`) with a constant-time hash comparison, checking
   the key is unrevoked, unexpired, and belongs to an `ACTIVE` application principal, and returns an
-  `IdentityApiKeyPrincipal` (which carries **no** key material and **no** authorities).
+  `IdentityInternalApiKeyPrincipal` (which carries **no** key material and **no** authorities).
 - **Lists / revokes** keys and can `extractKeyId` from a raw value for audit logging without exposing
   the secret. Keys carry a `label`, `createdAt`, `expiresAt`, and optional `revokedAt`.
 

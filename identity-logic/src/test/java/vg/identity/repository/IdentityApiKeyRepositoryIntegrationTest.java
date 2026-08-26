@@ -7,8 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.entity.IdentityApiKeyEntity;
 import vg.identity.entity.IdentityPrincipalEntity;
-import vg.identity.model.IdentityPrincipalStatus;
-import vg.identity.model.IdentityPrincipalType;
+import vg.identity.model.principal.IdentityInternalPrincipalStatus;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
 import vg.unique.id.service.UniqueIdService;
 
 import java.time.Instant;
@@ -32,8 +32,8 @@ class IdentityApiKeyRepositoryIntegrationTest extends BaseIntegrationTest {
                         .name("https://example.test/application")
                         .nameHash(new byte[32])
                         .displayName("Application")
-                        .status(IdentityPrincipalStatus.ACTIVE)
-                        .type(IdentityPrincipalType.APPLICATION)
+                        .status(IdentityInternalPrincipalStatus.ACTIVE)
+                        .type(IdentityInternalPrincipalType.APPLICATION)
                         .build(),
                 uniqueIdService
         );

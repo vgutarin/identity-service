@@ -10,7 +10,7 @@ import vg.identity.entity.IdentityPermissionEntity;
 import vg.identity.entity.IdentityUserResourcePermissionEntity;
 import vg.identity.entity.IdentityUserResourcePermissionEntityId;
 import vg.identity.model.IdentityResourceType;
-import vg.identity.model.IdentityUser;
+import vg.identity.model.principal.IdentityInternalUser;
 import vg.identity.model.IdentityUserResourcePermission;
 import vg.identity.repository.IdentityPermissionRepository;
 import vg.identity.repository.IdentityUserResourcePermissionRepository;
@@ -156,8 +156,8 @@ class IdentityUserAuthorityServiceTest {
         assertThat(service.findByUserAndResourceType(user, IdentityResourceType.WORKSPACE)).isSameAs(permissions);
     }
 
-    private static IdentityUser user(Long uniqueId) {
-        return IdentityUser.builder()
+    private static IdentityInternalUser user(Long uniqueId) {
+        return IdentityInternalUser.builder()
                 .uniqueId(new UniqueId(uniqueId))
                 .build();
     }

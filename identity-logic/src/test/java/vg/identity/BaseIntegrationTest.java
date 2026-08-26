@@ -19,13 +19,14 @@ import vg.identity.entity.IdentityRoleAssignmentEntity;
 import vg.identity.entity.IdentityRoleEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityUserMapper;
-import vg.identity.model.IdentityPrincipalStatus;
-import vg.identity.model.IdentityPrincipalType;
-import vg.identity.model.IdentityUser;
+import vg.identity.model.principal.IdentityInternalPrincipalStatus;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
+import vg.identity.model.principal.IdentityInternalUser;
+import vg.identity.repository.IdentityActionTokenRepository;
+import vg.identity.repository.IdentityApiKeyRepository;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityApplicationUserClaimRepository;
 import vg.identity.repository.IdentityApplicationUserRepository;
-import vg.identity.repository.IdentityApiKeyRepository;
 import vg.identity.repository.IdentityCommandRepository;
 import vg.identity.repository.IdentityPermissionRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
@@ -33,7 +34,6 @@ import vg.identity.repository.IdentityRoleAssignmentRepository;
 import vg.identity.repository.IdentityRoleRepository;
 import vg.identity.repository.IdentityRoleTemplateRepository;
 import vg.identity.repository.IdentityUserChannelRepository;
-import vg.identity.repository.IdentityActionTokenRepository;
 import vg.identity.repository.IdentityUserRepository;
 import vg.identity.repository.IdentityUserResourcePermissionRepository;
 import vg.identity.repository.IdentityUserSystemRoleRepository;
@@ -123,13 +123,13 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
         principalRepository.deleteAll();
     }
 
-    protected IdentityUser createIdentityUser(String username) {
+    protected IdentityInternalUser createIdentityUser(String username) {
         var existing = userRepository.findByPrincipal_NameHash(encryptionService.hashPrincipalName(username));
         if (existing.isPresent()) {
             return identityUserMapper.toModel(existing.get());
         }
 
-        var user = IdentityUser.builder()
+        var user = IdentityInternalUser.builder()
                 .username(username)
                 .password(nextString())
                 .build();
@@ -155,13 +155,13 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
     }
 
 
-    private IdentityPrincipalEntity createPrincipal(IdentityUser user) {
+    private IdentityPrincipalEntity createPrincipal(IdentityInternalUser user) {
         var principal = IdentityPrincipalEntity.builder()
                 .name(user.getUsername())
                 .nameHash(encryptionService.hashPrincipalName(user.getUsername()))
                 .displayName(user.getUsername())
-                .status(IdentityPrincipalStatus.ACTIVE)
-                .type(IdentityPrincipalType.USER)
+                .status(IdentityInternalPrincipalStatus.ACTIVE)
+                .type(IdentityInternalPrincipalType.USER)
                 .build();
         return principalRepository.saveWithNewUniqueId(principal, uniqueIdService);
     }
@@ -186,8 +186,8 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
                         .displayName(nextString())
                         .name(uri)
                         .nameHash(encryptionService.hashPrincipalName(uri))
-                        .status(IdentityPrincipalStatus.ACTIVE)
-                        .type(IdentityPrincipalType.APPLICATION)
+                        .status(IdentityInternalPrincipalStatus.ACTIVE)
+                        .type(IdentityInternalPrincipalType.APPLICATION)
                         .build(),
                 uniqueIdService
         );
@@ -216,7 +216,7 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
                 .build(), uniqueIdService);
     }
 
-    protected void assignRole(IdentityUser user, long resourceUniqueId, IdentityRoleEntity role) {
+    protected void assignRole(IdentityInternalUser user, long resourceUniqueId, IdentityRoleEntity role) {
         var principal = principalRepository.findById(user.getUniqueId()).orElseThrow();
         roleAssignmentRepository.save(IdentityRoleAssignmentEntity.builder()
                 .principal(principal)
@@ -226,7 +226,7 @@ public class BaseIntegrationTest implements Mysql8ContainerStarter {
     }
 
     /** Convenience: create a role carrying {@code permissionName} in the workspace and assign it to the user there. */
-    protected IdentityRoleEntity grantWorkspacePermission(IdentityUser user, IdentityWorkspaceEntity workspace, String permissionName) {
+    protected IdentityRoleEntity grantWorkspacePermission(IdentityInternalUser user, IdentityWorkspaceEntity workspace, String permissionName) {
         var role = createRole(workspace, permissionName);
         assignRole(user, workspace.getUniqueId(), role);
         return role;

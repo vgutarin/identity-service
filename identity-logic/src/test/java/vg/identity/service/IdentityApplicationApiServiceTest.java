@@ -8,13 +8,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.model.IdentityApplication;
-import vg.identity.model.IdentityApplicationPrincipal;
+import vg.identity.model.principal.IdentityInternalApplicationPrincipal;
 import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.TelegramAuthenticationRequest;
 import vg.identity.model.TelegramUserPrincipal;
 import vg.identity.model.application.TelegramBot;
 import vg.unique.id.model.UniqueId;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -65,7 +66,7 @@ class IdentityApplicationApiServiceTest {
     @Test
     void me_whenCurrentPrincipalIsApplication_returnsOnlySafeApplicationMetadata() {
         var uniqueId = new UniqueId(42L);
-        var principal = mock(IdentityApplicationPrincipal.class);
+        var principal = mock(IdentityInternalApplicationPrincipal.class);
         when(principal.getUniqueId()).thenReturn(uniqueId);
         when(currentApplicationService.requireApplicationPrincipal()).thenReturn(principal);
         when(applicationService.getAuthenticatedApplication(uniqueId)).thenReturn(
@@ -80,13 +81,13 @@ class IdentityApplicationApiServiceTest {
 
         var response = service.me();
 
-        assertThat(response.uniqueId()).isEqualTo(uniqueId.toString());
-        assertThat(response.workspaceUniqueId()).isEqualTo(7L);
+        assertThat(response.applicationUniqueId()).isEqualTo(uniqueId);
+        assertThat(response.workspaceUniqueId()).isEqualTo(new UniqueId(7L));
         assertThat(response.name()).isEqualTo("Orders");
-        assertThat(response.uri()).isEqualTo("https://example.test/orders");
+        assertThat(response.uri()).isEqualTo(URI.create("https://example.test/orders"));
         assertThat(response.getClass().getRecordComponents())
                 .extracting(component -> component.getName())
-                .containsExactly("uniqueId", "workspaceUniqueId", "name", "uri");
+                .containsExactly("applicationUniqueId", "workspaceUniqueId", "name", "uri");
     }
 
     @Test
@@ -118,7 +119,7 @@ class IdentityApplicationApiServiceTest {
         var result = service.authenticateTelegram(TelegramAuthenticationRequest.builder().telegramInitData("init-data").consentToKeepPersonalData(false).build());
 
         assertThat(result).contains(IdentityApplicationUserPrincipal.builder()
-                .sub(new UniqueId(84L).toString())
+                .userUniqueId(new UniqueId(84L))
                 .name("Ada")
                 .permissions(Set.of("orders.read", "orders.write"))
                 .consentGiven(true)
@@ -163,7 +164,7 @@ class IdentityApplicationApiServiceTest {
         var result = service.authenticateTelegram(TelegramAuthenticationRequest.builder().telegramInitData("init-data").consentToKeepPersonalData(true).build());
 
         assertThat(result).contains(IdentityApplicationUserPrincipal.builder()
-                .sub(new UniqueId(84L).toString())
+                .userUniqueId(new UniqueId(84L))
                 .name("Ada")
                 .permissions(Set.of("orders.read"))
                 .consentGiven(true)
@@ -191,7 +192,7 @@ class IdentityApplicationApiServiceTest {
         var result = service.authenticateTelegram(TelegramAuthenticationRequest.builder().telegramInitData("init-data").consentToKeepPersonalData(true).build());
 
         assertThat(result).contains(IdentityApplicationUserPrincipal.builder()
-                .sub(new UniqueId(84L).toString())
+                .userUniqueId(new UniqueId(84L))
                 .name("Ada")
                 .consentGiven(true)
                 .build());

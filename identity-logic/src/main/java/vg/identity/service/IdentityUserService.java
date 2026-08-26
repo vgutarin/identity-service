@@ -14,9 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 import vg.identity.entity.IdentityPrincipalEntity;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.mapper.IdentityUserMapper;
-import vg.identity.model.IdentityPrincipalStatus;
-import vg.identity.model.IdentityPrincipalType;
-import vg.identity.model.IdentityUser;
+import vg.identity.model.principal.IdentityInternalPrincipalStatus;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
+import vg.identity.model.principal.IdentityInternalUser;
 import vg.identity.model.PasswordPolicy;
 import vg.identity.model.UserProvisioningDetails;
 import vg.identity.model.access.Permission;
@@ -45,7 +45,7 @@ public class IdentityUserService implements UserDetailsService {
     private final IdentityUserAuthorityService authorityService;
 
     @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.User.READ + "')")
-    public IdentityUser findByUsername(String username) {
+    public IdentityInternalUser findByUsername(String username) {
         return findEntityByUsername(username)
                 .map(mapper::toModel)
                 .orElse(null);
@@ -53,7 +53,7 @@ public class IdentityUserService implements UserDetailsService {
 
     @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.User.READ + "')")
     @Transactional(readOnly = true)
-    public List<IdentityUser> findAll() {
+    public List<IdentityInternalUser> findAll() {
         return repository.findAll().stream()
                 .map(mapper::toModel)
                 .toList();
@@ -61,7 +61,7 @@ public class IdentityUserService implements UserDetailsService {
 
     @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.User.CREATE + "')")
     @Transactional
-    public IdentityUser create(IdentityUser user) {
+    public IdentityInternalUser create(IdentityInternalUser user) {
         if (null != user.getPassword()) {
             user.setPassword(passwordEncoder.encode(user.getPassword()));
         }
@@ -71,7 +71,7 @@ public class IdentityUserService implements UserDetailsService {
 
     @PreAuthorize("@authorityChecker.hasAuthority('" + Permission.User.UPDATE + "')")
     @Transactional
-    public IdentityUser update(IdentityUser user) {
+    public IdentityInternalUser update(IdentityInternalUser user) {
         requireColonFreeUsername(user.getUsername());
         var entity = repository.findById(user.getUniqueId()).orElse(null);
 
@@ -123,7 +123,7 @@ public class IdentityUserService implements UserDetailsService {
     UniqueId findUniqueIdByUsername(String username) {
         return findEntityByUsername(username)
                 .map(mapper::toModel)
-                .map(IdentityUser::getUniqueId)
+                .map(IdentityInternalUser::getUniqueId)
                 .orElse(null);
     }
 
@@ -132,7 +132,7 @@ public class IdentityUserService implements UserDetailsService {
                 username
         ).orElseGet(() ->
                 newEntity(
-                        IdentityUser.builder()
+                        IdentityInternalUser.builder()
                                 .username(username)
                                 .build()
                 )
@@ -155,7 +155,7 @@ public class IdentityUserService implements UserDetailsService {
                         throw new IllegalArgumentException("exception.user.consent.required");
                     }
                     PasswordPolicy.requireStrong(provisioning.rawPassword());
-                    var user = IdentityUser.builder()
+                    var user = IdentityInternalUser.builder()
                             .username(email)
                             .displayName(provisioning.displayName())
                             .password(passwordEncoder.encode(provisioning.rawPassword()))
@@ -175,15 +175,15 @@ public class IdentityUserService implements UserDetailsService {
         return saveUserForPrincipal(principal, IdentityUserEntity.builder().build());
     }
 
-    IdentityUser toModel(IdentityUserEntity entity) {
+    IdentityInternalUser toModel(IdentityUserEntity entity) {
         return mapper.toModel(entity);
     }
 
-    private IdentityUserEntity newEntity(IdentityUser user) {
+    private IdentityUserEntity newEntity(IdentityInternalUser user) {
         return newEntity(user, true);
     }
 
-    private IdentityUserEntity newEntity(IdentityUser user, boolean createEmailChannel) {
+    private IdentityUserEntity newEntity(IdentityInternalUser user, boolean createEmailChannel) {
         requireColonFreeUsername(user.getUsername());
         var displayName = (user.getDisplayName() != null && !user.getDisplayName().isBlank())
                 ? user.getDisplayName()
@@ -205,8 +205,8 @@ public class IdentityUserService implements UserDetailsService {
                 .name(name)
                 .nameHash(nameHash)
                 .displayName(displayName)
-                .status(IdentityPrincipalStatus.ACTIVE)
-                .type(IdentityPrincipalType.USER)
+                .status(IdentityInternalPrincipalStatus.ACTIVE)
+                .type(IdentityInternalPrincipalType.USER)
                 .build();
         return principalRepository.saveWithNewUniqueId(principal, uniqueIdService);
     }

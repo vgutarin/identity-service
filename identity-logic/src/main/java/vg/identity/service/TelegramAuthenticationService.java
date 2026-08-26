@@ -8,7 +8,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import vg.identity.model.IdentityUserSystemRole;
+import vg.identity.model.IdentityInternalUserSystemRole;
 import vg.identity.model.TelegramUserPrincipal;
 import vg.identity.model.application.TelegramBot;
 
@@ -53,7 +53,7 @@ public class TelegramAuthenticationService {
                         initData,
                         List.of(
                                 new SimpleGrantedAuthority(
-                                        IdentityUserSystemRole.VERIFIED_USER.name()
+                                        IdentityInternalUserSystemRole.VERIFIED_USER.name()
                                 )
                         )
                 ));

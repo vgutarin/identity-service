@@ -32,7 +32,7 @@ class TelegramAuthenticationAuditorTest {
     }
 
     @Test
-    void userProvisioned_logsCreationEventReferencingSubjectOnly() {
+    void userProvisioned_logsCreationEventReferencingUserUniqueIdOnly() {
         auditor.userProvisioned(new UniqueId(42L), 84L);
 
         assertThat(appender.list).hasSize(1);
@@ -41,7 +41,7 @@ class TelegramAuthenticationAuditorTest {
                 "event=telegram.user.provision",
                 "outcome=CREATED",
                 "applicationUniqueId=" + new UniqueId(42L),
-                "sub=" + new UniqueId(84L));
+                "userUniqueId=" + new UniqueId(84L));
     }
 
     @Test
@@ -50,7 +50,7 @@ class TelegramAuthenticationAuditorTest {
 
         assertThat(appender.list).hasSize(1);
         var message = appender.list.get(0).getFormattedMessage();
-        assertThat(message).contains("event=telegram.auth", "outcome=SUCCESS", "sub=" + new UniqueId(84L));
+        assertThat(message).contains("event=telegram.auth", "outcome=SUCCESS", "userUniqueId=" + new UniqueId(84L));
         // The auditor is given only stable ids by contract — assert no raw Telegram data / credentials leak.
         assertThat(message).doesNotContain("first_name", "init_data", "initData", "token", "hash");
     }

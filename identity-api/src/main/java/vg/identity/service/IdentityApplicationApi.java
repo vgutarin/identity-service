@@ -1,6 +1,6 @@
 package vg.identity.service;
 
-import vg.identity.model.AuthenticatedIdentityApplication;
+import vg.identity.model.IdentityApplicationPrincipal;
 import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.TelegramAuthenticationRequest;
 
@@ -10,7 +10,7 @@ import java.util.Optional;
  * Provides metadata about the application represented by the current application principal.
  */
 public interface IdentityApplicationApi {
-    AuthenticatedIdentityApplication me();
+    IdentityApplicationPrincipal me();
 
     /**
      * Verifies Telegram WebApp data and resolves a consent-gated principal in the current application's

@@ -15,8 +15,8 @@ import vg.identity.entity.IdentityPrincipalEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityApplicationMapper;
 import vg.identity.model.IdentityApplication;
-import vg.identity.model.IdentityPrincipalStatus;
-import vg.identity.model.IdentityPrincipalType;
+import vg.identity.model.principal.IdentityInternalPrincipalStatus;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
 import vg.identity.model.application.TelegramBot;
 import vg.identity.model.application.TelegramBotWithUri;
 import vg.identity.repository.IdentityApplicationRepository;
@@ -88,8 +88,8 @@ class IdentityApplicationServiceTest {
         assertThat(principalCaptor.getValue().getDisplayName()).isEqualTo(name);
         assertThat(principalCaptor.getValue().getName()).isEqualTo(uriString);
         assertThat(principalCaptor.getValue().getNameHash()).isEqualTo(nameHash);
-        assertThat(principalCaptor.getValue().getStatus()).isEqualTo(IdentityPrincipalStatus.ACTIVE);
-        assertThat(principalCaptor.getValue().getType()).isEqualTo(IdentityPrincipalType.APPLICATION);
+        assertThat(principalCaptor.getValue().getStatus()).isEqualTo(IdentityInternalPrincipalStatus.ACTIVE);
+        assertThat(principalCaptor.getValue().getType()).isEqualTo(IdentityInternalPrincipalType.APPLICATION);
 
         verify(applicationRepository).save(applicationCaptor.capture());
         assertThat(applicationCaptor.getValue().getUniqueId()).isEqualTo(principal.getUniqueId());
@@ -480,8 +480,8 @@ class IdentityApplicationServiceTest {
         return IdentityPrincipalEntity.builder()
                 .uniqueId(id)
                 .displayName(name)
-                .status(IdentityPrincipalStatus.ACTIVE)
-                .type(IdentityPrincipalType.APPLICATION)
+                .status(IdentityInternalPrincipalStatus.ACTIVE)
+                .type(IdentityInternalPrincipalType.APPLICATION)
                 .build();
     }
 
@@ -489,8 +489,8 @@ class IdentityApplicationServiceTest {
         return IdentityPrincipalEntity.builder()
                 .uniqueId(id)
                 .name(uri)
-                .status(IdentityPrincipalStatus.ACTIVE)
-                .type(IdentityPrincipalType.APPLICATION)
+                .status(IdentityInternalPrincipalStatus.ACTIVE)
+                .type(IdentityInternalPrincipalType.APPLICATION)
                 .build();
     }
 

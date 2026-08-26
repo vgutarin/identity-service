@@ -22,7 +22,7 @@ import vg.identity.frontend.vaadin.service.LocalizationService;
 import vg.identity.frontend.vaadin.ui.Dialogs;
 import vg.identity.frontend.vaadin.ui.Notifications;
 import vg.identity.model.IdentityResourceType;
-import vg.identity.model.IdentityUser;
+import vg.identity.model.principal.IdentityInternalUser;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.service.IdentityWorkspaceService;
 import vg.identity.service.IdentityUserAuthorityService;
@@ -45,7 +45,7 @@ public class IdentityUserPermissions extends VerticalLayout {
     private final IdentityWorkspaceService workspaceService;
     private final IdentityUserAuthorityService authorityService;
     private final LocalizationService localization;
-    private final Grid<IdentityUser> usersGrid = new Grid<>(IdentityUser.class, false);
+    private final Grid<IdentityInternalUser> usersGrid = new Grid<>(IdentityInternalUser.class, false);
 
     public IdentityUserPermissions(
             IdentityUserService userService,
@@ -71,14 +71,14 @@ public class IdentityUserPermissions extends VerticalLayout {
     private void configureUsersGrid() {
         usersGrid.setSizeFull();
         usersGrid.setEmptyStateText(localization.i18n("No users found"));
-        usersGrid.addColumn(IdentityUser::getUsername)
+        usersGrid.addColumn(IdentityInternalUser::getUsername)
                 .setHeader(localization.i18n("Username"))
                 .setSortable(true)
                 .setAutoWidth(true);
         usersGrid.addColumn(user -> format(user.getCreatedAt()))
                 .setHeader(localization.i18n("Created"))
                 .setSortable(true)
-                .setComparator(IdentityUser::getCreatedAt)
+                .setComparator(IdentityInternalUser::getCreatedAt)
                 .setAutoWidth(true);
         usersGrid.addComponentColumn(user -> {
                     var edit = new Button(localization.i18n("Edit permissions"), VaadinIcon.EDIT.create());
@@ -91,7 +91,7 @@ public class IdentityUserPermissions extends VerticalLayout {
                 .setFlexGrow(0);
     }
 
-    private void openAddPermissionDialog(IdentityUser user, TreeGrid<PermissionTreeItem> tree) {
+    private void openAddPermissionDialog(IdentityInternalUser user, TreeGrid<PermissionTreeItem> tree) {
         var dialog = Dialogs.form(localization.i18n("Create permission"), 560);
 
         var resourceType = new Select<IdentityResourceType>();
@@ -152,7 +152,7 @@ public class IdentityUserPermissions extends VerticalLayout {
         dialog.open();
     }
 
-    private void openPermissionsDialog(IdentityUser user) {
+    private void openPermissionsDialog(IdentityInternalUser user) {
         var dialog = Dialogs.form(localization.i18n("Permissions") + ": " + user.getUsername(), 760);
 
         var tree = new TreeGrid<PermissionTreeItem>();
@@ -188,7 +188,7 @@ public class IdentityUserPermissions extends VerticalLayout {
         dialog.open();
     }
 
-    private Component permissionCheckbox(IdentityUser user, PermissionTreeItem item) {
+    private Component permissionCheckbox(IdentityInternalUser user, PermissionTreeItem item) {
         if (!item.permission()) {
             return new HorizontalLayout();
         }
@@ -208,7 +208,7 @@ public class IdentityUserPermissions extends VerticalLayout {
         return checkbox;
     }
 
-    private void refreshTree(IdentityUser user, TreeGrid<PermissionTreeItem> tree) {
+    private void refreshTree(IdentityInternalUser user, TreeGrid<PermissionTreeItem> tree) {
         var roots = Arrays.stream(IdentityResourceType.values())
                 .map(type -> PermissionTreeItem.root(type, localization.i18n(type.name())))
                 .toList();
@@ -223,7 +223,7 @@ public class IdentityUserPermissions extends VerticalLayout {
         });
     }
 
-    private List<PermissionTreeItem> resources(IdentityUser user, IdentityResourceType type) {
+    private List<PermissionTreeItem> resources(IdentityInternalUser user, IdentityResourceType type) {
         if (type != IdentityResourceType.WORKSPACE) {
             return List.of();
         }

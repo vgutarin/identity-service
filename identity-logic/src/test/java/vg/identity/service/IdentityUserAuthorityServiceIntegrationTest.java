@@ -5,7 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.model.IdentityResourceType;
-import vg.identity.model.IdentityUser;
+import vg.identity.model.principal.IdentityInternalUser;
 import vg.identity.model.IdentityWorkspace;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,7 +22,7 @@ class IdentityUserAuthorityServiceIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void findByUserAndResourceType_whenResourceTypeIsWorkspace_returnsPermissionsWithResourceAndPermissionNames() {
-        var user = userService.create(IdentityUser.builder()
+        var user = userService.create(IdentityInternalUser.builder()
                 .username(nextString())
                 .password(nextString())
                 .build());

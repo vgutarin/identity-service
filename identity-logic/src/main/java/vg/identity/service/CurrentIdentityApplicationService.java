@@ -4,7 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import vg.identity.model.IdentityApplicationPrincipal;
+import vg.identity.model.principal.IdentityInternalApplicationPrincipal;
 import vg.unique.id.model.UniqueId;
 
 /**
@@ -31,9 +31,9 @@ public class CurrentIdentityApplicationService {
      * so endpoints that describe "the authenticated application" (rather than merely act on its behalf)
      * must go through here.
      */
-    public IdentityApplicationPrincipal requireApplicationPrincipal() {
+    public IdentityInternalApplicationPrincipal requireApplicationPrincipal() {
         var principal = currentUserService.findCurrentUserDetails();
-        if (principal instanceof IdentityApplicationPrincipal applicationPrincipal) {
+        if (principal instanceof IdentityInternalApplicationPrincipal applicationPrincipal) {
             return applicationPrincipal;
         }
         throw applicationAuthenticationRequired();
@@ -46,7 +46,7 @@ public class CurrentIdentityApplicationService {
      */
     public UniqueId requireApplicationUniqueId() {
         var principal = currentUserService.findCurrentUserDetails();
-        if (principal instanceof IdentityApplicationPrincipal applicationPrincipal) {
+        if (principal instanceof IdentityInternalApplicationPrincipal applicationPrincipal) {
             return applicationPrincipal.getUniqueId();
         }
         if (principal != null) {

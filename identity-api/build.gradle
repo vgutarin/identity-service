@@ -12,8 +12,8 @@ publishing {
 }
 
 dependencies {
+    // The public principal records expose UniqueId (self-explaining, typed identifiers); URI is JDK-only.
     api "vg.unique-id:unique-id-api:${vg_unique_id_version}"
-    api "org.springframework.security:spring-security-core"
 
     compileOnly "org.projectlombok:lombok"
     annotationProcessor "org.projectlombok:lombok"
@@ -21,6 +21,8 @@ dependencies {
     testImplementation "org.junit.jupiter:junit-jupiter"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
     testImplementation "org.assertj:assertj-core"
+    // Confirms UniqueId/URI round-trip as JSON strings (T004); UniqueId carries @JsonValue/@JsonCreator.
+    testImplementation "tools.jackson.core:jackson-databind"
 
     testCompileOnly "org.projectlombok:lombok"
     testAnnotationProcessor "org.projectlombok:lombok"

@@ -3,8 +3,8 @@ package vg.identity.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import vg.identity.model.IdentityApplicationPrincipal;
-import vg.identity.model.IdentityUserSystemRole;
+import vg.identity.model.principal.IdentityInternalApplicationPrincipal;
+import vg.identity.model.IdentityInternalUserSystemRole;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityRoleAssignmentRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
@@ -36,7 +36,7 @@ public class AuthorityChecker {
         }
 
         var normalizedRole = IdentityUserAuthorityService.normalizeRoleName(
-                IdentityUserSystemRole.OWNER.name()
+                IdentityInternalUserSystemRole.OWNER.name()
         );
 
         var normalizedPermission = IdentityUserAuthorityService.resourceAuthorityName(resourceUniqueId, permission);
@@ -62,7 +62,7 @@ public class AuthorityChecker {
             return false;
         }
 
-        return userService.hasRole(IdentityUserSystemRole.OWNER.name());
+        return userService.hasRole(IdentityInternalUserSystemRole.OWNER.name());
     }
 
 
@@ -108,7 +108,7 @@ public class AuthorityChecker {
      * Allows an application principal to access only the application it authenticated as.
      */
     public boolean isAuthenticatedApplication(UniqueId applicationUniqueId) {
-        return userService.findCurrentUserDetails() instanceof IdentityApplicationPrincipal principal
+        return userService.findCurrentUserDetails() instanceof IdentityInternalApplicationPrincipal principal
                 && principal.getUniqueId().equals(applicationUniqueId);
     }
 

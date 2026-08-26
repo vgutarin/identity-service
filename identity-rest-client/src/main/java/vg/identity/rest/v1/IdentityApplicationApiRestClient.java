@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.service.annotation.GetExchange;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
-import vg.identity.model.AuthenticatedIdentityApplication;
+import vg.identity.model.IdentityApplicationPrincipal;
 import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.TelegramAuthenticationRequest;
 import vg.identity.service.IdentityApplicationApi;
@@ -23,7 +23,7 @@ public interface IdentityApplicationApiRestClient extends IdentityApplicationApi
 
     @Override
     @GetExchange("/me")
-    AuthenticatedIdentityApplication me();
+    IdentityApplicationPrincipal me();
 
     @Override
     @PostExchange(url = "/me/authentications/telegram", contentType = MediaType.APPLICATION_JSON_VALUE)

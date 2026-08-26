@@ -12,9 +12,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import vg.identity.entity.IdentityPrincipalEntity;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.mapper.IdentityUserMapper;
-import vg.identity.model.IdentityPrincipalStatus;
-import vg.identity.model.IdentityPrincipalType;
-import vg.identity.model.IdentityUser;
+import vg.identity.model.principal.IdentityInternalPrincipalStatus;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
+import vg.identity.model.principal.IdentityInternalUser;
 import vg.identity.model.UserProvisioningDetails;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityUserRepository;
@@ -73,7 +73,7 @@ class IdentityUserServiceTest {
         var encodedPassword = "encoded_" + password;
         var nameHash = new byte[]{1, 2, 3};
 
-        var modelToSave = IdentityUser.builder().username(username).password(password).build();
+        var modelToSave = IdentityInternalUser.builder().username(username).password(password).build();
         var modelSaved = model(1L);
 
         var entityToSave = IdentityUserEntity.builder().uniqueId(null).build();
@@ -102,8 +102,8 @@ class IdentityUserServiceTest {
         assertThat(principalCaptor.getValue().getName()).isEqualTo(username);
         assertThat(principalCaptor.getValue().getNameHash()).isEqualTo(nameHash);
         assertThat(principalCaptor.getValue().getDisplayName()).isEqualTo(username);
-        assertThat(principalCaptor.getValue().getStatus()).isEqualTo(IdentityPrincipalStatus.ACTIVE);
-        assertThat(principalCaptor.getValue().getType()).isEqualTo(IdentityPrincipalType.USER);
+        assertThat(principalCaptor.getValue().getStatus()).isEqualTo(IdentityInternalPrincipalStatus.ACTIVE);
+        assertThat(principalCaptor.getValue().getType()).isEqualTo(IdentityInternalPrincipalType.USER);
         verify(repository).flush();
         verify(channelService, never()).createEmailChannel(any(String.class), any(IdentityUserEntity.class));
     }
@@ -112,7 +112,7 @@ class IdentityUserServiceTest {
     void create_whenUsernameIsEmail_createsAttachedEmailChannel() {
         var username = "john@example.com";
         var nameHash = new byte[]{1, 2, 3};
-        var modelToSave = IdentityUser.builder().username(username).build();
+        var modelToSave = IdentityInternalUser.builder().username(username).build();
         var modelSaved = model(1L);
         var entityToSave = IdentityUserEntity.builder().uniqueId(null).build();
         var entitySaved = entity(1L);
@@ -139,7 +139,7 @@ class IdentityUserServiceTest {
         var updatedDisplayName = nextString();
         var nameHash = new byte[]{4, 5, 6};
 
-        var user = IdentityUser.builder()
+        var user = IdentityInternalUser.builder()
                 .uniqueId(userId)
                 .username(updatedName)
                 .displayName(updatedDisplayName)
@@ -233,7 +233,7 @@ class IdentityUserServiceTest {
 
         when(encryptionService.hashPrincipalName(username)).thenReturn(hash);
         when(repository.findByPrincipal_NameHash(hash)).thenReturn(Optional.empty());
-        when(mapper.toEntity(any(IdentityUser.class))).thenReturn(entityToSave);
+        when(mapper.toEntity(any(IdentityInternalUser.class))).thenReturn(entityToSave);
         when(principalRepository.saveWithNewUniqueId(any(IdentityPrincipalEntity.class), eq(uniqueIdService)))
                 .thenReturn(principalSaved);
         when(repository.save(entityToSave)).thenReturn(entitySaved);
@@ -245,7 +245,7 @@ class IdentityUserServiceTest {
 
     @Test
     void create_whenUsernameContainsColon_throwsIllegalArgumentException() {
-        var model = IdentityUser.builder().username("scheme://value").build();
+        var model = IdentityInternalUser.builder().username("scheme://value").build();
 
         assertThatThrownBy(() -> service.create(model)).isInstanceOf(IllegalArgumentException.class);
         verify(repository, never()).save(any());
@@ -263,14 +263,14 @@ class IdentityUserServiceTest {
         when(encryptionService.hashPrincipalName(email)).thenReturn(hash);
         when(repository.findByPrincipal_NameHash(hash)).thenReturn(Optional.empty());
         when(passwordEncoder.encode("Abcdefghi1")).thenReturn("encoded_pw");
-        when(mapper.toEntity(any(IdentityUser.class))).thenReturn(entityToSave);
+        when(mapper.toEntity(any(IdentityInternalUser.class))).thenReturn(entityToSave);
         when(principalRepository.saveWithNewUniqueId(any(IdentityPrincipalEntity.class), eq(uniqueIdService)))
                 .thenReturn(principalSaved);
         when(repository.save(entityToSave)).thenReturn(entitySaved);
 
         assertThat(service.getOrCreateEntityForEmailChannel(email, provisioning)).isSameAs(entitySaved);
 
-        var modelCaptor = ArgumentCaptor.forClass(IdentityUser.class);
+        var modelCaptor = ArgumentCaptor.forClass(IdentityInternalUser.class);
         verify(mapper).toEntity(modelCaptor.capture());
         assertThat(modelCaptor.getValue().getPassword()).isEqualTo("encoded_pw");
         assertThat(modelCaptor.getValue().getDisplayName()).isEqualTo("John Doe");
@@ -347,8 +347,8 @@ class IdentityUserServiceTest {
         verify(repository, never()).save(any());
     }
 
-    private static IdentityUser model(long id) {
-        return IdentityUser.builder().uniqueId(new UniqueId(id)).build();
+    private static IdentityInternalUser model(long id) {
+        return IdentityInternalUser.builder().uniqueId(new UniqueId(id)).build();
     }
 
     private static IdentityUserEntity entity(long id) {
@@ -358,8 +358,8 @@ class IdentityUserServiceTest {
     private static IdentityPrincipalEntity principal(long id) {
         return IdentityPrincipalEntity.builder()
                 .uniqueId(id)
-                .status(IdentityPrincipalStatus.ACTIVE)
-                .type(IdentityPrincipalType.USER)
+                .status(IdentityInternalPrincipalStatus.ACTIVE)
+                .type(IdentityInternalPrincipalType.USER)
                 .build();
     }
 

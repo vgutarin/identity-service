@@ -1,4 +1,4 @@
-package vg.identity.model;
+package vg.identity.model.principal;
 
 import org.springframework.security.core.GrantedAuthority;
 import vg.unique.id.model.UniqueId;
@@ -10,7 +10,7 @@ import java.util.List;
  * Application identity placed in the security context after an API key has been verified.
  * It contains no API-key material.
  */
-public record IdentityApiKeyPrincipal(UniqueId uniqueId, String username) implements IdentityApplicationPrincipal {
+public record IdentityInternalApiKeyPrincipal(UniqueId uniqueId, String username) implements IdentityInternalApplicationPrincipal {
 
     @Override
     public UniqueId getUniqueId() {

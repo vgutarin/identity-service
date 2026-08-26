@@ -4,20 +4,19 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class IdentityPrincipalStatusTest {
+class IdentityInternalUserSystemRoleTest {
 
     /**
-     * The ordinals and names of these enum values are persisted in the database and
+     * The ordinals and names of these enum values are persisted (e.g. in the database) and
      * must never change. Changing them would silently corrupt existing data, so this test
      * pins every value to its expected name and ordinal.
      */
     @Test
     void values_whenEnumPersistsByOrdinal_returnsStableOrdinalsAndNames() {
-        assertThat(IdentityPrincipalStatus.VERIFICATION.name()).isEqualTo("VERIFICATION");
-        assertThat(IdentityPrincipalStatus.VERIFICATION.ordinal()).isEqualTo(0);
-
-        assertThat(IdentityPrincipalStatus.ACTIVE.name()).isEqualTo("ACTIVE");
-        assertThat(IdentityPrincipalStatus.ACTIVE.ordinal()).isEqualTo(1);
+        assertThat(IdentityInternalUserSystemRole.OWNER.name()).isEqualTo("OWNER");
+        assertThat(IdentityInternalUserSystemRole.OWNER.ordinal()).isEqualTo(0);
+        assertThat(IdentityInternalUserSystemRole.VERIFIED_USER.name()).isEqualTo("VERIFIED_USER");
+        assertThat(IdentityInternalUserSystemRole.VERIFIED_USER.ordinal()).isEqualTo(1);
     }
 
     /**
@@ -27,10 +26,10 @@ class IdentityPrincipalStatusTest {
     @Test
     void values_whenCalled_returnsExpectedOrder() {
         assertThat(
-                IdentityPrincipalStatus.values()
+                IdentityInternalUserSystemRole.values()
         ).containsExactly(
-                IdentityPrincipalStatus.VERIFICATION,
-                IdentityPrincipalStatus.ACTIVE
+                IdentityInternalUserSystemRole.OWNER,
+                IdentityInternalUserSystemRole.VERIFIED_USER
         );
     }
 }

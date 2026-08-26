@@ -7,7 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.model.IdentityAction;
-import vg.identity.model.IdentityUser;
+import vg.identity.model.principal.IdentityInternalUser;
 import vg.identity.model.UserProvisioningDetails;
 import vg.identity.model.application.TelegramBot;
 import vg.identity.repository.IdentityUserRepository;
@@ -222,7 +222,7 @@ public class TelegramLoginService {
         return bot.bot();
     }
 
-    private IdentityUser toAuthenticatedUser(TelegramBot bot, IdentityUserEntity entity) {
+    private IdentityInternalUser toAuthenticatedUser(TelegramBot bot, IdentityUserEntity entity) {
         var user = userService.toModel(entity);
         authorityService.loadAuthorities(user);
         applicationUserService.recordAuthentication(bot.applicationId(), entity.getUniqueId());
@@ -233,7 +233,7 @@ public class TelegramLoginService {
         return telegramAuthenticationService.findStartParam(initData);
     }
 
-    public record Result(Outcome outcome, IdentityUser user, String greetingName, String suggestedDisplayName) {
+    public record Result(Outcome outcome, IdentityInternalUser user, String greetingName, String suggestedDisplayName) {
 
         public enum Outcome {
             AUTHENTICATED,
@@ -243,7 +243,7 @@ public class TelegramLoginService {
             FAILED
         }
 
-        static Result authenticated(IdentityUser user) {
+        static Result authenticated(IdentityInternalUser user) {
             return new Result(Outcome.AUTHENTICATED, user, null, null);
         }
 

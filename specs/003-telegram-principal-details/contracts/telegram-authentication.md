@@ -14,8 +14,9 @@ interface `IdentityApplicationApi`. Registered only when `identity.rest.api.enab
 Unauthenticated/unauthorized requests are rejected before any resolution (default-deny).
 
 **Breaking change**: this operation previously provisioned a user unconditionally and returned a
-claims-scoped principal. It now requires consent to create/persist a user and returns the
-OIDC-compatible principal below. Callers of the old contract must migrate.
+claims-scoped principal. It now requires consent to create/persist a user and returns the domain-native
+principal below (identifiers typed as `UniqueId`, **not** OIDC claims). Callers of the old contract
+must migrate.
 
 ### Request
 
@@ -43,18 +44,20 @@ Content-Type: `application/json`
 
 ```json
 {
-  "sub": "b1b2...-stable-user-id",
+  "userUniqueId": "3kf9Qz7Xa2",
   "name": "Ada Lovelace",
   "permissions": ["orders.read", "orders.write"],
   "consentGiven": true
 }
 ```
 
+(`userUniqueId` is the `UniqueId` **encoded string** form, not the raw numeric value.)
+
 Pre-consent example (no consent granted, nothing stored):
 
 ```json
 {
-  "sub": null,
+  "userUniqueId": null,
   "name": "Ada Lovelace",
   "permissions": [],
   "consentGiven": false
@@ -62,21 +65,44 @@ Pre-consent example (no consent granted, nothing stored):
 ```
 
 Field rules (see [data-model.md](../data-model.md) for full invariants):
-- `sub` — stable user id when `consentGiven=true`; **null** when `consentGiven=false`. OIDC `sub`.
-- `name` — display name from the verified Telegram profile; OIDC `name`; present in both states.
-- `permissions` — caller-application-scoped set; empty when `sub` is null.
-- `consentGiven` — boolean; consistent with `sub` nullability (INV-1).
-- `locale` — reserved OIDC `locale` placeholder; **omitted** by this feature (unpopulated).
+- `userUniqueId` — the system's `UniqueId` (carried as its canonical string form); stable user id when
+  `consentGiven=true`; **null** when `consentGiven=false`. Not an OIDC claim.
+- `name` — display name from the verified Telegram profile; present in both states.
+- `permissions` — caller-application-scoped set; empty when `userUniqueId` is null.
+- `consentGiven` — boolean; consistent with `userUniqueId` nullability (INV-1).
+- `preferredLocale` — reserved domain-native placeholder; **omitted** by this feature (unpopulated).
 
 ### Behavioral guarantees (map to FRs)
 
 - No user or personal data is created/persisted when `consentToKeepPersonalData` is false/absent and
   no established user exists (FR-003, FR-004).
 - `consentToKeepPersonalData=true` for a not-yet-established user creates exactly one user and returns
-  a non-null `sub`; re-submitting resolves the same `sub` with no duplicate (FR-005, FR-006).
+  a non-null `userUniqueId`; re-submitting resolves the same `userUniqueId` with no duplicate (FR-005, FR-006).
 - Invalid/unverifiable data → 204, nothing persisted, regardless of consent (FR-008, FR-013).
 - Consent-triggered creation and authentication are audited without secrets/PII (FR-022, FR-023).
-- The object is OIDC-claim-compatible; full OIDC protocol (tokens/endpoints) is out of scope.
+- Identifiers are typed as `UniqueId` with self-explaining names; the principal is **not**
+  OIDC-compatible (FR-017, FR-018).
+
+## Companion operation — application self-metadata
+
+`GET /api/v1/applications/me`
+
+Returns the **application principal** describing the calling application. Retyped in this change to use
+`UniqueId`/`URI` and self-explaining names; not OIDC-compatible.
+
+```json
+{
+  "applicationUniqueId": "9bQ2Ltp",
+  "workspaceUniqueId": "Xa71mK",
+  "name": "Orders Bot",
+  "uri": "https://t.me/orders_bot"
+}
+```
+
+- `applicationUniqueId` — `UniqueId` (encoded string form); was `sub: String`.
+- `workspaceUniqueId` — `UniqueId` (encoded string form); was `Long`.
+- `name` — application display name.
+- `uri` — `URI` (string form), well-formed; was `String`.
 
 ## Client interface (identity-rest-client)
 

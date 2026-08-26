@@ -15,8 +15,8 @@ import vg.identity.entity.IdentityApplicationEntity;
 import vg.identity.entity.IdentityPrincipalEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.entity.IdentityWorkspaceScopeClaimDictionaryEntity;
-import vg.identity.model.IdentityPrincipalStatus;
-import vg.identity.model.IdentityPrincipalType;
+import vg.identity.model.principal.IdentityInternalPrincipalStatus;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
 import vg.identity.repository.IdentityApiKeyRepository;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityApplicationUserClaimRepository;
@@ -110,8 +110,8 @@ public abstract class BaseIntegrationTest implements Mysql8ContainerStarter {
                         .displayName(name)
                         .name(uri)
                         .nameHash(encryptionService.hashPrincipalName(uri))
-                        .status(IdentityPrincipalStatus.ACTIVE)
-                        .type(IdentityPrincipalType.APPLICATION)
+                        .status(IdentityInternalPrincipalStatus.ACTIVE)
+                        .type(IdentityInternalPrincipalType.APPLICATION)
                         .build(),
                 uniqueIdService
         );
@@ -153,6 +153,34 @@ public abstract class BaseIntegrationTest implements Mysql8ContainerStarter {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is not available", e);
         }
+    }
+
+    /** Builds valid Telegram WebApp init data signed with {@code botToken} (shared by REST + conformance tests). */
+    protected static String telegramInitData(String botToken, String userJson) throws Exception {
+        var parameters = java.util.Map.of(
+                "auth_date", String.valueOf(Instant.now().getEpochSecond()),
+                "query_id", "integration-test",
+                "user", userJson
+        );
+        var dataCheckString = parameters.entrySet().stream()
+                .sorted(java.util.Map.Entry.comparingByKey())
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(java.util.stream.Collectors.joining("\n"));
+        var hash = java.util.HexFormat.of().formatHex(hmacSha256(
+                hmacSha256("WebAppData".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        botToken.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                dataCheckString.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+        ));
+        return parameters.entrySet().stream()
+                .map(entry -> java.net.URLEncoder.encode(entry.getKey(), java.nio.charset.StandardCharsets.UTF_8)
+                        + "=" + java.net.URLEncoder.encode(entry.getValue(), java.nio.charset.StandardCharsets.UTF_8))
+                .collect(java.util.stream.Collectors.joining("&")) + "&hash=" + hash;
+    }
+
+    private static byte[] hmacSha256(byte[] key, byte[] value) throws Exception {
+        var mac = javax.crypto.Mac.getInstance("HmacSHA256");
+        mac.init(new javax.crypto.spec.SecretKeySpec(key, "HmacSHA256"));
+        return mac.doFinal(value);
     }
 
     protected record TestApplication(

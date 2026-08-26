@@ -8,8 +8,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import vg.identity.entity.IdentityPrincipalEntity;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.model.IdentityAction;
-import vg.identity.model.IdentityPrincipalType;
-import vg.identity.model.IdentityUser;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
+import vg.identity.model.principal.IdentityInternalUser;
 import vg.identity.model.TelegramUserPrincipal;
 import vg.identity.model.UserProvisioningDetails;
 import vg.identity.model.application.TelegramBot;
@@ -71,7 +71,7 @@ class TelegramLoginServiceTest {
         var bot = bot();
         var telegramUser = TelegramUserPrincipal.builder().id(42L).firstName("John").build();
         var userEntity = IdentityUserEntity.builder().uniqueId(17L).build();
-        var user = IdentityUser.builder().uniqueId(new UniqueId(17L)).build();
+        var user = IdentityInternalUser.builder().uniqueId(new UniqueId(17L)).build();
         when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(null);
         when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot);
         when(telegramAuthenticationService.parseUser(bot.bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
@@ -95,10 +95,10 @@ class TelegramLoginServiceTest {
     @Test
     void login_whenBindTelegramActionAndUserAlreadyConsented_proceedsWithoutConsentFlag() {
         var bot = TelegramBot.builder().token("token").build();
-        var principal = IdentityPrincipalEntity.builder().uniqueId(17L).type(IdentityPrincipalType.USER).build();
+        var principal = IdentityPrincipalEntity.builder().uniqueId(17L).type(IdentityInternalPrincipalType.USER).build();
         var userEntity = userEntity(17L, NOW.minusSeconds(3600));
         var telegramUser = TelegramUserPrincipal.builder().id(42L).build();
-        var user = IdentityUser.builder().uniqueId(new UniqueId(17L)).build();
+        var user = IdentityInternalUser.builder().uniqueId(new UniqueId(17L)).build();
         when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(ACTION_KEY);
         when(actionTokenService.findBindTelegramActionInfo(ACTION_KEY)).thenReturn(new IdentityAction.BindTelegramInfo(7L, bot, principal));
         when(userRepository.findById(17L)).thenReturn(Optional.of(userEntity));
@@ -353,7 +353,7 @@ class TelegramLoginServiceTest {
         return new IdentityAction.BindTelegramInfo(
                 7L,
                 TelegramBot.builder().token("action-token").build(),
-                IdentityPrincipalEntity.builder().uniqueId(17L).type(IdentityPrincipalType.USER).build()
+                IdentityPrincipalEntity.builder().uniqueId(17L).type(IdentityInternalPrincipalType.USER).build()
         );
     }
 
@@ -361,8 +361,8 @@ class TelegramLoginServiceTest {
         return IdentityUserEntity.builder().uniqueId(id).consentToKeepPersonalDataAt(consentAt).build();
     }
 
-    private static IdentityUser identityUser() {
-        return IdentityUser.builder().uniqueId(new UniqueId(17L)).build();
+    private static IdentityInternalUser identityUser() {
+        return IdentityInternalUser.builder().uniqueId(new UniqueId(17L)).build();
     }
 
     private static TelegramUserPrincipal telegramUser() {

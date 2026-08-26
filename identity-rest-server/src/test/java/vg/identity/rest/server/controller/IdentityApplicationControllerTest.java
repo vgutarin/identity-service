@@ -5,14 +5,13 @@ import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.HttpStatus;
-import vg.identity.model.IdentityApiKeyPrincipal;
-import vg.identity.model.IdentityApplication;
+import vg.identity.model.IdentityApplicationPrincipal;
 import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.TelegramAuthenticationRequest;
 import vg.identity.service.IdentityApplicationApiService;
-import vg.identity.service.IdentityApplicationService;
 import vg.unique.id.model.UniqueId;
 
+import java.net.URI;
 import java.util.Optional;
 import java.util.Set;
 
@@ -22,45 +21,32 @@ import static org.mockito.Mockito.when;
 class IdentityApplicationControllerTest {
 
     @Test
-    void me_whenApplicationIsAuthenticated_returnsOnlySafeApplicationFields() {
-        var applicationService = Mockito.mock(IdentityApplicationService.class);
+    void me_delegatesToEmbeddedApi() {
         var applicationApi = Mockito.mock(IdentityApplicationApiService.class);
-        var principal = new IdentityApiKeyPrincipal(new UniqueId(42L), "https://example.test/app");
-        when(applicationService.getAuthenticatedApplication(principal.getUniqueId())).thenReturn(
-                IdentityApplication.builder()
-                        .uniqueId(principal.getUniqueId())
-                        .workspaceUniqueId(7L)
-                        .name("Orders")
-                        .uri("https://example.test/app")
-                        .payload("must-not-be-serialized")
-                        .build()
-        );
-        var controller = new IdentityApplicationController(applicationService, applicationApi);
+        var expected = new IdentityApplicationPrincipal(
+                new UniqueId(42L), new UniqueId(7L), "Orders", URI.create("https://example.test/app"));
+        when(applicationApi.me()).thenReturn(expected);
+        var controller = new IdentityApplicationController(applicationApi);
 
-        var response = controller.me(principal);
+        var response = controller.me();
 
-        assertThat(response.uniqueId()).isEqualTo(principal.getUniqueId().toString());
-        assertThat(response.workspaceUniqueId()).isEqualTo(7L);
-        assertThat(response.name()).isEqualTo("Orders");
-        assertThat(response.uri()).isEqualTo("https://example.test/app");
-        assertThat(response.getClass().getRecordComponents())
-                .extracting(component -> component.getName())
-                .doesNotContain("payload");
+        // The controller is a thin transport layer: it returns exactly what the embedded API produces
+        // (Principle VI — no divergent re-mapping). The safe-fields contract is asserted in the service test.
+        assertThat(response).isSameAs(expected);
     }
 
     @Test
     void authenticateTelegram_whenTelegramAuthenticationSucceeds_returnsApplicationUserPrincipal() {
-        var applicationService = Mockito.mock(IdentityApplicationService.class);
         var applicationApi = Mockito.mock(IdentityApplicationApiService.class);
         var request = TelegramAuthenticationRequest.builder().telegramInitData("init-data").consentToKeepPersonalData(true).build();
         var principal = IdentityApplicationUserPrincipal.builder()
-                .sub("84")
+                .userUniqueId(new UniqueId(84L))
                 .name("Ada")
                 .permissions(Set.of("orders.read"))
                 .consentGiven(true)
                 .build();
         when(applicationApi.authenticateTelegram(request)).thenReturn(Optional.of(principal));
-        var controller = new IdentityApplicationController(applicationService, applicationApi);
+        var controller = new IdentityApplicationController(applicationApi);
 
         var response = controller.authenticateTelegram(request);
 
@@ -70,11 +56,10 @@ class IdentityApplicationControllerTest {
 
     @Test
     void authenticateTelegram_whenTelegramAuthenticationFails_returnsNoContent() {
-        var applicationService = Mockito.mock(IdentityApplicationService.class);
         var applicationApi = Mockito.mock(IdentityApplicationApiService.class);
         var request = TelegramAuthenticationRequest.builder().telegramInitData("invalid").consentToKeepPersonalData(false).build();
         when(applicationApi.authenticateTelegram(request)).thenReturn(Optional.empty());
-        var controller = new IdentityApplicationController(applicationService, applicationApi);
+        var controller = new IdentityApplicationController(applicationApi);
 
         var response = controller.authenticateTelegram(request);
 
@@ -83,24 +68,26 @@ class IdentityApplicationControllerTest {
     }
 
     @Test
-    void principal_usesOidcClaimNamesAndReservesLocaleAsAbsent() {
+    void principal_usesDomainNativeNamesAndReservesPreferredLocaleAsAbsent() {
         var mapper = JsonMapper.builder().build();
 
-        var established = IdentityApplicationUserPrincipal.builder().sub("84").name("Ada").permissions(Set.of("orders.read")).consentGiven(true).build();
+        var established = IdentityApplicationUserPrincipal.builder().userUniqueId(new UniqueId(84L)).name("Ada").permissions(Set.of("orders.read")).consentGiven(true).build();
         var json = mapper.readTree(mapper.writeValueAsString(established));
-        // Identity fields use OIDC standard claim names; non-standard fields don't collide with them.
-        assertThat(json.get("sub").asString()).isEqualTo("84");
+        // Identity fields use domain-native, self-explaining names — not OIDC standard claim names.
+        assertThat(json.get("userUniqueId").asString()).isEqualTo(new UniqueId(84L).toString());
+        assertThat(json.has("sub")).isFalse();
         assertThat(json.get("name").asString()).isEqualTo("Ada");
         assertThat(json.get("consentGiven").asBoolean()).isTrue();
         assertThat(json.get("permissions")).isNotNull();
-        // locale is a reserved OIDC claim that this feature never populates -> never emitted.
+        // The reserved preferred-locale placeholder is never populated -> never emitted; no OIDC `locale`.
+        assertThat(json.has("preferredLocale")).isFalse();
         assertThat(json.has("locale")).isFalse();
 
-        // Pre-consent round-trips with a null subject (partial OIDC compatibility is permitted before consent).
+        // Pre-consent round-trips with a null userUniqueId.
         var preConsent = IdentityApplicationUserPrincipal.builder().name("Ada").consentGiven(false).build();
         var roundTripped = mapper.readValue(
                 mapper.writeValueAsString(preConsent), IdentityApplicationUserPrincipal.class);
-        assertThat(roundTripped.sub()).isNull();
+        assertThat(roundTripped.userUniqueId()).isNull();
         assertThat(roundTripped.consentGiven()).isFalse();
         assertThat(roundTripped.permissions()).isEmpty();
     }
@@ -114,12 +101,12 @@ class IdentityApplicationControllerTest {
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .build();
         var futureJson = """
-                {"sub":"84","name":"Ada","permissions":["orders.read"],"consentGiven":true,\
-                "locale":"en-US","someFutureClaim":{"nested":123}}""";
+                {"userUniqueId":"%s","name":"Ada","permissions":["orders.read"],"consentGiven":true,\
+                "preferredLocale":"en-US","someFutureClaim":{"nested":123}}""".formatted(new UniqueId(84L));
 
         var principal = mapper.readValue(futureJson, IdentityApplicationUserPrincipal.class);
 
-        assertThat(principal.sub()).isEqualTo("84");
+        assertThat(principal.userUniqueId()).isEqualTo(new UniqueId(84L));
         assertThat(principal.name()).isEqualTo("Ada");
         assertThat(principal.permissions()).containsExactly("orders.read");
         assertThat(principal.consentGiven()).isTrue();

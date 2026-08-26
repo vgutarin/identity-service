@@ -10,7 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
-import vg.identity.model.IdentityApiKeyPrincipal;
+import vg.identity.model.principal.IdentityInternalApiKeyPrincipal;
 import vg.identity.rest.server.audit.ApiAuthenticationAuditor;
 import vg.identity.service.IdentityApiKeyService;
 import vg.unique.id.model.UniqueId;
@@ -76,7 +76,7 @@ class ApiKeyAuthenticationFilterTest {
         request.addHeader(ApiKeyAuthenticationFilter.API_KEY_HEADER, "key-value");
         var response = new MockHttpServletResponse();
         var observedPrincipal = new AtomicReference<Object>();
-        when(apiKeyService.authenticate("key-value")).thenReturn(Optional.of(new IdentityApiKeyPrincipal(
+        when(apiKeyService.authenticate("key-value")).thenReturn(Optional.of(new IdentityInternalApiKeyPrincipal(
                 new UniqueId(42L),
                 "https://example.test/application"
         )));
@@ -87,7 +87,7 @@ class ApiKeyAuthenticationFilterTest {
 
         filter.doFilter(request, response, filterChain);
 
-        assertThat(observedPrincipal.get()).isInstanceOf(IdentityApiKeyPrincipal.class);
+        assertThat(observedPrincipal.get()).isInstanceOf(IdentityInternalApiKeyPrincipal.class);
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         verify(auditor).success(any(), any(), any());
     }

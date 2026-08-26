@@ -13,8 +13,8 @@ import vg.identity.entity.IdentityPrincipalEntity;
 import vg.identity.entity.IdentityWorkspaceEntity;
 import vg.identity.mapper.IdentityApplicationMapper;
 import vg.identity.model.IdentityApplication;
-import vg.identity.model.IdentityPrincipalStatus;
-import vg.identity.model.IdentityPrincipalType;
+import vg.identity.model.principal.IdentityInternalPrincipalStatus;
+import vg.identity.model.principal.IdentityInternalPrincipalType;
 import vg.identity.model.access.Permission;
 import vg.identity.model.application.TelegramBot;
 import vg.identity.model.application.TelegramBotWithUri;
@@ -222,8 +222,8 @@ public class IdentityApplicationService {
                 .displayName(displayName)
                 .name(uri)
                 .nameHash(encryptionService.hashPrincipalName(uri))
-                .status(IdentityPrincipalStatus.ACTIVE)
-                .type(IdentityPrincipalType.APPLICATION)
+                .status(IdentityInternalPrincipalStatus.ACTIVE)
+                .type(IdentityInternalPrincipalType.APPLICATION)
                 .build();
         return principalRepository.saveWithNewUniqueId(principal, uniqueIdService);
     }

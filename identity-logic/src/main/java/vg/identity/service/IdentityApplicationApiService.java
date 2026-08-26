@@ -3,12 +3,13 @@ package vg.identity.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import vg.identity.entity.IdentityUserEntity;
-import vg.identity.model.AuthenticatedIdentityApplication;
+import vg.identity.model.IdentityApplicationPrincipal;
 import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.TelegramAuthenticationRequest;
 import vg.identity.model.TelegramUserPrincipal;
 import vg.unique.id.model.UniqueId;
 
+import java.net.URI;
 import java.util.Optional;
 import java.util.Set;
 
@@ -27,14 +28,14 @@ public class IdentityApplicationApiService implements IdentityApplicationApi {
     private final TelegramAuthenticationAuditor auditor;
 
     @Override
-    public AuthenticatedIdentityApplication me() {
+    public IdentityApplicationPrincipal me() {
         var principal = currentIdentityApplicationService.requireApplicationPrincipal();
         var application = applicationService.getAuthenticatedApplication(principal.getUniqueId());
-        return new AuthenticatedIdentityApplication(
-                application.getUniqueId().toString(),
-                application.getWorkspaceUniqueId(),
+        return new IdentityApplicationPrincipal(
+                application.getUniqueId(),
+                new UniqueId(application.getWorkspaceUniqueId()),
                 application.getName(),
-                application.getUri()
+                URI.create(application.getUri())
         );
     }
 
@@ -83,7 +84,7 @@ public class IdentityApplicationApiService implements IdentityApplicationApi {
         var permissions = claimService.findClaimsByScope(applicationUniqueId, userUniqueId)
                 .getOrDefault(IdentityApplicationUserPrincipal.PERMISSIONS_SCOPE, Set.of());
         return IdentityApplicationUserPrincipal.builder()
-                .sub(userUniqueId.toString())
+                .userUniqueId(userUniqueId)
                 .name(telegramUser.displayName())
                 .permissions(permissions)
                 .consentGiven(true)

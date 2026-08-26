@@ -13,9 +13,9 @@ import vg.identity.entity.IdentityUserResourcePermissionEntityId;
 import vg.identity.entity.IdentityUserSystemRoleEntity;
 import vg.identity.entity.IdentityUserSystemRoleEntityId;
 import vg.identity.model.IdentityResourceType;
-import vg.identity.model.IdentityUser;
+import vg.identity.model.principal.IdentityInternalUser;
 import vg.identity.model.IdentityUserResourcePermission;
-import vg.identity.model.IdentityUserSystemRole;
+import vg.identity.model.IdentityInternalUserSystemRole;
 import vg.identity.model.IdentityWorkspace;
 import vg.identity.repository.IdentityPermissionRepository;
 import vg.identity.repository.IdentityUserResourcePermissionRepository;
@@ -32,7 +32,7 @@ public class IdentityUserAuthorityService {
     private final IdentityPermissionRepository permissionRepository;
     private final IdentityUserResourcePermissionRepository resourcePermissionRepository;
 
-    public void loadAuthorities(IdentityUser user) {
+    public void loadAuthorities(IdentityInternalUser user) {
         user.setAuthorities(
                 systemRoleRepository.getAllByIdentityPrincipalUniqueId(
                                 user.getUniqueId().getLongValue()
@@ -46,7 +46,7 @@ public class IdentityUserAuthorityService {
 
     @Transactional
     @PreAuthorize("hasRole('OWNER')")//TODO vg go over this an use per
-    public void assignAuthority(IdentityUser user, IdentityUserSystemRole role) {
+    public void assignAuthority(IdentityInternalUser user, IdentityInternalUserSystemRole role) {
         var id = IdentityUserSystemRoleEntityId.builder()
                 .identityPrincipalUniqueId(user.getUniqueId().getLongValue())
                 .role(role)
@@ -64,24 +64,24 @@ public class IdentityUserAuthorityService {
     }
 
     @Transactional
-    void assignAuthorityTmpInsecure(IdentityUser user, IdentityUserSystemRole role) {
+    void assignAuthorityTmpInsecure(IdentityInternalUser user, IdentityInternalUserSystemRole role) {
         // is created to temporary bypass the security
         assignAuthority(user, role);
     }
 
     @Transactional
     @PreAuthorize("hasRole('OWNER')")
-    public void assignResourceAuthority(UniqueIdEntity resource, IdentityUser user, String permission) {
+    public void assignResourceAuthority(UniqueIdEntity resource, IdentityInternalUser user, String permission) {
         assignResourceAuthority(resource.getUniqueId(), user, permission);
     }
 
     @Transactional
     @PreAuthorize("hasRole('OWNER')")
-    public void assignResourceAuthority(IdentityWorkspace resource, IdentityUser user, String permission) {
+    public void assignResourceAuthority(IdentityWorkspace resource, IdentityInternalUser user, String permission) {
         assignResourceAuthority(resource.getUniqueId().getLongValue(), user, permission);
     }
 
-    private void assignResourceAuthority(long resourceUniqueId, IdentityUser user, String permission) {
+    private void assignResourceAuthority(long resourceUniqueId, IdentityInternalUser user, String permission) {
         var permissionName = IdentityPermissionService.normalize(permission);
         var permissionId = permissionRepository.findByName(permissionName)
                 .orElseGet(() -> permissionRepository.save(
@@ -116,7 +116,7 @@ public class IdentityUserAuthorityService {
 
     @Transactional
     @PreAuthorize("hasRole('OWNER')")
-    public void revokeResourceAuthority(UniqueIdEntity resource, IdentityUser user, String permission) {
+    public void revokeResourceAuthority(UniqueIdEntity resource, IdentityInternalUser user, String permission) {
         var permissionName = IdentityPermissionService.normalize(permission);
         var permissionEntity = permissionRepository.findByName(permissionName);
         if (permissionEntity.isEmpty()) {
@@ -148,7 +148,7 @@ public class IdentityUserAuthorityService {
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('OWNER')")
-    public List<IdentityUserResourcePermission> findByUserAndResourceType(IdentityUser user, IdentityResourceType resourceType) {
+    public List<IdentityUserResourcePermission> findByUserAndResourceType(IdentityInternalUser user, IdentityResourceType resourceType) {
         return switch (resourceType) {
             case WORKSPACE -> resourcePermissionRepository.findWorkspacePermissionsByPrincipalUniqueId(user.getUniqueId().getLongValue());
         };
