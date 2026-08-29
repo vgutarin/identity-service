@@ -100,7 +100,7 @@ public class IdentityApplicationClaims extends VerticalLayout {
     private void configureUsersGrid() {
         usersGrid.setSizeFull();
         usersGrid.setEmptyStateText(localization.i18n("No application users found"));
-        usersGrid.addColumn(user -> user.uniqueId().toString())
+        usersGrid.addColumn(IdentityApplicationUser::displayName)
                 .setHeader(localization.i18n("User"))
                 .setAutoWidth(true);
         usersGrid.addColumn(user -> localization.formatDateTime(user.lastAuthenticatedAt()))

@@ -54,11 +54,14 @@ public class IdentityApplicationUserService {
     public List<IdentityApplicationUser> findUsers(UniqueId applicationUniqueId) {
         return membershipRepository.findByApplication_UniqueIdOrderByLastAuthenticatedAtDesc(applicationUniqueId.getLongValue())
                 .stream()
-                .map(membership -> new IdentityApplicationUser(
-                        new UniqueId(membership.getIdentityUser().getUniqueId()),
-                        membership.getCreatedAt(),
-                        membership.getLastAuthenticatedAt()
-                ))
+                .map(membership ->
+                        IdentityApplicationUser.builder()
+                                .uniqueId(new UniqueId(membership.getIdentityUser().getUniqueId()))
+                                .firstAuthenticatedAt(membership.getCreatedAt())
+                                .lastAuthenticatedAt(membership.getLastAuthenticatedAt())
+                                .displayName(membership.getIdentityUser().getPrincipal().getName())
+                                .build()
+                )
                 .toList();
     }
 
