@@ -40,7 +40,7 @@ class TelegramLoginServiceTest {
     @Mock private IdentityActionTokenService actionTokenService;
     @Mock private IdentityActionTokenProcessorService actionTokenProcessorService;
     @Mock private TelegramAuthenticationService telegramAuthenticationService;
-    @Mock private IdentityApplicationService applicationService;
+    @Mock private TelegramBotLookupService telegramBotLookupService;
     @Mock private IdentityUserChannelService channelService;
     @Mock private IdentityUserService userService;
     @Mock private IdentityUserAuthorityService authorityService;
@@ -55,7 +55,7 @@ class TelegramLoginServiceTest {
                 actionTokenService,
                 actionTokenProcessorService,
                 telegramAuthenticationService,
-                applicationService,
+                telegramBotLookupService,
                 channelService,
                 userService,
                 authorityService,
@@ -73,7 +73,7 @@ class TelegramLoginServiceTest {
         var userEntity = IdentityUserEntity.builder().uniqueId(17L).build();
         var user = IdentityInternalUser.builder().uniqueId(new UniqueId(17L)).build();
         when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(null);
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot);
+        when(telegramBotLookupService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot);
         when(telegramAuthenticationService.parseUser(bot.bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
         when(channelService.findUserByTelegramId(42L)).thenReturn(userEntity);
         when(userService.toModel(userEntity)).thenReturn(user);
@@ -114,7 +114,7 @@ class TelegramLoginServiceTest {
     void login_whenNoActionAndTelegramNotBound_returnsGreeting() {
         var telegramUser = telegramUser();
         when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(null);
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramBotLookupService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
         when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
         when(channelService.findUserByTelegramId(42L)).thenReturn(null);
 
@@ -127,7 +127,7 @@ class TelegramLoginServiceTest {
     @Test
     void login_whenNoActionAndBotApplicationNotFound_returnsFailed() {
         when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(null);
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(null);
+        when(telegramBotLookupService.findTelegramBotByUsername(BOT_NAME)).thenReturn(null);
 
         assertThat(service.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
     }
@@ -135,20 +135,20 @@ class TelegramLoginServiceTest {
     @Test
     void login_whenBotNameNotConfigured_returnsFailed() {
         var serviceWithoutBot = new TelegramLoginService(
-                actionTokenService, actionTokenProcessorService, telegramAuthenticationService, applicationService,
+                actionTokenService, actionTokenProcessorService, telegramAuthenticationService, telegramBotLookupService,
                 channelService, userService, authorityService, userRepository, applicationUserService, "",
                 Clock.fixed(NOW, ZoneOffset.UTC)
         );
         when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(null);
 
         assertThat(serviceWithoutBot.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
-        verify(applicationService, never()).findTelegramBotByUsername(any());
+        verify(telegramBotLookupService, never()).findTelegramBotByUsername(any());
     }
 
     @Test
     void login_whenNoActionAndInitDataInvalid_returnsFailed() {
         when(telegramAuthenticationService.findStartParam(INIT_DATA)).thenReturn(null);
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramBotLookupService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
         when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.empty());
 
         assertThat(service.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
@@ -233,7 +233,7 @@ class TelegramLoginServiceTest {
         var telegramUser = telegramUser();
         stubAction();
         when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(confirmInfo(false));
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramBotLookupService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
         when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
         when(actionTokenProcessorService.confirmEmailWithTelegram(ACTION_KEY, telegramUser, null)).thenReturn(entity);
         when(userService.toModel(entity)).thenReturn(identityUser());
@@ -248,7 +248,7 @@ class TelegramLoginServiceTest {
         var telegramUser = telegramUser();
         stubAction();
         when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(confirmInfo(true));
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramBotLookupService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
         when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
         when(actionTokenProcessorService.confirmEmailWithTelegram(ACTION_KEY, telegramUser, null)).thenReturn(entity);
         when(userService.toModel(entity)).thenReturn(identityUser());
@@ -260,7 +260,7 @@ class TelegramLoginServiceTest {
     void login_whenConfirmEmailActionAndInitDataInvalid_returnsFailed() {
         stubAction();
         when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(confirmInfo(true));
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramBotLookupService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
         when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.empty());
 
         assertThat(service.login(INIT_DATA, false).outcome()).isEqualTo(TelegramLoginService.Result.Outcome.FAILED);
@@ -272,7 +272,7 @@ class TelegramLoginServiceTest {
         var telegramUser = telegramUser();
         stubAction();
         when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(confirmInfo(true));
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramBotLookupService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
         when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
         doThrow(new IdentityActionTokenProcessorService.CredentialsRequiredException())
                 .when(actionTokenProcessorService).confirmEmailWithTelegram(ACTION_KEY, telegramUser, null);
@@ -290,7 +290,7 @@ class TelegramLoginServiceTest {
         var provisioning = new UserProvisioningDetails("John", "Abcdefghi1", true);
         stubAction();
         when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(confirmInfo(true));
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramBotLookupService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
         when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
         when(actionTokenProcessorService.confirmEmailWithTelegram(ACTION_KEY, telegramUser, provisioning)).thenReturn(entity);
         when(userService.toModel(entity)).thenReturn(identityUser());
@@ -304,7 +304,7 @@ class TelegramLoginServiceTest {
         var telegramUser = telegramUser();
         stubAction();
         when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(confirmInfo(true));
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramBotLookupService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
         when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
         doThrow(new IdentityActionTokenProcessorService.TelegramChannelConflictException())
                 .when(actionTokenProcessorService).confirmEmailWithTelegram(ACTION_KEY, telegramUser, null);
@@ -318,7 +318,7 @@ class TelegramLoginServiceTest {
         var telegramUser = telegramUser();
         stubAction();
         when(actionTokenService.findConfirmEmailActionInfo(ACTION_KEY)).thenReturn(confirmInfo(true));
-        when(applicationService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
+        when(telegramBotLookupService.findTelegramBotByUsername(BOT_NAME)).thenReturn(bot());
         when(telegramAuthenticationService.parseUser(bot().bot(), INIT_DATA)).thenReturn(Optional.of(telegramUser));
         when(actionTokenProcessorService.confirmEmailWithTelegram(ACTION_KEY, telegramUser, null)).thenReturn(null);
 

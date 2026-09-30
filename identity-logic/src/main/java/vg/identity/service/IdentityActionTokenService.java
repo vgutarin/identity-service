@@ -55,7 +55,7 @@ public class IdentityActionTokenService {
     private final IdentityCommandService commandService;
     private final IdentityActionTokenProperties properties;
     private final IdentityActionLinkBuilder actionLinkBuilder;
-    private final IdentityApplicationService applicationService;
+    private final TelegramBotLookupService telegramBotLookupService;
     private final ConfirmEmailMailFactory confirmEmailMailFactory;
     private final ResetPasswordMailFactory resetPasswordMailFactory;
     private final EncryptionService encryptionService;
@@ -71,7 +71,7 @@ public class IdentityActionTokenService {
             IdentityCommandService commandService,
             IdentityActionTokenProperties properties,
             IdentityActionLinkBuilder actionLinkBuilder,
-            IdentityApplicationService applicationService,
+            TelegramBotLookupService telegramBotLookupService,
             ConfirmEmailMailFactory confirmEmailMailFactory,
             ResetPasswordMailFactory resetPasswordMailFactory,
             EncryptionService encryptionService,
@@ -86,7 +86,7 @@ public class IdentityActionTokenService {
         this.commandService = commandService;
         this.properties = properties;
         this.actionLinkBuilder = actionLinkBuilder;
-        this.applicationService = applicationService;
+        this.telegramBotLookupService = telegramBotLookupService;
         this.confirmEmailMailFactory = confirmEmailMailFactory;
         this.resetPasswordMailFactory = resetPasswordMailFactory;
         this.encryptionService = encryptionService;
@@ -243,7 +243,7 @@ public class IdentityActionTokenService {
             return null;
         }
 
-        var telegramBot = applicationService.findTelegramBotByUsername(telegramBotName);
+        var telegramBot = telegramBotLookupService.findTelegramBotByUsername(telegramBotName);
         if (telegramBot == null) {
             return null;
         }
@@ -287,7 +287,7 @@ public class IdentityActionTokenService {
                     if (payload == null) {
                         return null;
                     }
-                    var telegramBot = applicationService.findTelegramBotByUsername(payload.botUsername());
+                    var telegramBot = telegramBotLookupService.findTelegramBotByUsername(payload.botUsername());
                     if (telegramBot == null) {
                         return null;
                     }
@@ -345,7 +345,7 @@ public class IdentityActionTokenService {
             return null;
         }
 
-        var telegramBot = applicationService.findTelegramBotByUsername(telegramBotName);
+        var telegramBot = telegramBotLookupService.findTelegramBotByUsername(telegramBotName);
         if (telegramBot == null) {
             return null;
         }

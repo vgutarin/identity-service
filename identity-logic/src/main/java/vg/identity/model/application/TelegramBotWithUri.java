@@ -1,5 +1,7 @@
 package vg.identity.model.application;
 
+import lombok.Builder;
+
 import java.net.URI;
 
 /**
@@ -12,5 +14,6 @@ import java.net.URI;
  * query parameters and rendered as text (never opened), and {@code URI} has safe, syntactic
  * {@code equals}/{@code hashCode} — unlike {@code URL}, whose equality performs blocking DNS resolution.
  */
+@Builder
 public record TelegramBotWithUri(URI uri, TelegramBot bot) {
 }

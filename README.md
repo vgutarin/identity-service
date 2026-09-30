@@ -11,3 +11,5 @@ vg.identity.rest-client.api-key=${VG_IDENTITY_REST_CLIENT_API_KEY}
 ```
 
 The API key is required and is sent automatically on every request made through the typed client.
+See the [configuration reference](specs/current/engineering/configuration.md#rest-client-library) for client
+timeouts and validation requirements.

@@ -37,7 +37,7 @@ public class TelegramLoginService {
     private final IdentityActionTokenService actionTokenService;
     private final IdentityActionTokenProcessorService actionTokenProcessorService;
     private final TelegramAuthenticationService telegramAuthenticationService;
-    private final IdentityApplicationService applicationService;
+    private final TelegramBotLookupService telegramBotLookupService;
     private final IdentityUserChannelService channelService;
     private final IdentityUserService userService;
     private final IdentityUserAuthorityService authorityService;
@@ -50,7 +50,7 @@ public class TelegramLoginService {
             IdentityActionTokenService actionTokenService,
             IdentityActionTokenProcessorService actionTokenProcessorService,
             TelegramAuthenticationService telegramAuthenticationService,
-            IdentityApplicationService applicationService,
+            TelegramBotLookupService telegramBotLookupService,
             IdentityUserChannelService channelService,
             IdentityUserService userService,
             IdentityUserAuthorityService authorityService,
@@ -62,7 +62,7 @@ public class TelegramLoginService {
         this.actionTokenService = actionTokenService;
         this.actionTokenProcessorService = actionTokenProcessorService;
         this.telegramAuthenticationService = telegramAuthenticationService;
-        this.applicationService = applicationService;
+        this.telegramBotLookupService = telegramBotLookupService;
         this.channelService = channelService;
         this.userService = userService;
         this.authorityService = authorityService;
@@ -214,7 +214,7 @@ public class TelegramLoginService {
             return null;
         }
 
-        var bot = applicationService.findTelegramBotByUsername(telegramBotName);
+        var bot = telegramBotLookupService.findTelegramBotByUsername(telegramBotName);
         if (bot == null) {
             log.warn("Telegram bot application is not found by configured name {}", telegramBotName);
             return null;

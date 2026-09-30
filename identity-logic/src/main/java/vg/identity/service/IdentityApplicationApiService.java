@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.model.IdentityApplicationPrincipal;
 import vg.identity.model.IdentityApplicationUserPrincipal;
+import vg.identity.model.IdentityApplicationTelegramPhone;
 import vg.identity.model.TelegramAuthenticationRequest;
 import vg.identity.model.TelegramUserPrincipal;
 import vg.unique.id.model.UniqueId;
@@ -20,12 +21,14 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class IdentityApplicationApiService implements IdentityApplicationApi {
     private final IdentityApplicationService applicationService;
+    private final TelegramBotLookupService telegramBotLookupService;
     private final CurrentIdentityApplicationService currentIdentityApplicationService;
     private final TelegramAuthenticationService telegramAuthenticationService;
     private final IdentityApplicationUserProvisioningService userProvisioningService;
     private final IdentityApplicationUserService applicationUserService;
     private final IdentityApplicationClaimService claimService;
     private final TelegramAuthenticationAuditor auditor;
+    private final IdentityUserChannelService identityUserChannelService;
 
     @Override
     public IdentityApplicationPrincipal me() {
@@ -42,9 +45,27 @@ public class IdentityApplicationApiService implements IdentityApplicationApi {
     @Override
     public Optional<IdentityApplicationUserPrincipal> authenticateTelegram(TelegramAuthenticationRequest request) {
         var applicationUniqueId = currentIdentityApplicationService.requireApplicationUniqueId();
-        var bot = applicationService.getTelegramBot(applicationUniqueId);
+        var bot = telegramBotLookupService.getTelegramBot(applicationUniqueId);
         return telegramAuthenticationService.parseUser(bot, request.telegramInitData())
                 .map(telegramUser -> resolvePrincipal(applicationUniqueId, telegramUser, request.consentToKeepPersonalData()));
+    }
+
+    @Override
+    public Optional<IdentityApplicationTelegramPhone> findTelegramPhone(UniqueId userUniqueId) {
+        var applicationUniqueId = currentIdentityApplicationService.requireApplicationUniqueId();
+        if (!applicationUserService.hasTelegramPhoneDisclosure(applicationUniqueId, userUniqueId)) {
+            return Optional.empty();
+        }
+        return identityUserChannelService.findTelegramPhone(userUniqueId)
+                .map(IdentityApplicationTelegramPhone::new);
+    }
+
+    @Override
+    public void revokeTelegramPhone(UniqueId userUniqueId) {
+        applicationUserService.disableTelegramPhoneDisclosure(
+                currentIdentityApplicationService.requireApplicationUniqueId(),
+                userUniqueId
+        );
     }
 
     private IdentityApplicationUserPrincipal resolvePrincipal(

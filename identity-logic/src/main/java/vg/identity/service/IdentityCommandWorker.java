@@ -9,6 +9,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import vg.identity.model.EmailMessage;
 import vg.identity.model.IdentityCommand;
+import vg.identity.model.SetTelegramWebhookCommand;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -17,6 +18,7 @@ public class IdentityCommandWorker {
     private final IdentityCommandService commandService;
     private final EmailService emailService;
     private final ObjectMapper objectMapper;
+    private final TelegramWebhookRegistrationService telegramWebhookRegistrationService;
 
     @Scheduled(fixedDelayString = "${identity.command.worker.fixed-delay-ms:5000}")
     public void processNextQueuedCommand() {
@@ -45,6 +47,7 @@ public class IdentityCommandWorker {
     private void processRunning(IdentityCommand command) throws JacksonException {
         switch (command.commandType()) {
             case SEND_EMAIL -> sendEmail(command);
+            case SET_TELEGRAM_WEBHOOK -> setTelegramWebhook(command);
             default -> throw new IllegalArgumentException("Unsupported command type: " + command.commandType());
         }
     }
@@ -53,5 +56,16 @@ public class IdentityCommandWorker {
         emailService.sendEmail(
                 objectMapper.readValue(command.payload(), EmailMessage.class)
         );
+    }
+
+    private void setTelegramWebhook(IdentityCommand command) {
+        try {
+            telegramWebhookRegistrationService.register(
+                    objectMapper.readValue(command.payload(), SetTelegramWebhookCommand.class)
+            );
+        } catch (RuntimeException e) {
+            // The worker logs and persists failures; never retain Telegram URLs, tokens, or causes.
+            throw new IllegalStateException("Cannot set Telegram webhook for command " + command.id());
+        }
     }
 }

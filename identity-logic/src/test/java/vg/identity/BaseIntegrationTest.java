@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vg.identity.entity.IdentityApplicationEntity;
@@ -40,6 +41,7 @@ import vg.identity.repository.IdentityUserSystemRoleRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.identity.repository.IdentityWorkspaceScopeClaimDictionaryRepository;
 import vg.identity.service.EncryptionService;
+import vg.identity.service.IdentityCommandWorker;
 import vg.test.containers.starters.Mysql8ContainerStarter;
 import vg.unique.id.service.UniqueIdService;
 
@@ -55,6 +57,11 @@ import static vg.test.TestHelper.nextString;
 @EnableJpaAuditing
 @SpringBootApplication
 public class BaseIntegrationTest implements Mysql8ContainerStarter {
+
+    // Background processing races deterministic queue assertions and repository cleanup.
+    // Worker integration tests construct and invoke a real worker explicitly.
+    @MockitoBean
+    protected IdentityCommandWorker scheduledWorker;
 
     @Autowired
     protected IdentityRoleRepository roleRepository;

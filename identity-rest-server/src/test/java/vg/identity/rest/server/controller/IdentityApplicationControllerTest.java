@@ -7,6 +7,7 @@ import org.mockito.Mockito;
 import org.springframework.http.HttpStatus;
 import vg.identity.model.IdentityApplicationPrincipal;
 import vg.identity.model.IdentityApplicationUserPrincipal;
+import vg.identity.model.IdentityApplicationTelegramPhone;
 import vg.identity.model.TelegramAuthenticationRequest;
 import vg.identity.service.IdentityApplicationApiService;
 import vg.unique.id.model.UniqueId;
@@ -65,6 +66,44 @@ class IdentityApplicationControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(response.getBody()).isNull();
+    }
+
+    @Test
+    void findTelegramPhone_whenGrantExists_returnsPhone() {
+        var applicationApi = Mockito.mock(IdentityApplicationApiService.class);
+        var userUniqueId = new UniqueId(84L);
+        var phone = new IdentityApplicationTelegramPhone("+14155552671");
+        when(applicationApi.findTelegramPhone(userUniqueId)).thenReturn(Optional.of(phone));
+        var controller = new IdentityApplicationController(applicationApi);
+
+        var response = controller.findTelegramPhone(userUniqueId.toString());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(phone);
+    }
+
+    @Test
+    void findTelegramPhone_whenUnavailable_returnsNoContent() {
+        var applicationApi = Mockito.mock(IdentityApplicationApiService.class);
+        var userUniqueId = new UniqueId(84L);
+        when(applicationApi.findTelegramPhone(userUniqueId)).thenReturn(Optional.empty());
+        var controller = new IdentityApplicationController(applicationApi);
+
+        var response = controller.findTelegramPhone(userUniqueId.toString());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    }
+
+    @Test
+    void revokeTelegramPhone_delegatesToEmbeddedApi() {
+        var applicationApi = Mockito.mock(IdentityApplicationApiService.class);
+        var userUniqueId = new UniqueId(84L);
+        var controller = new IdentityApplicationController(applicationApi);
+
+        var response = controller.revokeTelegramPhone(userUniqueId.toString());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        Mockito.verify(applicationApi).revokeTelegramPhone(userUniqueId);
     }
 
     @Test

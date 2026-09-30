@@ -2,15 +2,18 @@ package vg.identity.rest.server.security;
 
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 import vg.identity.model.principal.IdentityInternalApiKeyPrincipal;
+import vg.identity.rest.TelegramWebhookEndpoint;
 import vg.identity.rest.server.audit.ApiAuthenticationAuditor;
 import vg.identity.service.IdentityApiKeyService;
 import vg.unique.id.model.UniqueId;
@@ -35,8 +38,12 @@ class ApiKeyAuthenticationFilterTest {
     private ApiAuthenticationAuditor auditor;
     @Mock
     private FilterChain filterChain;
-    @InjectMocks
     private ApiKeyAuthenticationFilter filter;
+
+    @BeforeEach
+    void setUp() {
+        filter = new ApiKeyAuthenticationFilter(apiKeyService, auditor);
+    }
 
     @AfterEach
     void clearSecurityContext() {
@@ -90,5 +97,44 @@ class ApiKeyAuthenticationFilterTest {
         assertThat(observedPrincipal.get()).isInstanceOf(IdentityInternalApiKeyPrincipal.class);
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         verify(auditor).success(any(), any(), any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "/identity", "/nested/identity", "/api/v1/telegram/webhooks"})
+    void doFilter_whenRequestTargetsTelegramWebhook_skipsApiKeyAuthenticationRegardlessOfContextPath(String contextPath) throws Exception {
+        var request = new MockHttpServletRequest("POST", contextPath + TelegramWebhookEndpoint.path(new UniqueId(42L)));
+        request.setContextPath(contextPath);
+        var response = new MockHttpServletResponse();
+
+        assertThat(filter.shouldNotFilter(request)).isTrue();
+        filter.doFilter(request, response, filterChain);
+
+        verify(filterChain).doFilter(request, response);
+        verifyNoInteractions(apiKeyService, auditor);
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "/identity", "/nested/identity", "/api/v1/telegram/webhooks"})
+    void doFilter_whenProtectedRequestHasNoApiKey_rejectsRegardlessOfContextPath(String contextPath) throws Exception {
+        var request = new MockHttpServletRequest("GET", contextPath + "/api/v1/applications/me");
+        request.setContextPath(contextPath);
+        var response = new MockHttpServletResponse();
+
+        assertThat(filter.shouldNotFilter(request)).isFalse();
+        filter.doFilter(request, response, filterChain);
+
+        assertThat(response.getStatus()).isEqualTo(401);
+        verifyNoInteractions(apiKeyService, filterChain);
+        verify(auditor).failure(eq("missing_header"), eq("GET"), eq(request.getRequestURI()), any(), eq(null));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/v1/telegram/webhooks-other/42", "/api/v1/applications/me/api/v1/telegram/webhooks/42"})
+    void shouldNotFilter_whenPathOnlyResemblesWebhook_doesNotExemptIt(String path) {
+        var request = new MockHttpServletRequest("POST", "/identity" + path);
+        request.setContextPath("/identity");
+
+        assertThat(filter.shouldNotFilter(request)).isFalse();
     }
 }

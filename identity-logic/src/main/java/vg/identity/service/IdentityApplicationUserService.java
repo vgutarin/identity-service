@@ -10,6 +10,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vg.identity.entity.IdentityApplicationUserEntity;
 import vg.identity.entity.IdentityApplicationUserEntityId;
 import vg.identity.model.IdentityApplicationUser;
+import vg.identity.model.IdentityApplicationUserMetadata;
+import vg.identity.model.IdentityApplicationUserMetadataFlag;
 import vg.identity.model.access.Permission;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityApplicationUserRepository;
@@ -47,6 +49,32 @@ public class IdentityApplicationUserService {
         } catch (DataIntegrityViolationException concurrentInsert) {
             new TransactionTemplate(transactionManager).executeWithoutResult(status -> bump(id));
         }
+    }
+
+    /** Marks this application's existing membership as allowed to disclose the user's Telegram-shared phone. */
+    @Transactional
+    void enableTelegramPhoneDisclosure(UniqueId applicationUniqueId, long identityUserUniqueId) {
+        membershipRepository.findById(membershipId(applicationUniqueId.getLongValue(), identityUserUniqueId))
+                .ifPresent(membership -> membership.setMetadata(
+                        membershipMetadata(membership).withFlag(IdentityApplicationUserMetadataFlag.TELEGRAM_PHONE_DISCLOSURE, true)
+                ));
+    }
+
+    @Transactional(readOnly = true)
+    boolean hasTelegramPhoneDisclosure(UniqueId applicationUniqueId, UniqueId identityUserUniqueId) {
+        return membershipRepository.findById(membershipId(applicationUniqueId.getLongValue(), identityUserUniqueId.getLongValue()))
+                .map(IdentityApplicationUserEntity::getMetadata)
+                .map(metadata -> metadata.hasFlag(IdentityApplicationUserMetadataFlag.TELEGRAM_PHONE_DISCLOSURE))
+                .orElse(false);
+    }
+
+    /** Clears only this application's permission to disclose the user's Telegram-shared phone. */
+    @Transactional
+    void disableTelegramPhoneDisclosure(UniqueId applicationUniqueId, UniqueId identityUserUniqueId) {
+        membershipRepository.findById(membershipId(applicationUniqueId.getLongValue(), identityUserUniqueId.getLongValue()))
+                .ifPresent(membership -> membership.setMetadata(
+                        membershipMetadata(membership).withFlag(IdentityApplicationUserMetadataFlag.TELEGRAM_PHONE_DISCLOSURE, false)
+                ));
     }
 
     @PreAuthorize("@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.READ + "')")
@@ -87,5 +115,10 @@ public class IdentityApplicationUserService {
         id.setApplication(applicationUniqueId);
         id.setIdentityUser(identityUserUniqueId);
         return id;
+    }
+
+    private static IdentityApplicationUserMetadata membershipMetadata(IdentityApplicationUserEntity membership) {
+        var metadata = membership.getMetadata();
+        return metadata == null ? IdentityApplicationUserMetadata.empty() : metadata;
     }
 }

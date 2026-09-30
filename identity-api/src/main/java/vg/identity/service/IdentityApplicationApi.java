@@ -2,7 +2,9 @@ package vg.identity.service;
 
 import vg.identity.model.IdentityApplicationPrincipal;
 import vg.identity.model.IdentityApplicationUserPrincipal;
+import vg.identity.model.IdentityApplicationTelegramPhone;
 import vg.identity.model.TelegramAuthenticationRequest;
+import vg.unique.id.model.UniqueId;
 
 import java.util.Optional;
 
@@ -25,4 +27,14 @@ public interface IdentityApplicationApi {
      * @param request  the Telegram init data plus the user's consent-to-keep-personal-data flag
      */
     Optional<IdentityApplicationUserPrincipal> authenticateTelegram(TelegramAuthenticationRequest request);
+
+    /**
+     * Returns the phone number that this application is explicitly allowed to read after the user shared it with
+     * the application's Telegram bot. An empty result deliberately conflates absent, unavailable, and
+     * unavailable numbers.
+     */
+    Optional<IdentityApplicationTelegramPhone> findTelegramPhone(UniqueId userUniqueId);
+
+    /** Revokes only the current application's access to the user's Telegram-shared phone number. */
+    void revokeTelegramPhone(UniqueId userUniqueId);
 }

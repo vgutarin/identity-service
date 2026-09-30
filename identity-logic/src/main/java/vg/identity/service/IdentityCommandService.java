@@ -12,6 +12,7 @@ import vg.identity.model.EmailMessage;
 import vg.identity.model.IdentityCommand;
 import vg.identity.model.IdentityCommandStatus;
 import vg.identity.model.IdentityCommandType;
+import vg.identity.model.SetTelegramWebhookCommand;
 import vg.identity.repository.IdentityCommandRepository;
 
 import java.io.PrintWriter;
@@ -42,6 +43,21 @@ public class IdentityCommandService {
 
         var saved = commandRepository.save(entity);
         return commandMapper.toModel(saved);
+    }
+
+    @Transactional
+    public IdentityCommand enqueueTelegramWebhook(SetTelegramWebhookCommand command) {
+        Objects.requireNonNull(command, "command is required");
+        try {
+            var entity = IdentityCommandEntity.builder()
+                    .commandStatus(IdentityCommandStatus.QUEUED)
+                    .commandType(IdentityCommandType.SET_TELEGRAM_WEBHOOK)
+                    .payload(objectMapper.writeValueAsString(command))
+                    .build();
+            return commandMapper.toModel(commandRepository.save(entity));
+        } catch (JacksonException e) {
+            throw new IllegalArgumentException("Cannot serialize set Telegram webhook command");
+        }
     }
 
     @Transactional

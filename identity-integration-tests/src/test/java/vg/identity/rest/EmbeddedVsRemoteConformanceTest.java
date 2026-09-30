@@ -1,10 +1,13 @@
 package vg.identity.rest;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import vg.identity.BaseIntegrationTest;
+import vg.identity.entity.IdentityApplicationUserEntityId;
+import vg.identity.model.IdentityApplicationUserMetadata;
 import vg.identity.model.TelegramAuthenticationRequest;
 import vg.identity.model.principal.IdentityInternalApiKeyPrincipal;
 import vg.identity.rest.v1.IdentityApplicationApiRestClient;
@@ -30,7 +33,17 @@ class EmbeddedVsRemoteConformanceTest extends BaseIntegrationTest {
     @Autowired
     private IdentityApplicationApiService embeddedApi;
     @Autowired
+    private IdentityRestClient identityRestClient;
+
     private IdentityApplicationApiRestClient remoteApi;
+
+    @BeforeEach
+    void setUpRemoteApi() {
+        var properties = new IdentityRestClientProperties();
+        properties.setBaseUrl("http://localhost:" + serverPort);
+        properties.setApiKey(restClientApiKey());
+        remoteApi = identityRestClient.identityApplicationApiRestClient(properties);
+    }
 
     @Test
     void me_embeddedAndRemote_returnEquivalentMetadata() {
@@ -77,6 +90,41 @@ class EmbeddedVsRemoteConformanceTest extends BaseIntegrationTest {
         assertThat(embedded).isEqualTo(remote);
         assertThat(remote.orElseThrow().userUniqueId()).isNotNull();
         assertThat(remote.orElseThrow().consentGiven()).isTrue();
+    }
+
+    @Test
+    void telegramPhone_embeddedAndRemote_useTheSameDisclosureAndRevocationBoundary() throws Exception {
+        var application = createApplicationWithApiKey("{\"token\":\"" + BOT_TOKEN + "\"}");
+        var request = TelegramAuthenticationRequest.builder()
+                .telegramInitData(telegramInitData(BOT_TOKEN, TELEGRAM_USER))
+                .consentToKeepPersonalData(true)
+                .build();
+        var userUniqueId = remoteApi.authenticateTelegram(request).orElseThrow().userUniqueId();
+        var channel = channelRepository.findByChannelTypeAndChannelUserIdHash(
+                        vg.identity.model.IdentityChannelType.TELEGRAM_USER,
+                        encryptionService.hashCaseSensitive("42")
+                )
+                .orElseThrow();
+        channel.setPayload("{\"id\":42,\"first_name\":\"John\",\"phoneNumber\":\"+14155552671\"}");
+        channelRepository.saveAndFlush(channel);
+        var membershipId = new IdentityApplicationUserEntityId();
+        membershipId.setApplication(application.uniqueId());
+        membershipId.setIdentityUser(channel.getIdentityUser().getUniqueId());
+        var membership = applicationUserRepository.findById(membershipId).orElseThrow();
+        membership.setMetadata(new IdentityApplicationUserMetadata(new int[]{0}));
+        applicationUserRepository.saveAndFlush(membership);
+
+        var remote = remoteApi.findTelegramPhone(userUniqueId);
+        var embedded = runAsApplication(application, () -> embeddedApi.findTelegramPhone(userUniqueId));
+
+        assertThat(embedded).isEqualTo(remote);
+
+        runAsApplication(application, () -> {
+            embeddedApi.revokeTelegramPhone(userUniqueId);
+            return null;
+        });
+
+        assertThat(remoteApi.findTelegramPhone(userUniqueId)).isEmpty();
     }
 
     private <T> T runAsApplication(TestApplication application, Supplier<T> action) {

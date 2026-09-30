@@ -235,6 +235,9 @@ Supports Telegram Mini App login and account binding:
 - `TelegramAuthenticationService` — validates Mini App `initData`: parses params, verifies
   the HMAC-SHA256 signature against the bot token (constant-time compare), enforces an
   `auth_date` TTL, and extracts the deep-link `start_param`.
+- `TelegramPhoneWebhookService` — accepts only secret-authenticated, private self-contact updates, canonicalizes
+  the shared number to E.164, updates the encrypted Telegram channel payload, and sets the application user's
+  disclosure flag in encrypted membership metadata. The value is contact data, not proof of phone-number ownership.
 - `TelegramLoginService` — orchestrates the full login flow: action-based (confirm email /
   bind Telegram, enforcing personal-data consent) vs. plain login, returning
   `AUTHENTICATED | GREETING | CONSENT_REQUIRED | FAILED`.
@@ -255,40 +258,10 @@ Supports Telegram Mini App login and account binding:
 
 ## Configuration
 
-All properties are bound through `@ConfigurationProperties` and enabled by the module's
-auto-configuration.
-
-### `identity.encryption` — [`EncryptionProperties`](src/main/java/vg/identity/EncryptionProperties.java)
-
-| Property         | Description                                                              |
-| ---------------- | ------------------------------------------------------------------------ |
-| `blind-index-key`| Secret HMAC-SHA256 key backing the deterministic blind index.            |
-| `current-key-id` | Id (0..255) of the key that encrypts new data; must exist in `keys`.     |
-| `keys`           | Keyring: `id → Base64 32-byte AES-256 key` (`openssl rand -base64 32`).  |
-
-### `identity.email` — [`EmailProperties`](src/main/java/vg/identity/EmailProperties.java)
-
-| Property | Description                              |
-| -------- | ---------------------------------------- |
-| `from`   | Sender address (validated `@Email`).     |
-
-### `identity.action-token` — [`IdentityActionTokenProperties`](src/main/java/vg/identity/IdentityActionTokenProperties.java)
-
-| Property                     | Default            | Description                                      |
-| ---------------------------- | ------------------ | ------------------------------------------------ |
-| `verify-email-base-url`      | `/verify/email/`   | Base path for email-confirmation links.          |
-| `reset-password-base-url`    | `/reset/password/` | Base path for password-reset links.              |
-| `expires-in`                 | `1d`               | Action-token lifetime.                           |
-| `request-cooldown`           | `5m`               | Minimum interval between token requests (per email). |
-| `telegram-start-app-param`   | `startapp`         | Telegram deep-link parameter carrying the id.    |
-| `reset-rate-limit.max-requests` | `10`            | Max password-recovery requests per client/window. |
-| `reset-rate-limit.window`    | `10m`              | Window for the per-client recovery rate limit.   |
-
-### Other tunables
-
-| Property                                   | Default | Description                              |
-| ------------------------------------------ | ------- | ---------------------------------------- |
-| `identity.command.worker.fixed-delay-ms`   | `5000`  | Poll interval of the command worker.     |
+The repository-wide, authoritative list of supported properties—including direct `@Value` bindings and REST
+module settings—is the [configuration reference](../specs/current/engineering/configuration.md). This module
+consumes the `identity.encryption.*`, `identity.email.*`, `identity.action-token.*`, `identity.telegram.*`,
+`identity.service.public-url`, and `identity.command.worker.fixed-delay-ms` groups.
 
 ---
 

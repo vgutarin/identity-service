@@ -5,6 +5,7 @@ import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.context.ActiveProfiles;
@@ -41,7 +42,7 @@ import java.util.UUID;
 
 import static vg.test.TestHelper.nextString;
 
-@SpringBootTest(classes = IdentityApplication.class, webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
+@SpringBootTest(classes = IdentityApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 public abstract class BaseIntegrationTest implements Mysql8ContainerStarter {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -71,6 +72,8 @@ public abstract class BaseIntegrationTest implements Mysql8ContainerStarter {
     protected EncryptionService encryptionService;
     @Autowired
     protected PlatformTransactionManager transactionManager;
+    @LocalServerPort
+    protected int serverPort;
     @PersistenceContext
     protected EntityManager entityManager;
 
@@ -90,6 +93,8 @@ public abstract class BaseIntegrationTest implements Mysql8ContainerStarter {
     @DynamicPropertySource
     static void identityRestClientProperties(DynamicPropertyRegistry registry) {
         registry.add("vg.identity.rest-client.api-key", TEST_API_KEY::value);
+        registry.add("identity.telegram.webhook.enabled", () -> true);
+        registry.add("identity.telegram.webhook.secret", () -> "integration-test-telegram-webhook-secret-must-be-long-enough");
     }
 
     protected TestApplication createApplicationWithApiKey() {
@@ -134,6 +139,10 @@ public abstract class BaseIntegrationTest implements Mysql8ContainerStarter {
         });
         createApiKeyFor(res.uniqueId());
         return res;
+    }
+
+    protected String restClientApiKey() {
+        return TEST_API_KEY.value();
     }
 
     protected IdentityWorkspaceScopeClaimDictionaryEntity getScopeClaim(Long workspaceUniqueId, String value) {

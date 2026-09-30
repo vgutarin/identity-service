@@ -1,5 +1,6 @@
 package vg.identity.rest;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import vg.identity.BaseIntegrationTest;
@@ -7,6 +8,7 @@ import vg.identity.entity.IdentityApplicationUserClaimEntity;
 import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.TelegramAuthenticationRequest;
 import vg.identity.rest.v1.IdentityApplicationApiRestClient;
+import vg.identity.service.TelegramWebhookSecretService;
 import vg.unique.id.model.UniqueId;
 
 import java.net.URI;
@@ -18,7 +20,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class IdentityApplicationRestClientIntegrationTest extends BaseIntegrationTest {
     @Autowired
+    private IdentityRestClient identityRestClient;
+    @Autowired
+    private TelegramWebhookSecretService telegramWebhookSecretService;
+
     private IdentityApplicationApiRestClient restClient;
+
+    @BeforeEach
+    void setUpRestClient() {
+        var properties = new IdentityRestClientProperties();
+        properties.setBaseUrl("http://localhost:" + serverPort);
+        properties.setApiKey(restClientApiKey());
+        restClient = identityRestClient.identityApplicationApiRestClient(properties);
+    }
 
     @Test
     void me_whenApiKeyHeaderIsMissing_returnsUnauthorized() throws Exception {
@@ -26,7 +40,7 @@ class IdentityApplicationRestClientIntegrationTest extends BaseIntegrationTest {
 
         var response = HttpClient.newHttpClient().send(
                 HttpRequest.newBuilder()
-                        .uri(URI.create("http://localhost:8082/api/v1/applications/me"))
+                        .uri(URI.create("http://localhost:" + serverPort + "/api/v1/applications/me"))
                         .GET()
                         .build(),
                 HttpResponse.BodyHandlers.ofString()
@@ -75,7 +89,7 @@ class IdentityApplicationRestClientIntegrationTest extends BaseIntegrationTest {
     @Test
     void authenticateTelegram_whenConsentGiven_establishesUserWithStableSubjectAndScopedPermissions() throws Exception {
         var botToken = "123456:integration-test-token";
-        var application = createApplicationWithApiKey("{\"token\":\"" + botToken + "\"}");
+        var application = createApplicationWithApiKey("{\"telegramBotId\":123456,\"token\":\"" + botToken + "\"}");
         var initData = telegramInitData(botToken, "{\"id\":42,\"first_name\":\"John\"}");
 
         var first = restClient.authenticateTelegram(TelegramAuthenticationRequest.builder().telegramInitData(initData).consentToKeepPersonalData(true).build());
@@ -127,6 +141,40 @@ class IdentityApplicationRestClientIntegrationTest extends BaseIntegrationTest {
 
         assertThat(userRepository.count()).isZero();
         assertThat(channelRepository.count()).isZero();
+    }
+
+    @Test
+    void telegramPhone_whenWebhookReceivesSelfSharedContact_returnsPhoneAndRevokeRemovesOnlyItsAccess() throws Exception {
+        var botToken = "123456:integration-test-token";
+        var application = createApplicationWithApiKey("{\"telegramBotId\":123456,\"token\":\"" + botToken + "\"}");
+        var initData = telegramInitData(botToken, "{\"id\":42,\"first_name\":\"John\"}");
+        var userUniqueId = restClient.authenticateTelegram(TelegramAuthenticationRequest.builder()
+                        .telegramInitData(initData)
+                        .consentToKeepPersonalData(true)
+                        .build())
+                .orElseThrow()
+                .userUniqueId();
+        var webhookResponse = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:" + serverPort + "/api/v1/telegram/webhooks/" + new UniqueId(application.uniqueId())))
+                        .header("Content-Type", "application/json")
+                        .header("X-Telegram-Bot-Api-Secret-Token", telegramWebhookSecretService.secretFor(new UniqueId(application.uniqueId()), 123456L))
+                        .POST(HttpRequest.BodyPublishers.ofString("""
+                                {"update_id":101,"message":{"from":{"id":42},"chat":{"type":"private"},"contact":{"phone_number":"+1 415 555 2671","user_id":42}}}
+                                """))
+                        .build(),
+                HttpResponse.BodyHandlers.discarding()
+        );
+
+        assertThat(webhookResponse.statusCode()).isEqualTo(204);
+
+        assertThat(restClient.findTelegramPhone(userUniqueId))
+                .map(phone -> phone.phoneNumber())
+                .contains("+14155552671");
+
+        restClient.revokeTelegramPhone(userUniqueId);
+
+        assertThat(restClient.findTelegramPhone(userUniqueId)).isEmpty();
     }
 
 }

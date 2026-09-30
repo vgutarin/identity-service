@@ -10,6 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import vg.identity.rest.TelegramWebhookEndpoint;
 import vg.identity.rest.server.audit.ApiAuthenticationAuditor;
 import vg.identity.service.IdentityApiKeyService;
 
@@ -31,6 +32,12 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     private final IdentityApiKeyService apiKeyService;
     private final ApiAuthenticationAuditor auditor;
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        var contextRelativePath = request.getRequestURI().substring(request.getContextPath().length());
+        return contextRelativePath.startsWith(TelegramWebhookEndpoint.BASE_PATH + "/");
+    }
 
     @Override
     protected void doFilterInternal(

@@ -10,9 +10,12 @@ import vg.identity.model.EmailMessage;
 import vg.identity.model.IdentityCommand;
 import vg.identity.model.IdentityCommandStatus;
 import vg.identity.model.IdentityCommandType;
+import vg.identity.model.SetTelegramWebhookCommand;
+import vg.unique.id.model.UniqueId;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -27,11 +30,13 @@ class IdentityCommandWorkerTest {
     private EmailService emailService;
     @Mock
     private ObjectMapper objectMapper;
+    @Mock
+    private TelegramWebhookRegistrationService registrationService;
     private IdentityCommandWorker worker;
 
     @BeforeEach
     void setUp() {
-        worker = new IdentityCommandWorker(commandService, emailService, objectMapper);
+        worker = new IdentityCommandWorker(commandService, emailService, objectMapper, registrationService);
     }
 
     @Test
@@ -51,7 +56,7 @@ class IdentityCommandWorkerTest {
                 .body("Body")
                 .html(true)
                 .build();
-        when(commandService.startNextQueuedCommand()).thenReturn(command, null);
+        when(commandService.startNextQueuedCommand()).thenReturn(command).thenReturn(null);
         when(objectMapper.readValue(payload, EmailMessage.class)).thenReturn(sendEmailCommand);
 
         worker.processNextQueuedCommand();
@@ -118,5 +123,40 @@ class IdentityCommandWorkerTest {
         assertThatThrownBy(() -> worker.process(command))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Unsupported command status");
+    }
+
+    @Test
+    void processNextQueuedCommand_dispatchesWebhookSetupAndCompletesCommand() {
+        var command = webhookCommand();
+        var setup = SetTelegramWebhookCommand.builder().applicationUniqueId(new UniqueId(42L)).build();
+        when(commandService.startNextQueuedCommand()).thenReturn(command).thenReturn(null);
+        when(objectMapper.readValue(command.payload(), SetTelegramWebhookCommand.class)).thenReturn(setup);
+
+        worker.processNextQueuedCommand();
+
+        verify(registrationService).register(setup);
+        verify(commandService).complete(command);
+    }
+
+    @Test
+    void processNextQueuedCommand_sanitizesWebhookErrorsBeforePersistingThem() {
+        var command = webhookCommand();
+        var setup = SetTelegramWebhookCommand.builder().applicationUniqueId(new UniqueId(42L)).build();
+        when(commandService.startNextQueuedCommand()).thenReturn(command);
+        when(objectMapper.readValue(command.payload(), SetTelegramWebhookCommand.class)).thenReturn(setup);
+        org.mockito.Mockito.doThrow(new IllegalStateException("https://api.telegram.org/botSECRET/setWebhook"))
+                .when(registrationService).register(setup);
+
+        worker.processNextQueuedCommand();
+
+        var error = org.mockito.ArgumentCaptor.forClass(Exception.class);
+        verify(commandService).fail(org.mockito.ArgumentMatchers.eq(command), error.capture());
+        assertThat(error.getValue()).hasMessage("Cannot set Telegram webhook for command 7").hasNoCause();
+        verify(commandService, never()).complete(command);
+    }
+
+    private static IdentityCommand webhookCommand() {
+        return IdentityCommand.builder().id(7L).commandStatus(IdentityCommandStatus.RUNNING)
+                .commandType(IdentityCommandType.SET_TELEGRAM_WEBHOOK).payload("identifiers-only").build();
     }
 }

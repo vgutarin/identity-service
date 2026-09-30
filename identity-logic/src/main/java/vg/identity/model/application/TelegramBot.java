@@ -9,6 +9,7 @@ import vg.unique.id.model.UniqueId;
 @Builder
 public record TelegramBot(
         @JsonIgnore @With UniqueId applicationId,
+        @With Long telegramBotId,
         String token
 ) {
 }

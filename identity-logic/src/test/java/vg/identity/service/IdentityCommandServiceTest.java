@@ -13,7 +13,9 @@ import vg.identity.model.EmailMessage;
 import vg.identity.model.IdentityCommand;
 import vg.identity.model.IdentityCommandStatus;
 import vg.identity.model.IdentityCommandType;
+import vg.identity.model.SetTelegramWebhookCommand;
 import vg.identity.repository.IdentityCommandRepository;
+import vg.unique.id.model.UniqueId;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -78,6 +80,23 @@ class IdentityCommandServiceTest {
         assertThat(saved.getCommandStatus()).isEqualTo(IdentityCommandStatus.QUEUED);
         assertThat(saved.getCommandType()).isEqualTo(IdentityCommandType.SEND_EMAIL);
         assertThat(saved.getPayload()).isEqualTo(payload);
+    }
+
+    @Test
+    void enqueue_whenWebhookSetupProvided_savesAQueuedIdentifierOnlyCommand() throws Exception {
+        var command = SetTelegramWebhookCommand.builder().applicationUniqueId(new UniqueId(42L)).build();
+        var payload = "{\"applicationUniqueId\":\"g\"}";
+        var savedEntity = new AtomicReference<IdentityCommandEntity>();
+        when(objectMapper.writeValueAsString(command)).thenReturn(payload);
+        when(repository.save(any(IdentityCommandEntity.class))).thenAnswer(invocation -> {
+            var entity = invocation.getArgument(0, IdentityCommandEntity.class);
+            savedEntity.set(entity);
+            return entity;
+        });
+        service.enqueueTelegramWebhook(command);
+        assertThat(savedEntity.get().getCommandType()).isEqualTo(IdentityCommandType.SET_TELEGRAM_WEBHOOK);
+        assertThat(savedEntity.get().getCommandStatus()).isEqualTo(IdentityCommandStatus.QUEUED);
+        assertThat(savedEntity.get().getPayload()).isEqualTo(payload);
     }
 
     @Test

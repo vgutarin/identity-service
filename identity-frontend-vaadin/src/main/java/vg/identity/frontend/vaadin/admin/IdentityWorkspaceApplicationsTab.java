@@ -16,6 +16,7 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import vg.identity.frontend.vaadin.service.LocalizationService;
+import vg.identity.frontend.vaadin.service.TelegramWebhookUiTasks;
 import vg.identity.frontend.vaadin.ui.Dialogs;
 import vg.identity.frontend.vaadin.ui.Notifications;
 import vg.identity.model.IdentityApplication;
@@ -38,15 +39,27 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
     private final HorizontalLayout actions = new HorizontalLayout();
     private final Grid<IdentityApplication> grid = new Grid<>(IdentityApplication.class, false);
     private IdentityWorkspace workspace;
+    private final TelegramWebhookIndicators webhookIndicators;
+    private final Button refreshWebhooks = new Button();
+    private boolean active;
 
     IdentityWorkspaceApplicationsTab(
             IdentityApplicationService applicationService,
             IdentityApiKeyService apiKeyService,
-            LocalizationService localization
+            LocalizationService localization,
+            TelegramWebhookUiTasks webhookTasks
     ) {
         this.applicationService = applicationService;
         this.apiKeyService = apiKeyService;
         this.localization = localization;
+        webhookIndicators = new TelegramWebhookIndicators(applicationService, webhookTasks, localization, () -> {
+            refreshWebhooks.setEnabled(!webhookIndicatorsPending());
+            grid.getDataProvider().refreshAll();
+        }, grid::setItems);
+        refreshWebhooks.setText(localization.i18n("telegram.webhook.refresh"));
+        refreshWebhooks.addClickListener(event -> refreshWebhookStatuses());
+        addAttachListener(event -> refreshWebhookStatuses());
+        addDetachListener(event -> webhookIndicators.invalidate());
 
         setSizeFull();
         setPadding(false);
@@ -69,6 +82,28 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
         refreshGrid();
     }
 
+    void setActive(boolean active) {
+        if (this.active == active) {
+            return;
+        }
+        this.active = active;
+        if (active) {
+            refreshWebhookStatuses();
+        } else {
+            webhookIndicators.invalidate();
+        }
+    }
+
+    private boolean webhookIndicatorsPending() {
+        return webhookIndicators.isPending();
+    }
+
+    private void refreshWebhookStatuses() {
+        if (active && workspace != null && isAttached()) {
+            getUI().ifPresent(webhookIndicators::refresh);
+        }
+    }
+
     private void configureActions() {
         actions.setWidthFull();
         actions.setPadding(false);
@@ -89,6 +124,10 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
                 .setHeader(localization.i18n("URI"))
                 .setSortable(true)
                 .setAutoWidth(true);
+        grid.addComponentColumn(webhookIndicators::indicator)
+                .setKey("webhook")
+                .setHeader(localization.i18n("telegram.webhook.column"))
+                .setAutoWidth(true).setFlexGrow(0);
         grid.addColumn(application -> format(application.getCreatedAt()))
                 .setHeader(localization.i18n("Created"))
                 .setSortable(true)
@@ -116,7 +155,7 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
         add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         add.addClickListener(event -> openTelegramBotForm());
 
-        actions.add(add);
+        actions.add(refreshWebhooks, add);
     }
 
     private HorizontalLayout rowActions(IdentityApplication application) {
@@ -373,13 +412,16 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
 
     private void refreshGrid() {
         if (workspace == null) {
+            webhookIndicators.reset(java.util.List.of());
             grid.setItems();
             return;
         }
 
         var applications = applicationService.findByWorkspaceUniqueId(workspace.getUniqueId());
 
+        webhookIndicators.reset(applications);
         grid.setItems(applications);
+        refreshWebhookStatuses();
     }
 
     private String format(Instant instant) {

@@ -3,19 +3,17 @@ package vg.identity.frontend.vaadin.service;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.router.RouteConfiguration;
 import com.vaadin.flow.router.RouteParameters;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.util.StringUtils;
-import org.springframework.web.util.UriComponentsBuilder;
 import vg.identity.frontend.vaadin.auth.IdentityUserEmailVerificationView;
 import vg.identity.frontend.vaadin.auth.PasswordResetView;
 import vg.identity.service.IdentityActionLinkBuilder;
+import vg.identity.service.IdentityPublicUriBuilder;
 
 import java.net.URI;
 
 /**
  * Frontend {@link IdentityActionLinkBuilder} that builds absolute links against this deployment's external public
- * origin ({@code identity.service.public-url}). Its presence suppresses the host-relative default builder
- * registered in {@code identity-logic}.
+ * origin ({@code identity.service.public-url}), through {@link IdentityPublicUriBuilder}. Its presence suppresses
+ * the host-relative default builder registered in {@code identity-logic}.
  * <p>
  * The links combine the public origin with the route Vaadin resolves for each view (the action key is a path
  * parameter), keeping each route defined once — on the view's {@code @Route} template, layout/prefix
@@ -30,13 +28,13 @@ import java.net.URI;
 @org.springframework.stereotype.Component
 public class IdentityActionLinkBuilderVaadin implements IdentityActionLinkBuilder {
 
-    private final String publicUrl;
+    private final IdentityPublicUriBuilder publicUriBuilder;
     private final transient VaadinRouteRegistryProvider routeRegistryProvider;
 
     public IdentityActionLinkBuilderVaadin(
-            @Value("${identity.service.public-url}") String publicUrl,
+            IdentityPublicUriBuilder publicUriBuilder,
             VaadinRouteRegistryProvider routeRegistryProvider) {
-        this.publicUrl = publicUrl;
+        this.publicUriBuilder = publicUriBuilder;
         this.routeRegistryProvider = routeRegistryProvider;
     }
 
@@ -58,10 +56,6 @@ public class IdentityActionLinkBuilderVaadin implements IdentityActionLinkBuilde
 
     private URI route(Class<? extends Component> view, RouteParameters parameters) {
         var path = RouteConfiguration.forRegistry(routeRegistryProvider.getRegistry()).getUrl(view, parameters);
-        var base = StringUtils.trimTrailingCharacter(publicUrl, '/');
-        return UriComponentsBuilder.fromUriString(base)
-                .path("/" + path)
-                .build()
-                .toUri();
+        return publicUriBuilder.build("/" + path);
     }
 }

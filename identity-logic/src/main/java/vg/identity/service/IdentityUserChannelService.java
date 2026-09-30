@@ -22,6 +22,8 @@ import vg.unique.id.model.UniqueId;
 import vg.unique.id.service.UniqueIdService;
 
 import java.time.Clock;
+import java.util.Objects;
+import java.util.Optional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -137,6 +139,51 @@ public class IdentityUserChannelService {
                 .orElse(null);
     }
 
+    /**
+     * Replaces the Telegram-shared phone contact for this Telegram identity. The payload stays encrypted at rest;
+     * this method intentionally has no phone-number lookup or uniqueness semantics.
+     */
+    @Transactional
+    boolean recordTelegramPhone(long telegramUserId, String phoneNumber) {
+        var channelUserIdHash = encryptionService.hashCaseSensitive(String.valueOf(telegramUserId));
+        var channel = identityChannelRepository
+                .findByChannelTypeAndChannelUserIdHash(IdentityChannelType.TELEGRAM_USER, channelUserIdHash)
+                .orElse(null);
+        if (channel == null || channel.getIdentityUser() == null) {
+            return false;
+        }
+
+        var telegramUser = fromTelegramJson(channel.getPayload()).orElse(null);
+        if (telegramUser == null) {
+            return false;
+        }
+
+        if (Objects.equals(phoneNumber, telegramUser.phoneNumber())) {
+            return true;
+        }
+
+        channel.setPayload(toJson(telegramUser.withPhoneNumber(phoneNumber)));
+        identityChannelRepository.save(channel);
+        log.info("Telegram phone number was updated for user with id: {}", channel.getIdentityUser().getUniqueId());
+        return true;
+    }
+
+    @Transactional(readOnly = true)
+    Optional<String> findTelegramPhone(UniqueId identityUserUniqueId) {
+        return identityChannelRepository
+                .findByIdentityUser_UniqueIdAndChannelTypeOrderByUpdatedAtDesc(
+                        identityUserUniqueId.getLongValue(),
+                        IdentityChannelType.TELEGRAM_USER
+                )
+                .stream()
+                .map(IdentityUserChannelEntity::getPayload)
+                .map(this::fromTelegramJson)
+                .flatMap(Optional::stream)
+                .map(TelegramUserPrincipal::phoneNumber)
+                .filter(phoneNumber -> phoneNumber != null && !phoneNumber.isBlank())
+                .findFirst();
+    }
+
     TelegramBindResult bindTelegramUser(TelegramUserPrincipal telegramUser, IdentityUserEntity user) {
         var channelUserId = String.valueOf(telegramUser.id());
         var channelUserIdHash = encryptionService.hashCaseSensitive(channelUserId);
@@ -205,6 +252,17 @@ public class IdentityUserChannelService {
             return objectMapper.writeValueAsString(telegramUser);
         } catch (JacksonException e) {
             throw new IllegalArgumentException("Cannot serialize Telegram user", e);
+        }
+    }
+
+    private Optional<TelegramUserPrincipal> fromTelegramJson(String payload) {
+        if (payload == null || payload.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(objectMapper.readValue(payload, TelegramUserPrincipal.class));
+        } catch (JacksonException e) {
+            return Optional.empty();
         }
     }
 

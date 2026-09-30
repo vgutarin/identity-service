@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockServletContext;
 import vg.identity.frontend.vaadin.auth.IdentityUserEmailVerificationView;
 import vg.identity.frontend.vaadin.auth.PasswordResetView;
+import vg.identity.service.IdentityPublicUriBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,7 +39,10 @@ class IdentityActionLinkBuilderVaadinTest {
                 return registry;
             }
         };
-        linkBuilder = new IdentityActionLinkBuilderVaadin("https://test.example.com", registryProvider);
+        linkBuilder = new IdentityActionLinkBuilderVaadin(
+                new IdentityPublicUriBuilder("https://test.example.com"),
+                registryProvider
+        );
     }
 
     @Test

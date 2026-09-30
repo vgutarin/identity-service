@@ -29,6 +29,7 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-validation"
     implementation "org.springframework:spring-web"
     implementation "tools.jackson.core:jackson-databind"
+    implementation "com.googlecode.libphonenumber:libphonenumber:9.0.40"
 
     implementation "vg.unique-id:unique-id-jpa-lib:${vg_unique_id_version}"
     implementation "org.liquibase:liquibase-core"

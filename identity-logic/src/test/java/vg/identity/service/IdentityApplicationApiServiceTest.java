@@ -8,6 +8,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.model.IdentityApplication;
+import vg.identity.model.IdentityApplicationTelegramPhone;
 import vg.identity.model.principal.IdentityInternalApplicationPrincipal;
 import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.TelegramAuthenticationRequest;
@@ -36,6 +37,8 @@ class IdentityApplicationApiServiceTest {
     @Mock
     private IdentityApplicationService applicationService;
     @Mock
+    private TelegramBotLookupService telegramBotLookupService;
+    @Mock
     private CurrentIdentityApplicationService currentApplicationService;
     @Mock
     private TelegramAuthenticationService telegramAuthenticationService;
@@ -47,6 +50,8 @@ class IdentityApplicationApiServiceTest {
     private IdentityApplicationClaimService claimService;
     @Mock
     private TelegramAuthenticationAuditor auditor;
+    @Mock
+    private IdentityUserChannelService identityUserChannelService;
 
     private IdentityApplicationApiService service;
 
@@ -54,12 +59,14 @@ class IdentityApplicationApiServiceTest {
     void setUp() {
         service = new IdentityApplicationApiService(
                 applicationService,
+                telegramBotLookupService,
                 currentApplicationService,
                 telegramAuthenticationService,
                 userProvisioningService,
                 applicationUserService,
                 claimService,
-                auditor
+                auditor,
+                identityUserChannelService
         );
     }
 
@@ -103,13 +110,50 @@ class IdentityApplicationApiServiceTest {
     }
 
     @Test
+    void findTelegramPhone_whenCurrentApplicationMayDisclose_returnsOnlyItsPhone() {
+        var applicationUniqueId = new UniqueId(42L);
+        var userUniqueId = new UniqueId(84L);
+        when(currentApplicationService.requireApplicationUniqueId()).thenReturn(applicationUniqueId);
+        when(applicationUserService.hasTelegramPhoneDisclosure(applicationUniqueId, userUniqueId)).thenReturn(true);
+        when(identityUserChannelService.findTelegramPhone(userUniqueId)).thenReturn(Optional.of("+14155552671"));
+
+        var result = service.findTelegramPhone(userUniqueId);
+
+        assertThat(result).contains(new IdentityApplicationTelegramPhone("+14155552671"));
+    }
+
+    @Test
+    void findTelegramPhone_whenCurrentApplicationMayNotDisclose_hidesGlobalPhone() {
+        var applicationUniqueId = new UniqueId(42L);
+        var userUniqueId = new UniqueId(84L);
+        when(currentApplicationService.requireApplicationUniqueId()).thenReturn(applicationUniqueId);
+        when(applicationUserService.hasTelegramPhoneDisclosure(applicationUniqueId, userUniqueId)).thenReturn(false);
+
+        var result = service.findTelegramPhone(userUniqueId);
+
+        assertThat(result).isEmpty();
+        verifyNoInteractions(identityUserChannelService);
+    }
+
+    @Test
+    void revokeTelegramPhone_clearsOnlyTheCurrentApplicationsDisclosureFlag() {
+        var applicationUniqueId = new UniqueId(42L);
+        var userUniqueId = new UniqueId(84L);
+        when(currentApplicationService.requireApplicationUniqueId()).thenReturn(applicationUniqueId);
+
+        service.revokeTelegramPhone(userUniqueId);
+
+        verify(applicationUserService).disableTelegramPhoneDisclosure(applicationUniqueId, userUniqueId);
+    }
+
+    @Test
     void authenticateTelegram_whenUserAlreadyEstablished_returnsSubjectAndScopedPermissions() {
         var applicationUniqueId = new UniqueId(42L);
         var bot = TelegramBot.builder().token("test-token").build();
         var telegramUser = TelegramUserPrincipal.builder().id(100L).firstName("Ada").build();
         var identityUser = IdentityUserEntity.builder().uniqueId(84L).consentToKeepPersonalDataAt(Instant.now()).build();
         when(currentApplicationService.requireApplicationUniqueId()).thenReturn(applicationUniqueId);
-        when(applicationService.getTelegramBot(applicationUniqueId)).thenReturn(bot);
+        when(telegramBotLookupService.getTelegramBot(applicationUniqueId)).thenReturn(bot);
         when(telegramAuthenticationService.parseUser(bot, "init-data")).thenReturn(Optional.of(telegramUser));
         when(userProvisioningService.findTelegramUser(telegramUser)).thenReturn(Optional.of(identityUser));
         when(claimService.findClaimsByScope(applicationUniqueId, new UniqueId(84L)))
@@ -133,7 +177,7 @@ class IdentityApplicationApiServiceTest {
         var bot = TelegramBot.builder().token("test-token").build();
         var telegramUser = TelegramUserPrincipal.builder().id(100L).firstName("Ada").build();
         when(currentApplicationService.requireApplicationUniqueId()).thenReturn(applicationUniqueId);
-        when(applicationService.getTelegramBot(applicationUniqueId)).thenReturn(bot);
+        when(telegramBotLookupService.getTelegramBot(applicationUniqueId)).thenReturn(bot);
         when(telegramAuthenticationService.parseUser(bot, "init-data")).thenReturn(Optional.of(telegramUser));
         when(userProvisioningService.findTelegramUser(telegramUser)).thenReturn(Optional.empty());
 
@@ -154,7 +198,7 @@ class IdentityApplicationApiServiceTest {
         var telegramUser = TelegramUserPrincipal.builder().id(100L).firstName("Ada").build();
         var createdUser = IdentityUserEntity.builder().uniqueId(84L).consentToKeepPersonalDataAt(Instant.now()).build();
         when(currentApplicationService.requireApplicationUniqueId()).thenReturn(applicationUniqueId);
-        when(applicationService.getTelegramBot(applicationUniqueId)).thenReturn(bot);
+        when(telegramBotLookupService.getTelegramBot(applicationUniqueId)).thenReturn(bot);
         when(telegramAuthenticationService.parseUser(bot, "init-data")).thenReturn(Optional.of(telegramUser));
         when(userProvisioningService.findTelegramUser(telegramUser)).thenReturn(Optional.empty());
         when(userProvisioningService.establishTelegramUser(telegramUser)).thenReturn(createdUser);
@@ -183,7 +227,7 @@ class IdentityApplicationApiServiceTest {
         var legacyUser = IdentityUserEntity.builder().uniqueId(84L).build(); // no consent recorded yet
         var backfilledUser = IdentityUserEntity.builder().uniqueId(84L).consentToKeepPersonalDataAt(Instant.now()).build();
         when(currentApplicationService.requireApplicationUniqueId()).thenReturn(applicationUniqueId);
-        when(applicationService.getTelegramBot(applicationUniqueId)).thenReturn(bot);
+        when(telegramBotLookupService.getTelegramBot(applicationUniqueId)).thenReturn(bot);
         when(telegramAuthenticationService.parseUser(bot, "init-data")).thenReturn(Optional.of(telegramUser));
         when(userProvisioningService.findTelegramUser(telegramUser)).thenReturn(Optional.of(legacyUser));
         when(userProvisioningService.establishTelegramUser(telegramUser)).thenReturn(backfilledUser);
@@ -205,7 +249,7 @@ class IdentityApplicationApiServiceTest {
         var applicationUniqueId = new UniqueId(42L);
         var bot = TelegramBot.builder().token("test-token").build();
         when(currentApplicationService.requireApplicationUniqueId()).thenReturn(applicationUniqueId);
-        when(applicationService.getTelegramBot(applicationUniqueId)).thenReturn(bot);
+        when(telegramBotLookupService.getTelegramBot(applicationUniqueId)).thenReturn(bot);
         when(telegramAuthenticationService.parseUser(bot, "invalid")).thenReturn(Optional.empty());
 
         // Even with consent granted, invalid data resolves to no principal and touches no persistence.

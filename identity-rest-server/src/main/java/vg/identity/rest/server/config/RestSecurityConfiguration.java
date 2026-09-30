@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+import vg.identity.rest.TelegramWebhookEndpoint;
 import vg.identity.rest.server.security.ApiKeyAuthenticationFilter;
 
 /**
@@ -33,7 +34,9 @@ public class RestSecurityConfiguration {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated())
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(TelegramWebhookEndpoint.BASE_PATH + "/**").permitAll()
+                        .anyRequest().authenticated())
                 .addFilterBefore(apiKeyAuthenticationFilter, AnonymousAuthenticationFilter.class)
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint((request, response, exception) ->
                         response.setStatus(401)

@@ -114,10 +114,8 @@ When the REST API is enabled, authentication events are recorded through a dedic
   Both reference the user by stable `sub` only — never the raw `initData`, Telegram profile fields, or the
   API key.
 
-| Property | Default | Meaning |
-|----------|---------|---------|
-| `identity.rest.api.audit.flush-interval` | `PT10M` | How often success counters are flushed (ISO-8601 duration). |
-| `identity.rest.api.audit.max-counter-keys` | `10000` | Cap on distinct success-counter keys held in memory; excess folds into an `__overflow__` bucket. |
+The [configuration reference](../specs/current/engineering/configuration.md#rest-api-server) defines the audit
+property defaults and constraints.
 
 The API key value is never logged. **Tamper-evidence is operational**: route the `vg.identity.security.audit`
 logger to an append-only / WORM sink with appropriate retention (constitution Principle V).

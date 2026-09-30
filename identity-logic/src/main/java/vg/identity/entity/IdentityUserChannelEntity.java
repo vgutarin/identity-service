@@ -67,7 +67,7 @@ public class IdentityUserChannelEntity implements UniqueIdEntity {
     private byte[] channelUserIdHash;
 
     @Convert(converter = StringEncryptionConverter.class)
-    @Column(columnDefinition = "MEDIUMBLOB", updatable = false)
+    @Column(columnDefinition = "MEDIUMBLOB")
     private String payload;
 
     @Column

@@ -4,7 +4,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
 import vg.identity.BaseIntegrationTest;
+import vg.identity.entity.IdentityApplicationUserEntityId;
 import vg.identity.model.access.Permission;
+import vg.identity.model.IdentityApplicationUserMetadataFlag;
 import vg.unique.id.model.UniqueId;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,5 +56,23 @@ class IdentityApplicationUserServiceIntegrationTest extends BaseIntegrationTest 
         assertThat(users)
                 .extracting(applicationUser -> applicationUser.uniqueId().getLongValue())
                 .containsExactly(user.getUniqueId().getLongValue());
+    }
+
+    @Test
+    void telegramPhoneDisclosure_persistsAndLoadsTypedMetadata() {
+        var workspace = createWorkspace();
+        var application = createApplication(workspace);
+        var applicationUniqueId = new UniqueId(application.getUniqueId());
+        var user = createIdentityUser("subject-" + nextString());
+        applicationUserService.recordAuthentication(applicationUniqueId, user.getUniqueId().getLongValue());
+
+        applicationUserService.enableTelegramPhoneDisclosure(applicationUniqueId, user.getUniqueId().getLongValue());
+
+        var membershipId = new IdentityApplicationUserEntityId();
+        membershipId.setApplication(application.getUniqueId());
+        membershipId.setIdentityUser(user.getUniqueId().getLongValue());
+        var persistedMetadata = applicationUserRepository.findById(membershipId).orElseThrow().getMetadata();
+
+        assertThat(persistedMetadata.hasFlag(IdentityApplicationUserMetadataFlag.TELEGRAM_PHONE_DISCLOSURE)).isTrue();
     }
 }

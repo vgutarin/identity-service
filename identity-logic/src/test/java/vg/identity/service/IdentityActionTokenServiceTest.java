@@ -53,7 +53,7 @@ class IdentityActionTokenServiceTest {
     @Mock private IdentityPrincipalRepository principalRepository;
     @Mock private IdentityUserChannelRepository channelRepository;
     @Mock private IdentityCommandService commandService;
-    @Mock private IdentityApplicationService applicationService;
+    @Mock private TelegramBotLookupService telegramBotLookupService;
     @Mock private ConfirmEmailMailFactory confirmEmailMailFactory;
     @Mock private ResetPasswordMailFactory resetPasswordMailFactory;
     @Mock private EncryptionService encryptionService;
@@ -76,7 +76,7 @@ class IdentityActionTokenServiceTest {
                 commandService,
                 properties,
                 new IdentityActionLinkBuilderDefault(properties),
-                applicationService,
+                telegramBotLookupService,
                 confirmEmailMailFactory,
                 resetPasswordMailFactory,
                 encryptionService,
@@ -274,7 +274,7 @@ class IdentityActionTokenServiceTest {
         when(actionTokenRepository.findById(7L)).thenReturn(Optional.of(token));
         when(objectMapper.readValue(token.getPayload(), TelegramBotToConfirm.class))
                 .thenReturn(new TelegramBotToConfirm("Identityvgbot"));
-        when(applicationService.findTelegramBotByUsername("Identityvgbot")).thenReturn(telegramBot());
+        when(telegramBotLookupService.findTelegramBotByUsername("Identityvgbot")).thenReturn(telegramBot());
 
         var result = service.findBindTelegramActionInfo(actionKey(7L));
 
@@ -294,7 +294,7 @@ class IdentityActionTokenServiceTest {
     void createBindTelegramUrlIfTelegramIsMissing_whenPrincipalHasTelegramChannel_returnsNull() {
         var user = IdentityUserEntity.builder().uniqueId(17L).build();
         user.setPrincipal(IdentityPrincipalEntity.builder().uniqueId(17L).build());
-        when(applicationService.findTelegramBotByUsername("Identityvgbot")).thenReturn(telegramBot());
+        when(telegramBotLookupService.findTelegramBotByUsername("Identityvgbot")).thenReturn(telegramBot());
         when(channelRepository.existsByIdentityUserUniqueIdAndChannelType(17L, IdentityChannelType.TELEGRAM_USER))
                 .thenReturn(true);
 
@@ -307,7 +307,7 @@ class IdentityActionTokenServiceTest {
     void createBindTelegramUrlIfTelegramIsMissing_whenPrincipalHasNoTelegramChannel_createsActionAndReturnsUrl() throws Exception {
         var user = IdentityUserEntity.builder().uniqueId(17L).build();
         user.setPrincipal(IdentityPrincipalEntity.builder().uniqueId(17L).build());
-        when(applicationService.findTelegramBotByUsername("Identityvgbot")).thenReturn(telegramBot());
+        when(telegramBotLookupService.findTelegramBotByUsername("Identityvgbot")).thenReturn(telegramBot());
         when(channelRepository.existsByIdentityUserUniqueIdAndChannelType(17L, IdentityChannelType.TELEGRAM_USER)).thenReturn(false);
         when(objectMapper.writeValueAsString(new TelegramBotToConfirm("Identityvgbot"))).thenReturn("{}");
         var savedAction = new AtomicReference<IdentityActionTokenEntity>();

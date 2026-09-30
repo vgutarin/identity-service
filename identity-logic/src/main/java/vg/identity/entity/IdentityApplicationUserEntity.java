@@ -18,6 +18,7 @@ import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import vg.identity.model.IdentityApplicationUserMetadata;
 
 import java.time.Instant;
 
@@ -50,10 +51,10 @@ public class IdentityApplicationUserEntity {
     @Column(name = "last_authenticated_at", nullable = false)
     private Instant lastAuthenticatedAt;
 
-    /** Free-form application-supplied metadata about this membership, encrypted at rest. */
-    @Convert(converter = StringEncryptionConverter.class)
+    /** Encrypted membership metadata. Identity reserves the compact {@code f} flag set for its own flags. */
+    @Convert(converter = IdentityApplicationUserMetadataConverter.class)
     @Column(columnDefinition = "MEDIUMBLOB")
-    private String metadata;
+    private IdentityApplicationUserMetadata metadata;
 
     @Version
     private int version;

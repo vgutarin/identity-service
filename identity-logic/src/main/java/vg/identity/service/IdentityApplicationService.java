@@ -17,7 +17,7 @@ import vg.identity.model.principal.IdentityInternalPrincipalStatus;
 import vg.identity.model.principal.IdentityInternalPrincipalType;
 import vg.identity.model.access.Permission;
 import vg.identity.model.application.TelegramBot;
-import vg.identity.model.application.TelegramBotWithUri;
+import vg.identity.model.application.TelegramWebhookStatus;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
@@ -26,13 +26,10 @@ import vg.unique.id.service.UniqueIdService;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Locale;
 
 @RequiredArgsConstructor
 @Service
 public class IdentityApplicationService {
-    private static final String TELEGRAM_BOT_BASE_URI = "https://t.me/";
-
     private final UniqueIdService uniqueIdService;
     private final IdentityApplicationRepository applicationRepository;
     private final IdentityPrincipalRepository principalRepository;
@@ -41,14 +38,32 @@ public class IdentityApplicationService {
     private final EncryptionService encryptionService;
     private final ObjectMapper objectMapper;
     private final TelegramService telegramService;
+    private final TelegramWebhookRegistrationService telegramWebhookRegistrationService;
+    private final TelegramBotLookupService telegramBotLookupService;
+    private final AuthorityChecker authorityChecker;
+
+    @PreAuthorize("@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.READ + "')")
+    public TelegramWebhookStatus getTelegramWebhookStatus(UniqueId applicationUniqueId) {
+        var status = telegramWebhookRegistrationService.inspect(applicationUniqueId);
+        return status.toBuilder().toggleAllowed(status.toggleAllowed()
+                && authorityChecker.hasAuthority(applicationUniqueId, Permission.App.UPDATE)).build();
+    }
+
+    @PreAuthorize("@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.UPDATE + "')")
+    public TelegramWebhookStatus setTelegramWebhookEnabled(UniqueId applicationUniqueId, int expectedVersion, boolean enabled) {
+        return telegramWebhookRegistrationService.setEnabled(applicationUniqueId, expectedVersion, enabled);
+    }
 
     @PreAuthorize("@authorityChecker.hasAuthority(#workspaceUniqueId, '" + Permission.App.CREATE + "')")
     @Transactional
     public IdentityApplication createTelegramBotApplication(UniqueId workspaceUniqueId, String name, TelegramBot telegramBot) {
         var workspace = getWorkspaceEntity(workspaceUniqueId);
-        var botUsername = telegramService.getUsername(telegramBot);
+        var botUser = telegramService.getBotUser(telegramBot);
+        var validatedBot = telegramBot.withTelegramBotId(botUser.id());
 
-        return create(name, URI.create(telegramBotUri(botUsername)), toJson(telegramBot), workspace);
+        var application = create(name, TelegramUriBuilder.botUri(botUser.username()), toJson(validatedBot), workspace);
+        telegramWebhookRegistrationService.scheduleRegistration(application.getUniqueId());
+        return application;
     }
 
     @PreAuthorize("@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.UPDATE + "')")
@@ -61,15 +76,22 @@ public class IdentityApplicationService {
             throw new ObjectOptimisticLockingFailureException(IdentityApplicationEntity.class, applicationUniqueId);
         }
 
-        var botUsername = telegramService.getUsername(telegramBot);
-        var uri = telegramBotUri(botUsername);
+        var botUser = telegramService.getBotUser(telegramBot);
+        var validatedBot = telegramBot.withTelegramBotId(botUser.id());
+        var previousBot = telegramBotLookupService.readBot(existing);
+        var uri = TelegramUriBuilder.botUri(botUser.username()).toString();
+        var payload = toJson(validatedBot);
+
+        telegramWebhookRegistrationService.removePreviousBot(previousBot, validatedBot);
 
         updatePrincipalName(existing.getPrincipal(), name, uri);
-        existing.setPayload(toJson(telegramBot));
+        existing.setPayload(payload);
 
         var saved = applicationRepository.save(existing);
         applicationRepository.flush();
-        return applicationMapper.toModel(saved);
+        var application = applicationMapper.toModel(saved);
+        telegramWebhookRegistrationService.scheduleRegistration(applicationUniqueId);
+        return application;
     }
 
 
@@ -98,35 +120,6 @@ public class IdentityApplicationService {
     public IdentityApplication getAuthenticatedApplication(UniqueId applicationUniqueId) {
         return applicationRepository.findById(applicationUniqueId.getLongValue())
                 .map(applicationMapper::toModel)
-                .orElseThrow(EntityNotFoundException::new);
-    }
-
-    /**
-     * Resolves a Telegram bot application by its bot username, returning both the public URL used to open
-     * the bot and the {@link TelegramBot} needed to validate its callback, or {@code null} if no matching
-     * application exists.
-     * <p>
-     * Intentionally unsecured: it runs in the pre-authentication login flow, before any principal exists.
-     * Callers rendering the bot link for an authenticated user must enforce their own authorization.
-     */
-    @Transactional(readOnly = true)
-    TelegramBotWithUri findTelegramBotByUsername(String botUsername) {
-        var uri = telegramBotUri(botUsername);
-        return applicationRepository.findByPrincipal_NameHash(encryptionService.hashPrincipalName(uri))
-                .map(entity ->
-                        new TelegramBotWithUri(
-                                URI.create(entity.getPrincipal().getName()),
-                                toTelegramBot(entity)
-                        )
-                )
-                .orElse(null);
-    }
-
-    /** Returns a registered Telegram bot for application-user authentication. */
-    @Transactional(readOnly = true)
-    TelegramBot getTelegramBot(UniqueId applicationUniqueId) {
-        return applicationRepository.findById(applicationUniqueId.getLongValue())
-                .map(this::toTelegramBot)
                 .orElseThrow(EntityNotFoundException::new);
     }
 
@@ -163,6 +156,7 @@ public class IdentityApplicationService {
         var existing = applicationRepository.findById(uniqueId.getLongValue())
                 .orElseThrow(EntityNotFoundException::new);
 
+        telegramWebhookRegistrationService.remove(telegramBotLookupService.readBot(existing));
         applicationRepository.delete(existing);
         applicationRepository.flush();
     }
@@ -186,13 +180,6 @@ public class IdentityApplicationService {
         return applicationMapper.toModel(saved);
     }
 
-    private String telegramBotUri(String botUsername) {
-        // Telegram bot usernames are case-insensitive (t.me/MyBot == t.me/mybot), so normalize to
-        // lower case before building/hashing the URI. This keeps the stored value and the lookup key
-        // consistent and prevents the same bot from being registered twice under different casing.
-        return TELEGRAM_BOT_BASE_URI + botUsername.toLowerCase(Locale.ROOT);
-    }
-
     private IdentityWorkspaceEntity getWorkspaceEntity(UniqueId workspaceUniqueId) {
         return workspaceRepository.findById(workspaceUniqueId)
                 .orElseThrow(() -> new EntityNotFoundException("exception.workspace.notFound"));
@@ -203,16 +190,6 @@ public class IdentityApplicationService {
             return objectMapper.writeValueAsString(telegramBot);
         } catch (JacksonException e) {
             throw new IllegalArgumentException("Cannot serialize Telegram bot", e);
-        }
-    }
-
-    private TelegramBot toTelegramBot(IdentityApplicationEntity entity) {
-        try {
-            return objectMapper
-                    .readValue(entity.getPayload(), TelegramBot.class)
-                    .withApplicationId(new UniqueId(entity.getUniqueId()));
-        } catch (JacksonException e) {
-            throw new IllegalArgumentException("Cannot deserialize Telegram bot", e);
         }
     }
 

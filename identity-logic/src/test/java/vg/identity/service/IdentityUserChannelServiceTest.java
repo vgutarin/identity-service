@@ -312,6 +312,65 @@ class IdentityUserChannelServiceTest {
         assertThat(service.findUserByTelegramId(42L)).isNull();
     }
 
+    @Test
+    void recordTelegramPhone_whenTelegramChannelCanBeUpdated_returnsTrue() {
+        var user = user(1L);
+        var telegramUser = telegramUser(42L);
+        var channelUserIdHash = new byte[]{4, 2};
+        var channel = IdentityUserChannelEntity.builder()
+                .identityUser(user)
+                .payload("{\"id\":42}")
+                .build();
+        when(encryptionService.hashCaseSensitive("42")).thenReturn(channelUserIdHash);
+        when(identityChannelRepository.findByChannelTypeAndChannelUserIdHash(
+                IdentityChannelType.TELEGRAM_USER, channelUserIdHash
+        )).thenReturn(Optional.of(channel));
+        when(objectMapper.readValue("{\"id\":42}", TelegramUserPrincipal.class)).thenReturn(telegramUser);
+        when(objectMapper.writeValueAsString(telegramUser.withPhoneNumber("+14155552671")))
+                .thenReturn("{\"id\":42,\"phoneNumber\":\"+14155552671\"}");
+
+        var recorded = service.recordTelegramPhone(42L, "+14155552671");
+
+        assertThat(recorded).isTrue();
+        assertThat(channel.getPayload()).isEqualTo("{\"id\":42,\"phoneNumber\":\"+14155552671\"}");
+        verify(identityChannelRepository).save(channel);
+    }
+
+    @Test
+    void recordTelegramPhone_whenPhoneIsAlreadyRecorded_returnsTrueWithoutRewritingTheChannel() {
+        var user = user(1L);
+        var telegramUser = telegramUser(42L).withPhoneNumber("+14155552671");
+        var channelUserIdHash = new byte[]{4, 2};
+        var channel = IdentityUserChannelEntity.builder()
+                .identityUser(user)
+                .payload("{\"id\":42,\"phoneNumber\":\"+14155552671\"}")
+                .build();
+        when(encryptionService.hashCaseSensitive("42")).thenReturn(channelUserIdHash);
+        when(identityChannelRepository.findByChannelTypeAndChannelUserIdHash(
+                IdentityChannelType.TELEGRAM_USER, channelUserIdHash
+        )).thenReturn(Optional.of(channel));
+        when(objectMapper.readValue(channel.getPayload(), TelegramUserPrincipal.class)).thenReturn(telegramUser);
+
+        var recorded = service.recordTelegramPhone(42L, "+14155552671");
+
+        assertThat(recorded).isTrue();
+        assertThat(channel.getPayload()).isEqualTo("{\"id\":42,\"phoneNumber\":\"+14155552671\"}");
+        verify(identityChannelRepository, never()).save(any(IdentityUserChannelEntity.class));
+        verify(objectMapper, never()).writeValueAsString(any(TelegramUserPrincipal.class));
+    }
+
+    @Test
+    void recordTelegramPhone_whenTelegramChannelIsMissing_returnsFalse() {
+        var channelUserIdHash = new byte[]{4, 2};
+        when(encryptionService.hashCaseSensitive("42")).thenReturn(channelUserIdHash);
+        when(identityChannelRepository.findByChannelTypeAndChannelUserIdHash(
+                IdentityChannelType.TELEGRAM_USER, channelUserIdHash
+        )).thenReturn(Optional.empty());
+
+        assertThat(service.recordTelegramPhone(42L, "+14155552671")).isFalse();
+        verify(identityChannelRepository, never()).save(any(IdentityUserChannelEntity.class));
+    }
+
     private static IdentityUserChannelEmail emailChannel(long uniqueId, String email) {
         var channel = new IdentityUserChannelEmail();
         channel.setUniqueId(new UniqueId(uniqueId));

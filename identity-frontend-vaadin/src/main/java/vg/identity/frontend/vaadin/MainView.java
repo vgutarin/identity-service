@@ -21,10 +21,10 @@ import jakarta.annotation.security.PermitAll;
 import org.springframework.security.core.userdetails.UserDetails;
 import vg.identity.frontend.vaadin.admin.IdentityApplicationClaims;
 import vg.identity.frontend.vaadin.admin.IdentityRoleTemplates;
-import vg.identity.frontend.vaadin.admin.IdentityWorkspaces;
 import vg.identity.frontend.vaadin.admin.IdentityUserPermissions;
 import vg.identity.frontend.vaadin.admin.IdentityUsers;
 import vg.identity.frontend.vaadin.admin.IdentityUsersChannels;
+import vg.identity.frontend.vaadin.admin.IdentityWorkspaces;
 import vg.identity.frontend.vaadin.service.LocalizationService;
 import vg.identity.frontend.vaadin.ui.LocalePicker;
 
@@ -74,7 +74,11 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
         layout.add(
                 authContext.getAuthenticatedUser(UserDetails.class)
                         .map(user -> {
-                            var logout = new Button(localization.i18n("Logout"), click -> this.authContext.logout());
+                            var logout = new Button(
+                                    localization.i18n("Logout"),
+                                    VaadinIcon.SIGN_OUT.create(),
+                                    click -> this.authContext.logout()
+                            );
                             var loggedUser = new Span("Welcome " + user.getUsername());
                             loggedUser.addClassName("logged-user");
                             var userActions = new HorizontalLayout(loggedUser, logout);
@@ -84,7 +88,11 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
                         }).orElseGet(() ->
                                 {
                                     var userActions = new HorizontalLayout(
-                                            new Button(localization.i18n("Login"), click -> {/*TODO*/})
+                                            new Button(
+                                                    localization.i18n("Login"),
+                                                    VaadinIcon.SIGN_IN.create(),
+                                                    click -> {/*TODO*/}
+                                            )
                                     );
                                     userActions.addClassName("user-actions");
                                     userActions.setAlignItems(FlexComponent.Alignment.CENTER);

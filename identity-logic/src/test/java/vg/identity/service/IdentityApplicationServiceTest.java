@@ -18,7 +18,9 @@ import vg.identity.model.IdentityApplication;
 import vg.identity.model.principal.IdentityInternalPrincipalStatus;
 import vg.identity.model.principal.IdentityInternalPrincipalType;
 import vg.identity.model.application.TelegramBot;
-import vg.identity.model.application.TelegramBotWithUri;
+import vg.identity.model.application.TelegramWebhookState;
+import vg.identity.model.application.TelegramWebhookStatus;
+import vg.identity.model.access.Permission;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.identity.repository.IdentityPrincipalRepository;
 import vg.identity.repository.IdentityWorkspaceRepository;
@@ -58,9 +60,45 @@ class IdentityApplicationServiceTest {
     ObjectMapper objectMapper;
     @Mock
     TelegramService telegramService;
+    @Mock
+    TelegramWebhookRegistrationService telegramWebhookRegistrationService;
+
+    @Mock
+    TelegramBotLookupService telegramBotLookupService;
+    @Mock
+    AuthorityChecker authorityChecker;
 
     @InjectMocks
     IdentityApplicationService service;
+
+    @Test
+    void getTelegramWebhookStatus_withoutUpdatePermission_returnsReadOnlyStatus() {
+        var id = nextUniqueId();
+        when(telegramWebhookRegistrationService.inspect(id)).thenReturn(TelegramWebhookStatus.builder()
+                .state(TelegramWebhookState.YES).toggleAllowed(true).build());
+        assertThat(service.getTelegramWebhookStatus(id).toggleAllowed()).isFalse();
+        verify(authorityChecker).hasAuthority(id, Permission.App.UPDATE);
+    }
+
+    @Test
+    void getTelegramWebhookStatus_withUpdatePermission_preservesConfiguredAvailability() {
+        var id = nextUniqueId();
+        when(authorityChecker.hasAuthority(id, Permission.App.UPDATE)).thenReturn(true);
+        when(telegramWebhookRegistrationService.inspect(id)).thenReturn(TelegramWebhookStatus.builder()
+                .state(TelegramWebhookState.NO).toggleAllowed(true).build());
+        assertThat(service.getTelegramWebhookStatus(id).toggleAllowed()).isTrue();
+        when(telegramWebhookRegistrationService.inspect(id)).thenReturn(TelegramWebhookStatus.builder()
+                .state(TelegramWebhookState.NO).toggleAllowed(false).build());
+        assertThat(service.getTelegramWebhookStatus(id).toggleAllowed()).isFalse();
+    }
+
+    @Test
+    void setTelegramWebhookEnabled_passesTheExplicitDesiredStateAndVersion() {
+        var id = nextUniqueId();
+        var status = TelegramWebhookStatus.builder().state(TelegramWebhookState.NO).toggleAllowed(true).build();
+        when(telegramWebhookRegistrationService.setEnabled(id, 4, false)).thenReturn(status);
+        assertThat(service.setTelegramWebhookEnabled(id, 4, false)).isSameAs(status);
+    }
 
     @Test
     void create_whenValidInput_returnsCreatedApplication() {
@@ -107,7 +145,9 @@ class IdentityApplicationServiceTest {
         var botToken = nextString();
         var telegramBot = TelegramBot.builder()
                 .token(botToken)
+                .telegramBotId(999L)
                 .build();
+        var validatedBot = telegramBot.withTelegramBotId(100L);
         var serializedBot = nextString();
         var expectedUri = "https://t.me/" + botUsername;
         var nameHash = new byte[]{1, 2, 3};
@@ -118,9 +158,10 @@ class IdentityApplicationServiceTest {
         var applicationCaptor = ArgumentCaptor.forClass(IdentityApplicationEntity.class);
         var principalCaptor = ArgumentCaptor.forClass(IdentityPrincipalEntity.class);
 
-        when(objectMapper.writeValueAsString(telegramBot)).thenReturn(serializedBot);
+        when(objectMapper.writeValueAsString(validatedBot)).thenReturn(serializedBot);
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
-        when(telegramService.getUsername(telegramBot)).thenReturn(botUsername);
+        when(telegramService.getBotUser(telegramBot)).thenReturn(
+                TelegramApiClient.TelegramUser.builder().id(100L).username(botUsername).build());
         when(principalRepository.saveWithNewUniqueId(any(IdentityPrincipalEntity.class), eq(uniqueIdService)))
                 .thenReturn(principal);
         when(encryptionService.hashPrincipalName(expectedUri)).thenReturn(nameHash);
@@ -131,13 +172,13 @@ class IdentityApplicationServiceTest {
                 service.createTelegramBotApplication(workspaceId, name, telegramBot)
         ).isSameAs(savedModel);
 
-        verify(telegramService).getUsername(telegramBot);
         verify(principalRepository).saveWithNewUniqueId(principalCaptor.capture(), eq(uniqueIdService));
         assertThat(principalCaptor.getValue().getDisplayName()).isEqualTo(name);
         assertThat(principalCaptor.getValue().getName()).isEqualTo(expectedUri);
         verify(applicationRepository).save(applicationCaptor.capture());
         assertThat(applicationCaptor.getValue().getWorkspace()).isSameAs(workspace);
         assertThat(applicationCaptor.getValue().getPayload()).isEqualTo(serializedBot);
+        verify(telegramWebhookRegistrationService).scheduleRegistration(savedModel.getUniqueId());
     }
 
     @Test
@@ -149,7 +190,7 @@ class IdentityApplicationServiceTest {
         assertThatThrownBy(() -> service.createTelegramBotApplication(nextUniqueId(), nextString(), telegramBot))
                 .isInstanceOf(EntityNotFoundException.class);
 
-        verify(telegramService, never()).getUsername(telegramBot);
+        verify(telegramService, never()).getBotUser(telegramBot);
     }
 
     @Test
@@ -161,13 +202,12 @@ class IdentityApplicationServiceTest {
                 .build();
 
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
-        when(telegramService.getUsername(telegramBot)).thenThrow(new IllegalArgumentException("Invalid Telegram bot"));
+        when(telegramService.getBotUser(telegramBot)).thenThrow(new IllegalArgumentException("Invalid Telegram bot"));
 
         assertThatThrownBy(() -> service.createTelegramBotApplication(workspaceId, nextString(), telegramBot))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Invalid Telegram bot");
 
-        verify(telegramService).getUsername(telegramBot);
         verify(applicationRepository, never()).save(any(IdentityApplicationEntity.class));
     }
 
@@ -178,6 +218,9 @@ class IdentityApplicationServiceTest {
         var name = nextString();
         var botUsername = nextString();
         var telegramBot = TelegramBot.builder().token(nextString()).build();
+        var validatedBot = telegramBot.withTelegramBotId(100L);
+        var previousBot = TelegramBot.builder().token(nextString()).build();
+        var previousPayload = nextString();
         var serializedBot = nextString();
         var expectedUri = "https://t.me/" + botUsername;
         var nameHash = new byte[]{4, 5, 6};
@@ -186,13 +229,16 @@ class IdentityApplicationServiceTest {
                 .uniqueId(applicationId.getLongValue())
                 .version(version)
                 .principal(principal)
+                .payload(previousPayload)
                 .build();
         var savedEntity = applicationEntity(applicationId.getLongValue());
         var savedModel = applicationModel(applicationId.getLongValue());
 
         when(applicationRepository.findById(applicationId)).thenReturn(Optional.of(existing));
-        when(telegramService.getUsername(telegramBot)).thenReturn(botUsername);
-        when(objectMapper.writeValueAsString(telegramBot)).thenReturn(serializedBot);
+        when(telegramBotLookupService.readBot(existing)).thenReturn(previousBot.withApplicationId(applicationId));
+        when(telegramService.getBotUser(telegramBot)).thenReturn(
+                TelegramApiClient.TelegramUser.builder().id(100L).username(botUsername).build());
+        when(objectMapper.writeValueAsString(validatedBot)).thenReturn(serializedBot);
         when(encryptionService.hashPrincipalName(expectedUri)).thenReturn(nameHash);
         when(applicationRepository.save(existing)).thenReturn(savedEntity);
         when(applicationMapper.toModel(savedEntity)).thenReturn(savedModel);
@@ -200,13 +246,16 @@ class IdentityApplicationServiceTest {
         assertThat(service.updateTelegramBotApplication(applicationId, version, name, telegramBot))
                 .isSameAs(savedModel);
 
-        verify(telegramService).getUsername(telegramBot);
         assertThat(principal.getDisplayName()).isEqualTo(name);
         assertThat(principal.getName()).isEqualTo(expectedUri);
         assertThat(principal.getNameHash()).isEqualTo(nameHash);
         verify(principalRepository).save(principal);
         assertThat(existing.getPayload()).isEqualTo(serializedBot);
         verify(applicationRepository).flush();
+        var ordered = org.mockito.Mockito.inOrder(telegramWebhookRegistrationService, applicationRepository);
+        ordered.verify(telegramWebhookRegistrationService).removePreviousBot(previousBot.withApplicationId(applicationId), validatedBot);
+        ordered.verify(applicationRepository).save(existing);
+        ordered.verify(telegramWebhookRegistrationService).scheduleRegistration(applicationId);
     }
 
     @Test
@@ -216,7 +265,7 @@ class IdentityApplicationServiceTest {
         assertThatThrownBy(() -> service.updateTelegramBotApplication(nextUniqueId(), 0, nextString(), telegramBot))
                 .isInstanceOf(EntityNotFoundException.class);
 
-        verify(telegramService, never()).getUsername(telegramBot);
+        verify(telegramService, never()).getBotUser(telegramBot);
         verify(applicationRepository, never()).save(any(IdentityApplicationEntity.class));
     }
 
@@ -234,7 +283,7 @@ class IdentityApplicationServiceTest {
         assertThatThrownBy(() -> service.updateTelegramBotApplication(applicationId, 4, nextString(), telegramBot))
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);
 
-        verify(telegramService, never()).getUsername(telegramBot);
+        verify(telegramService, never()).getBotUser(telegramBot);
         verify(applicationRepository, never()).save(any(IdentityApplicationEntity.class));
     }
 
@@ -249,7 +298,7 @@ class IdentityApplicationServiceTest {
                 .build();
 
         when(applicationRepository.findById(applicationId)).thenReturn(Optional.of(existing));
-        when(telegramService.getUsername(telegramBot))
+        when(telegramService.getBotUser(telegramBot))
                 .thenThrow(new IllegalArgumentException("exception.telegram.botToken.required"));
 
         assertThatThrownBy(() -> service.updateTelegramBotApplication(applicationId, version, nextString(), telegramBot))
@@ -298,74 +347,6 @@ class IdentityApplicationServiceTest {
         when(applicationRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThat(service.findById(new UniqueId(id))).isNull();
-    }
-
-    @Test
-    void findTelegramBotByUsername_whenBotExists_returnsBotWithUrl() throws JacksonException {
-        var botUsername = nextString();
-        var storedUri = "https://t.me/" + botUsername;
-        var nameHash = new byte[]{7, 8, 9};
-        var payload = nextString();
-        var telegramBot = TelegramBot.builder().token(nextString()).build();
-        var principal = applicationPrincipal(nextLong(), storedUri);
-        var entity = IdentityApplicationEntity.builder()
-                .uniqueId(principal.getUniqueId())
-                .principal(principal)
-                .payload(payload)
-                .build();
-
-        when(encryptionService.hashPrincipalName(storedUri)).thenReturn(nameHash);
-        when(applicationRepository.findByPrincipal_NameHash(nameHash)).thenReturn(Optional.of(entity));
-        when(objectMapper.readValue(payload, TelegramBot.class)).thenReturn(telegramBot);
-
-        assertThat(
-                service.findTelegramBotByUsername(botUsername)
-        ).isEqualTo(
-                new TelegramBotWithUri(
-                        url(storedUri),
-                        telegramBot.withApplicationId(new UniqueId(principal.getUniqueId()))
-                )
-        );
-    }
-
-    @Test
-    void findTelegramBotByUsername_whenUsernameCasingDiffers_resolvesSameApplication() throws JacksonException {
-        var normalizedUri = "https://t.me/mybot";
-        var nameHash = new byte[]{7, 8, 9};
-        var payload = nextString();
-        var telegramBot = TelegramBot.builder().token(nextString()).build();
-        var principal = applicationPrincipal(nextLong(), normalizedUri);
-        var entity = IdentityApplicationEntity.builder()
-                .uniqueId(principal.getUniqueId())
-                .principal(principal)
-                .payload(payload)
-                .build();
-
-        // Telegram usernames are case-insensitive, so "MyBot" must hash to the same key as "mybot".
-        when(encryptionService.hashPrincipalName(normalizedUri)).thenReturn(nameHash);
-        when(applicationRepository.findByPrincipal_NameHash(nameHash)).thenReturn(Optional.of(entity));
-        when(objectMapper.readValue(payload, TelegramBot.class)).thenReturn(telegramBot);
-
-        assertThat(
-                service.findTelegramBotByUsername("MyBot")
-        ).isEqualTo(
-                new TelegramBotWithUri(
-                        url(normalizedUri),
-                        telegramBot.withApplicationId(new UniqueId(principal.getUniqueId()))
-                )
-        );
-    }
-
-    @Test
-    void findTelegramBotByUsername_whenBotIsNotFound_returnsNull() throws JacksonException {
-        var botUsername = nextString();
-        var nameHash = new byte[]{7, 8, 9};
-
-        when(encryptionService.hashPrincipalName("https://t.me/" + botUsername)).thenReturn(nameHash);
-        when(applicationRepository.findByPrincipal_NameHash(nameHash)).thenReturn(Optional.empty());
-
-        assertThat(service.findTelegramBotByUsername(botUsername)).isNull();
-        verify(objectMapper, never()).readValue(any(String.class), eq(TelegramBot.class));
     }
 
     @Test
@@ -443,13 +424,18 @@ class IdentityApplicationServiceTest {
     void delete_whenEntityExists_deleteApplication() {
         var id = nextLong();
         var entity = applicationEntity(id);
+        var serializedBot = nextString();
+        var telegramBot = TelegramBot.builder().token(nextString()).build();
+        entity.setPayload(serializedBot);
 
         when(applicationRepository.findById(id)).thenReturn(Optional.of(entity));
+        when(telegramBotLookupService.readBot(entity)).thenReturn(telegramBot.withApplicationId(new UniqueId(id)));
 
         service.delete(new UniqueId(id));
 
         verify(applicationRepository).delete(entity);
         verify(applicationRepository).flush();
+        verify(telegramWebhookRegistrationService).remove(telegramBot.withApplicationId(new UniqueId(id)));
     }
 
     @Test
@@ -492,10 +478,6 @@ class IdentityApplicationServiceTest {
                 .status(IdentityInternalPrincipalStatus.ACTIVE)
                 .type(IdentityInternalPrincipalType.APPLICATION)
                 .build();
-    }
-
-    private static URI url(String value) {
-        return URI.create(value);
     }
 
     private static IdentityWorkspaceEntity workspace(long uniqueId) {

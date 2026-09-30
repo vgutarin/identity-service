@@ -27,6 +27,7 @@ import jakarta.annotation.security.RolesAllowed;
 import vg.identity.frontend.vaadin.MainView;
 import vg.identity.frontend.vaadin.Role;
 import vg.identity.frontend.vaadin.service.LocalizationService;
+import vg.identity.frontend.vaadin.service.TelegramWebhookUiTasks;
 import vg.identity.frontend.vaadin.ui.Dialogs;
 import vg.identity.frontend.vaadin.ui.Notifications;
 import vg.identity.model.IdentityWorkspace;
@@ -73,11 +74,12 @@ public class IdentityWorkspaceDetails extends VerticalLayout implements BeforeEn
             IdentityRoleService roleService,
             IdentityPermissionService permissionService,
             EmailService emailService,
-            LocalizationService localization
+            LocalizationService localization,
+            TelegramWebhookUiTasks webhookTasks
     ) {
         this.workspaceService = workspaceService;
         this.localization = localization;
-        applicationsContent = new IdentityWorkspaceApplicationsTab(applicationService, apiKeyService, localization);
+        applicationsContent = new IdentityWorkspaceApplicationsTab(applicationService, apiKeyService, localization, webhookTasks);
         rolesContent = new IdentityWorkspaceRolesTab(workspaceService, roleService, permissionService, localization);
         usersContent = new IdentityWorkspaceUsersTab(workspaceService, emailService, localization);
 
@@ -190,6 +192,7 @@ public class IdentityWorkspaceDetails extends VerticalLayout implements BeforeEn
         var usersSelected = managementTabs.getSelectedTab() == usersTab;
 
         applicationsContent.setVisible(applicationsSelected);
+        applicationsContent.setActive(applicationsSelected);
         rolesContent.setVisible(rolesSelected);
         usersContent.setVisible(usersSelected);
 

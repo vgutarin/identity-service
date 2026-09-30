@@ -36,7 +36,9 @@ class IdentityApplicationServicePermissionIntegrationTest extends BaseIntegratio
                 "findByWorkspaceUniqueId(UniqueId)", "@authorityChecker.hasAuthority(#workspaceUniqueId, '" + Permission.App.READ + "')",
                 "getById(UniqueId)", "@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.READ + "')",
                 "update(IdentityApplication)", "@authorityChecker.hasAuthority(#application.getUniqueId(), '" + Permission.App.UPDATE + "')",
-                "updateTelegramBotApplication(UniqueId, int, String, TelegramBot)", "@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.UPDATE + "')"
+                "updateTelegramBotApplication(UniqueId, int, String, TelegramBot)", "@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.UPDATE + "')",
+                "getTelegramWebhookStatus(UniqueId)", "@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.READ + "')",
+                "setTelegramWebhookEnabled(UniqueId, int, boolean)", "@authorityChecker.hasAuthority(#applicationUniqueId, '" + Permission.App.UPDATE + "')"
         );
 
         var publicMethods = Arrays.stream(IdentityApplicationService.class.getMethods())
