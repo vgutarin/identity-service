@@ -18,13 +18,13 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class CurrentIdentityApplicationServiceTest {
     @Mock
-    private CurrentUserService currentUserService;
+    private CurrentPrincipalService currentPrincipalService;
 
     private CurrentIdentityApplicationService service;
 
     @BeforeEach
     void setUp() {
-        service = new CurrentIdentityApplicationService(currentUserService, "");
+        service = new CurrentIdentityApplicationService(currentPrincipalService, "");
     }
 
     @Test
@@ -32,22 +32,22 @@ class CurrentIdentityApplicationServiceTest {
         var expected = new UniqueId(42L);
         var principal = mock(IdentityInternalApplicationPrincipal.class);
         when(principal.getUniqueId()).thenReturn(expected);
-        when(currentUserService.findCurrentUserDetails()).thenReturn(principal);
+        when(currentPrincipalService.findCurrentPrincipal()).thenReturn(principal);
 
         assertThat(service.requireApplicationUniqueId()).isEqualTo(expected);
     }
 
     @Test
     void requireApplicationUniqueId_whenEmbeddedApplicationIsConfiguredAndNoPrincipalExists_returnsConfiguredId() {
-        var embedded = new CurrentIdentityApplicationService(currentUserService, "42");
+        var embedded = new CurrentIdentityApplicationService(currentPrincipalService, "42");
 
         assertThat(embedded.requireApplicationUniqueId()).isEqualTo(new UniqueId(42L));
     }
 
     @Test
     void requireApplicationUniqueId_whenNonApplicationPrincipalIsAuthenticated_deniesInsteadOfUsingEmbeddedFallback() {
-        var embedded = new CurrentIdentityApplicationService(currentUserService, "42");
-        when(currentUserService.findCurrentUserDetails()).thenReturn(mock(UserDetails.class));
+        var embedded = new CurrentIdentityApplicationService(currentPrincipalService, "42");
+        when(currentPrincipalService.findCurrentPrincipal()).thenReturn(mock(UserDetails.class));
 
         assertThatThrownBy(embedded::requireApplicationUniqueId)
                 .isInstanceOf(AccessDeniedException.class)
@@ -57,14 +57,14 @@ class CurrentIdentityApplicationServiceTest {
     @Test
     void requireApplicationPrincipal_whenApiKeyApplicationIsAuthenticated_returnsPrincipal() {
         var principal = mock(IdentityInternalApplicationPrincipal.class);
-        when(currentUserService.findCurrentUserDetails()).thenReturn(principal);
+        when(currentPrincipalService.findCurrentPrincipal()).thenReturn(principal);
 
         assertThat(service.requireApplicationPrincipal()).isSameAs(principal);
     }
 
     @Test
     void requireApplicationPrincipal_whenNonApplicationPrincipalIsAuthenticated_denies() {
-        when(currentUserService.findCurrentUserDetails()).thenReturn(mock(UserDetails.class));
+        when(currentPrincipalService.findCurrentPrincipal()).thenReturn(mock(UserDetails.class));
 
         assertThatThrownBy(service::requireApplicationPrincipal)
                 .isInstanceOf(AccessDeniedException.class)
@@ -73,7 +73,7 @@ class CurrentIdentityApplicationServiceTest {
 
     @Test
     void requireApplicationPrincipal_whenNoPrincipalExists_deniesWithoutUsingEmbeddedFallback() {
-        var embedded = new CurrentIdentityApplicationService(currentUserService, "42");
+        var embedded = new CurrentIdentityApplicationService(currentPrincipalService, "42");
 
         assertThatThrownBy(embedded::requireApplicationPrincipal)
                 .isInstanceOf(AccessDeniedException.class)

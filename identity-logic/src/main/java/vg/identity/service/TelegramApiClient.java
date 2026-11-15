@@ -36,6 +36,26 @@ public class TelegramApiClient {
                 .body(GetMeResponse.class);
     }
 
+    public SendMessageResponse sendMessage(String token, long chatId, String text) {
+        return restClient.post()
+                .uri("/bot{token}/sendMessage", token)
+                .body(SendMessageRequest.builder().chatId(chatId).text(text).build())
+                .retrieve()
+                .body(SendMessageResponse.class);
+    }
+
+    @Builder
+    public record SendMessageRequest(@JsonProperty("chat_id") long chatId, String text) {
+    }
+
+    @Builder
+    public record SendMessageResponse(Boolean ok, SentMessage result) {
+    }
+
+    @Builder
+    public record SentMessage(@JsonProperty("message_id") Long messageId) {
+    }
+
     public SetWebhookResponse setWebhook(String token, String url, String secretToken) {
         return restClient.post()
                 .uri("/bot{token}/setWebhook", token)

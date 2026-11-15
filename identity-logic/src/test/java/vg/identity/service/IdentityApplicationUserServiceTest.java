@@ -7,6 +7,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.PlatformTransactionManager;
 import vg.identity.entity.IdentityApplicationUserEntity;
+import vg.identity.entity.IdentityApplicationUserEntityId;
 import vg.identity.model.IdentityApplicationUserMetadata;
 import vg.identity.model.IdentityApplicationUserMetadataFlag;
 import vg.identity.repository.IdentityApplicationRepository;
@@ -46,6 +47,17 @@ class IdentityApplicationUserServiceTest {
                 transactionManager,
                 Clock.systemUTC()
         );
+    }
+
+    @Test
+    void hasMembership_whenMembershipExistsOrIsAbsent_returnsApplicationAndUserScopedResult() {
+        var id = new IdentityApplicationUserEntityId();
+        id.setApplication(APPLICATION_UNIQUE_ID.getLongValue());
+        id.setIdentityUser(USER_UNIQUE_ID.getLongValue());
+        when(membershipRepository.existsById(id)).thenReturn(true).thenReturn(false);
+
+        assertThat(service.hasMembership(APPLICATION_UNIQUE_ID, USER_UNIQUE_ID)).isTrue();
+        assertThat(service.hasMembership(APPLICATION_UNIQUE_ID, USER_UNIQUE_ID)).isFalse();
     }
 
     @Test

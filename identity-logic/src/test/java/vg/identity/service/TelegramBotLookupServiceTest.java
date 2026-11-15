@@ -44,6 +44,29 @@ class TelegramBotLookupServiceTest {
     }
 
     @Test
+    void findMessagingBot_whenApplicationIsTelegramBot_returnsCurrentConfiguration() {
+        var applicationId = new UniqueId(42L);
+        var application = IdentityApplicationEntity.builder().uniqueId(42L).payload("bot-payload")
+                .principal(IdentityPrincipalEntity.builder().name("https://t.me/test_bot").build()).build();
+        when(applicationRepository.findById(42L)).thenReturn(Optional.of(application));
+        var bot = TelegramBot.builder().telegramBotId(100L).token("token").build();
+        when(objectMapper.readValue("bot-payload", TelegramBot.class)).thenReturn(bot);
+        assertThat(service.findMessagingBot(applicationId)).isEqualTo(bot.withApplicationId(applicationId));
+    }
+
+    @Test
+    void findMessagingBot_whenApplicationIsMissingOrNotTelegramBot_returnsNullWithoutParsingPayload() {
+        var applicationId = new UniqueId(42L);
+        when(applicationRepository.findById(42L)).thenReturn(Optional.empty());
+        assertThat(service.findMessagingBot(applicationId)).isNull();
+        var application = IdentityApplicationEntity.builder().uniqueId(42L).payload("bot-payload")
+                .principal(IdentityPrincipalEntity.builder().name("https://example.test").build()).build();
+        when(applicationRepository.findById(42L)).thenReturn(Optional.of(application));
+        assertThat(service.findMessagingBot(applicationId)).isNull();
+        verifyNoInteractions(objectMapper);
+    }
+
+    @Test
     void telegramBotLookup_whenApplicationExists_returnsBotWithApplicationId() {
         var applicationId = nextUniqueId();
         var entity = IdentityApplicationEntity.builder().uniqueId(applicationId.getLongValue()).payload("bot-payload").build();

@@ -2,21 +2,26 @@ package vg.identity.rest.server.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import vg.identity.model.IdentityApplicationMessageRequest;
+import vg.identity.model.IdentityApplicationMessage;
 import vg.identity.model.IdentityApplicationPrincipal;
-import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.IdentityApplicationTelegramPhone;
+import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.TelegramAuthenticationRequest;
 import vg.identity.service.IdentityApplicationApiService;
 import vg.unique.id.model.UniqueId;
+
 
 /**
  * API-key-authenticated application endpoints.
@@ -60,5 +65,23 @@ public class IdentityApplicationController {
     public ResponseEntity<Void> revokeTelegramPhone(@PathVariable String userUniqueId) {
         applicationApi.revokeTelegramPhone(UniqueId.parse(userUniqueId));
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(value = "/me/users/{userUniqueId}/messages", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<IdentityApplicationMessage> submitMessage(@PathVariable String userUniqueId,
+            @RequestBody IdentityApplicationMessageRequest request) {
+        var submission = applicationApi.submitMessage(UniqueId.parse(userUniqueId), request);
+        var message = submission.message();
+        var location = ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/api/v1/applications/me/messages/{messageUniqueId}")
+                .buildAndExpand(message.messageUniqueId()).toUri();
+        return ResponseEntity.status(submission.replayed() ? HttpStatus.OK : HttpStatus.ACCEPTED)
+                .location(location).body(message);
+    }
+
+    @GetMapping("/me/messages/{messageUniqueId}")
+    public ResponseEntity<IdentityApplicationMessage> findMessage(@PathVariable String messageUniqueId) {
+        return applicationApi.findMessage(UniqueId.parse(messageUniqueId)).map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

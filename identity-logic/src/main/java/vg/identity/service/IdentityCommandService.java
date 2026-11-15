@@ -9,16 +9,18 @@ import tools.jackson.databind.ObjectMapper;
 import vg.identity.entity.IdentityCommandEntity;
 import vg.identity.mapper.IdentityCommandMapper;
 import vg.identity.model.EmailMessage;
-import vg.identity.model.IdentityCommand;
-import vg.identity.model.IdentityCommandStatus;
-import vg.identity.model.IdentityCommandType;
-import vg.identity.model.SetTelegramWebhookCommand;
+import vg.identity.model.command.IdentityCommand;
+import vg.identity.model.command.IdentityCommandStatus;
+import vg.identity.model.command.IdentityCommandType;
+import vg.identity.model.command.SendApplicationMessageCommand;
+import vg.identity.model.command.SetTelegramWebhookCommand;
 import vg.identity.repository.IdentityCommandRepository;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Clock;
 import java.util.Objects;
+import java.util.Optional;
 
 @RequiredArgsConstructor
 @Service
@@ -62,12 +64,13 @@ public class IdentityCommandService {
 
     @Transactional
     public synchronized IdentityCommand startNextQueuedCommand() {
-        var command = commandRepository
-                .findFirstByIdGreaterThanAndCommandStatusOrderByIdAsc(
-                        maxStartedCommandId,
-                        IdentityCommandStatus.QUEUED
-                )
-                .orElse(null);
+        var command = findQueuedWitIdGreaterThen(maxStartedCommandId).orElseGet(() ->
+                // Best-effort recovery of nearby late commits without a full historical scan or added index.
+                // IDs 100+ behind the cursor stay excluded; continuous newer work can delay the fallback.
+                findQueuedWitIdGreaterThen(maxStartedCommandId - 100)
+                        .orElse(null)
+        );
+
         if (command == null) {
             return null;
         }
@@ -79,6 +82,24 @@ public class IdentityCommandService {
         commandRepository.flush();
         maxStartedCommandId = command.getId();
         return commandMapper.toModel(command);
+    }
+
+    @Transactional
+    public IdentityCommand enqueueApplicationMessage(SendApplicationMessageCommand command) {
+        Objects.requireNonNull(command, "command is required");
+        try {
+            return commandMapper.toModel(
+                    commandRepository.save(
+                            IdentityCommandEntity.builder()
+                                    .commandStatus(IdentityCommandStatus.QUEUED)
+                                    .commandType(IdentityCommandType.SEND_APPLICATION_MESSAGE)
+                                    .payload(objectMapper.writeValueAsString(command))
+                                    .build()
+                    )
+            );
+        } catch (JacksonException e) {
+            throw new IllegalArgumentException("Cannot serialize application message command");
+        }
     }
 
     @Transactional
@@ -121,6 +142,14 @@ public class IdentityCommandService {
 
     long getMaxStartedCommandId() {
         return maxStartedCommandId;
+    }
+
+    private Optional<IdentityCommandEntity> findQueuedWitIdGreaterThen(long id) {
+        return commandRepository
+                .findFirstByIdGreaterThanAndCommandStatusOrderByIdAsc(
+                        id,
+                        IdentityCommandStatus.QUEUED
+                );
     }
 
     private void assertRunning(IdentityCommandStatus commandStatus) {

@@ -1,5 +1,20 @@
 # Testing Notes
 
+## Persisted enum contracts
+
+Follow the enum persistence and append-only compatibility rules in [Java conventions](AGENTS.md#java-conventions).
+Every enum used in an entity requires both contract and persistence coverage:
+
+- **Contract tests:** Pin literal names and ordinal numbers for every enum constant, and assert the complete
+  order of values. Tests must fail if a constant is renamed, removed, reordered, or inserted between existing
+  constants. When extending an enum, preserve all existing expected name/ordinal pairs and append the new
+  expectations; do not regenerate expectations from the enum under test.
+- **Persistence integration tests:** Exercise each entity enum mapping against the real test database.
+  Verify that raw stored values are numeric ordinals and that loading the entity restores the expected enum
+  constants. Cover every constant and null where the mapped field is nullable; keep schema nullability intact.
+- Add or update both levels of coverage in the same change as a new enum, appended value, or entity enum
+  mapping change. Both must pass before the change is complete.
+
 ## Unit Tests
 
 - Use `@ExtendWith(MockitoExtension.class)` for Mockito-based tests.

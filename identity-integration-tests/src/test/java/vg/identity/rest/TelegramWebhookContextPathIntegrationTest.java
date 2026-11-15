@@ -3,6 +3,7 @@ package vg.identity.rest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
@@ -65,6 +66,29 @@ class TelegramWebhookContextPathIntegrationTest extends BaseIntegrationTest {
         assertThat(applicationUserRepository.count()).isZero();
         assertThat(channelRepository.count()).isZero();
         assertThat(userRepository.count()).isZero();
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(longs = {0, -1})
+    void webhook_whenStoredBotIdIsMissingOrNonpositive_acknowledgesWithoutAcceptingContact(Long botId) throws Exception {
+        var token = "123456:integration-test-token";
+        var application = createApplicationWithApiKey("{\"telegramBotId\":123456,\"token\":\"" + token + "\"}");
+        var applicationId = new UniqueId(application.uniqueId());
+        var userId = restClient.authenticateTelegram(TelegramAuthenticationRequest.builder()
+                .telegramInitData(telegramInitData(token, "{\"id\":42,\"first_name\":\"John\"}"))
+                .consentToKeepPersonalData(true).build()).orElseThrow().userUniqueId();
+        var before = channelRepository.findAll().getFirst().getPayload();
+        var stored = applicationRepository.findById(application.uniqueId()).orElseThrow();
+        stored.setPayload(botId == null ? "{\"token\":\"" + token + "\"}"
+                : "{\"telegramBotId\":" + botId + ",\"token\":\"" + token + "\"}");
+        applicationRepository.saveAndFlush(stored);
+
+        var response = sendContact(applicationId, secretService.secretFor(applicationId, 123456L));
+
+        assertThat(response.statusCode()).isEqualTo(204);
+        assertThat(restClient.findTelegramPhone(userId)).isEmpty();
+        assertThat(channelRepository.findAll()).singleElement().extracting(channel -> channel.getPayload()).isEqualTo(before);
     }
 
     @ParameterizedTest

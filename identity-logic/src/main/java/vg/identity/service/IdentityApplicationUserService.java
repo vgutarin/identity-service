@@ -51,6 +51,12 @@ public class IdentityApplicationUserService {
         }
     }
 
+    /** Whether the user has authenticated with the application. */
+    @Transactional(readOnly = true)
+    boolean hasMembership(UniqueId applicationUniqueId, UniqueId identityUserUniqueId) {
+        return membershipRepository.existsById(membershipId(applicationUniqueId.getLongValue(), identityUserUniqueId.getLongValue()));
+    }
+
     /** Marks this application's existing membership as allowed to disclose the user's Telegram-shared phone. */
     @Transactional
     void enableTelegramPhoneDisclosure(UniqueId applicationUniqueId, long identityUserUniqueId) {

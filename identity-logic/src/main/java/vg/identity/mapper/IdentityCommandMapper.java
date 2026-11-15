@@ -2,7 +2,7 @@ package vg.identity.mapper;
 
 import org.mapstruct.Mapper;
 import vg.identity.entity.IdentityCommandEntity;
-import vg.identity.model.IdentityCommand;
+import vg.identity.model.command.IdentityCommand;
 
 @Mapper(componentModel = "spring")
 public interface IdentityCommandMapper {

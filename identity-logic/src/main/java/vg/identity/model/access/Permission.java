@@ -40,6 +40,8 @@ public class Permission {
         public static final String DELETE = "app.delete";
         public static final String CLAIM_CREATE = "app.claim.create";
         public static final String CLAIM_DELETE = "app.claim.delete";
+        public static final String MESSAGE_SEND = "app.message.send";
+        public static final String MESSAGE_READ = "app.message.read";
 
         static final String[] ALL = {
                 CREATE,
@@ -47,7 +49,9 @@ public class Permission {
                 UPDATE,
                 DELETE,
                 CLAIM_CREATE,
-                CLAIM_DELETE
+                CLAIM_DELETE,
+                MESSAGE_SEND,
+                MESSAGE_READ
         };
     }
 

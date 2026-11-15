@@ -1,12 +1,27 @@
 package vg.identity.service;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import vg.unique.id.model.UniqueId;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 class TelegramWebhookSecretServiceTest {
+
+    @ParameterizedTest
+    @ValueSource(longs = {0, -1})
+    void matches_whenBotIdIsNotPositive_rejectsAuthenticationAndSecretDerivation(long botId) {
+        var service = new TelegramWebhookSecretService("test-webhook-secret-with-at-least-thirty-two-characters", "", true);
+        var application = new UniqueId(42L);
+        var secret = service.secretFor(application, 100L);
+
+        assertThat(service.matches(application, botId, secret)).isFalse();
+        assertThatIllegalArgumentException().isThrownBy(() -> service.secretFor(application, botId))
+                .withMessageContaining("telegramBotId must be positive");
+    }
 
     @Test
     void matches_acceptsOnlyTheDerivedSecretForThatApplication() {

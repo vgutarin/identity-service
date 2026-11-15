@@ -8,8 +8,8 @@ import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import vg.identity.model.EmailMessage;
-import vg.identity.model.IdentityCommand;
-import vg.identity.model.SetTelegramWebhookCommand;
+import vg.identity.model.command.IdentityCommand;
+import vg.identity.model.command.SetTelegramWebhookCommand;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -19,6 +19,7 @@ public class IdentityCommandWorker {
     private final EmailService emailService;
     private final ObjectMapper objectMapper;
     private final TelegramWebhookRegistrationService telegramWebhookRegistrationService;
+    private final IdentityMessageCommandProcessor messageProcessor;
 
     @Scheduled(fixedDelayString = "${identity.command.worker.fixed-delay-ms:5000}")
     public void processNextQueuedCommand() {
@@ -48,6 +49,7 @@ public class IdentityCommandWorker {
         switch (command.commandType()) {
             case SEND_EMAIL -> sendEmail(command);
             case SET_TELEGRAM_WEBHOOK -> setTelegramWebhook(command);
+            case SEND_APPLICATION_MESSAGE -> messageProcessor.process(command);
             default -> throw new IllegalArgumentException("Unsupported command type: " + command.commandType());
         }
     }

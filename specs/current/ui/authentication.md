@@ -48,3 +48,4 @@ The governing rules are in [Authentication and recovery](../logic/authentication
 - `identity-frontend-vaadin/src/main/java/vg/identity/frontend/vaadin/auth/PasswordResetView.java`
 - `identity-frontend-vaadin/src/main/java/vg/identity/frontend/vaadin/auth/IdentityUserEmailVerificationView.java`
 - `identity-frontend-vaadin/src/main/java/vg/identity/frontend/vaadin/auth/TelegramAuthView.java`
+- [Password-reset UI tests](../../../identity-frontend-vaadin/src/test/java/vg/identity/frontend/vaadin/auth/PasswordResetViewTest.java).

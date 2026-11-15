@@ -1,116 +1,89 @@
 # Specifications
 
-[Current documentation](current/README.md) contains UI, logic, API, engineering, and supporting records.
+[Current documentation](current/README.md) describes the implemented system. Numbered feature directories
+preserve historical designs and task records.
 
 ## Documentation authoring and maintenance
 
-- Keep documentation-authoring instructions in this `specs/README.md`. Root `AGENTS.md`
-  supplies the mandatory usage reference. Keep document scaffolds focused on their document type and link
-  here for maintenance guidance.
-- Keep the structure under `specs/current/`: `ui/` for interaction contracts, `logic/` for business
-  contracts, `api/` for externally consumed HTTP and library contracts, `engineering/` for technical
-  mechanisms and operational guidance, `templates/` for scaffolds, `decisions/` for rationale/history,
-  and `open-decisions.md` for pending work/questions.
-  Indexes provide navigation and ownership; templates link here for instructions.
-- **Current state only in `ui/`, `logic/`, and `api/`, including indexes and shared documents.** Describe what
-  the implementation does in present-tense, verifiable terms. Exclude history, migration narratives,
-  retired behaviour, rejected alternatives, historical comparisons, TODOs, roadmaps, and proposals.
-  Remove obsolete statements instead of appending a chronology. Preserve useful explanations in
-  `decisions/` and unresolved work in `open-decisions.md`, outside the behavioural contract trees.
-- Ground claims in actual source and relevant tests. Confirm names, fields, routes, validation,
-  authorization, and persistence constraints. Do not turn intended behaviour or an unverified
-  platform outcome into a guarantee. Describe limitations neutrally; record discrepancies and
-  missing verification in `open-decisions.md` without silently changing application behaviour.
-- Give each rule one authoritative home and cross-link consumers. UI owns how an interaction
-  presents a domain result; logic owns the business rule; API owns externally visible request, response,
-  and compatibility details. Generic configuration and encryption mechanisms belong in engineering;
-  business disclosure/access rules belong in logic.
-- Use capability-level UI documents, shared foundations, and a compact shared-interactions document.
-  Split component documents only when size or independent maintenance warrants it. Describe purpose,
-  actors, routes/entry conditions, journeys, controls/outcomes, navigation, implemented loading/empty/
-  validation/error/access states, and accessibility, responsiveness, localization and platform
-  constraints. Link governing logic and code/tests; do not duplicate CSS or pixel inventories.
-- Use Domain-Driven Design to describe existing logic: responsibility/context, ubiquitous language,
-  entities/value objects/identity, commands/queries/results, lifecycle, invariants, authorization,
-  actual transaction/consistency boundaries, interactions, and business-relevant persistence
-  constraints. Do not invent aggregates, bounded contexts, or domain events to fill a template.
-  Workspace ownership is not proof of a single aggregate; scheduled events are not DDD domain events.
-- Omit template sections that genuinely do not apply and replace all placeholders. Requirements
-  and invariants must be independently checkable against code, tests, or observable behavior.
-  Include source/test references and links to related contracts rather than copying their rules.
-- Use Diátaxis to distinguish reference (UI/logic contracts), how-to guidance (engineering tasks),
-  explanation (decisions), and tutorials (learning). Do not add parallel directory trees or empty
-  documents just to represent all four categories.
-- Identify affected current documents when planning feature work. Update them alongside each
-  implementation change, not only in a final documentation task. Before completion, verify section
-  coverage, links/anchors/source references, current-only compliance, and consistency between UI
-  visibility/validation/outcomes and domain authorization/service rules. Review meaning, not just
-  a forbidden-word list. Documentation-only work does not require application tests; logic changes
-  still require the unit and integration coverage in [AGENTS.md](../AGENTS.md#definition-of-done-mandatory).
-- Preserve historical feature paths and meaning. Repair their moved-document links when needed,
-  without rewriting feature records as current requirements. Retire duplicate authoritative copies
-  after their content is accounted for; do not leave compatibility symlinks or competing spec trees.
-- Keep open decisions actionable and remove entries when they close, preserving useful rationale
-  in decisions. Add operational surprises to engineering notes. When referring to history, prefer
-  a change description over a short commit hash because branch history can be rewritten.
+| Location under `current/` | Owns |
+| --- | --- |
+| `ui/` | Routes, interactions, visible states, navigation, and platform constraints. |
+| `logic/` | Domain language, models, authorization, invariants, lifecycle, and consistency. |
+| `api/` | HTTP/Java contracts, validation, errors, serialization, and compatibility. |
+| `engineering/` | Configuration, technical mechanisms, operations, and build/test facts. |
+| `decisions/` | Architectural rationale and decision history. |
+| `open-decisions.md` | Unresolved decisions, bugs, implementation work, and verification gaps. |
+| `templates/` | Document scaffolds; maintenance instructions belong here in this README. |
+
+1. Identify affected current contracts during planning; update them alongside behavior, interface,
+   configuration, or data-flow changes.
+   Documentation is part of completion, not a follow-up.
+2. Describe implemented behavior in present tense. Keep proposals, TODOs, migration history, retired
+   behavior, historical comparisons, roadmaps, and alternatives out of UI/logic/API contracts, including
+   indexes and shared documents. Move useful rationale to decisions and pending work to open decisions.
+3. Verify claims against source and tests: names, routes, fields, validation, permissions, persistence,
+   and transaction boundaries. Record gaps in open decisions; do not document an intention as a guarantee.
+4. Give each rule one authoritative home and link consumers to it. Keep READMEs focused on entry points
+   and usage; avoid duplicating contracts, configuration tables, and implementation walkthroughs.
+   UI specifications reference logic/API contracts; logic/API specifications remain independent of UI consumers.
+5. Group documents by capability or domain. Use the UI/logic templates, omitting inapplicable sections
+   and replacing every placeholder. Make rules independently checkable against source, tests, or behavior.
+6. Use Domain-Driven Design to describe existing responsibility/context, language, entities/value objects,
+   identity, commands/queries/results, lifecycle, invariants, authorization, interactions, and actual
+   transaction/persistence boundaries. Do not invent aggregates, bounded contexts, or domain events to
+   fill a template. Workspace ownership does not establish a single aggregate; scheduled events are not
+   automatically domain events.
+7. UI contracts cover actors, routes/navigation, journeys, controls, outcomes, implemented loading/empty/
+   success/validation/error/access states, and accessibility/responsiveness/localization/platform constraints.
+   Use shared foundations and a compact shared-interactions document when useful; split components only
+   for size or independent maintenance. Link domain rules and source/tests; omit CSS and pixel inventories.
+8. Use Diátaxis to keep reference contracts, how-to guidance, decision explanations, and tutorials distinct without
+   creating parallel trees or empty documents. Prefer a short existing document over a new feature file.
+9. Preserve historical feature paths and meaning; repair moved links when needed. Consolidate duplicate
+   current guidance without leaving compatibility symlinks or competing authoritative copies.
+10. Close resolved open entries, retaining significant rationale in an ADR. Record operational surprises
+    in engineering notes. Describe historical changes without relying on branch-specific commit hashes.
+
+Before completion, check coverage, source/test references, links/anchors, current-state wording, and
+agreement between UI outcomes, API responses, and domain authorization. Review meaning, not just wording.
+Documentation-only edits need
+no application tests; logic changes follow [AGENTS.md](../AGENTS.md#definition-of-done-mandatory).
 
 ### Architecture decision records (ADRs)
 
-Use an ADR for a significant, long-lived decision whose alternatives and consequences
-matter beyond one implementation task. Examples include authorization boundaries,
-contact-data storage, deletion strategy, external integrations, and documentation
-organization. Routine bug fixes, verification tasks, and small implementation details
-do not need an ADR unless they introduce such a tradeoff.
+Use an ADR for a significant, lasting tradeoff, such as authorization boundaries, data storage/deletion,
+external integrations, or documentation organization. Routine fixes and implementation details usually
+need no ADR.
 
-#### Location and format
+- Keep one decision per `current/decisions/NNNN-short-kebab-case-title.md`, using the
+  [ADR template](current/templates/adr.md). Start at `0001`, then allocate one above the highest existing
+  ADR ID; never reuse or renumber published IDs. Feature-directory numbering is separate.
+- Record status, creation date, decision date when resolved (`YYYY-MM-DD`), decision makers, context,
+  alternatives, choice, consequences, and contract/evidence links. Explain constraints and why the choice
+  wins, including costs, risks, and disadvantages. Keep alternatives in the same record and avoid
+  implementation walkthroughs.
+- Existing unnumbered records remain supporting history, not automatically accepted ADRs. An extracted
+  ADR links to its source; do not invent original approval or decision dates.
 
-- Keep one decision per file in `specs/current/decisions/`, using
-  `NNNN-short-kebab-case-title.md` (for example, `0001-contact-storage.md`). Start at
-  `0001` and allocate the next unused number after the highest existing ADR number.
-  Never reuse or renumber published identifiers; feature-directory numbers are separate.
-- Start from the [ADR template](current/templates/adr.md). Record status, creation date,
-  decision date when resolved, decision makers, context, alternatives, the decision,
-  consequences, and related contracts/evidence. Use ISO dates (`YYYY-MM-DD`).
-- Explain the constraints and why the chosen option wins, including costs, risks,
-  and disadvantages. Alternatives belong in the same ADR, not separate files for
-  every option. Keep the record concise rather than copying implementation details.
-- Existing unnumbered decision/history documents remain supporting records; this
-  policy does not automatically convert them into accepted ADRs. An extracted ADR
-  links to its source and does not invent an original approval or decision date.
-
-#### Lifecycle
-
-| Status | Meaning and transition |
+| Status | Meaning |
 | --- | --- |
-| Proposed | A choice under discussion; editable until explicitly accepted or rejected by the user/project decision maker |
-| Accepted | An agreed decision, with its decision date and decision makers recorded |
-| Rejected | A proposal not adopted; retained with the rejection date and reason |
-| Superseded | An accepted decision replaced by another accepted ADR, with replacement date and reciprocal links |
+| Proposed | Editable until explicitly accepted or rejected by the user/project decision maker. |
+| Accepted | Approved by the user/project decision maker; record date and decision makers. |
+| Rejected | Not adopted; retain reason and rejection date. |
+| Superseded | Replaced by an accepted ADR; retain the original and add date and reciprocal links. |
 
-Creating a record or finding matching code is not approval. An accepted decision is
-not proof that it has been implemented. A proposed replacement does not supersede
-the existing accepted ADR until the replacement is accepted.
+Code or a written proposal does not establish approval; acceptance does not establish implementation.
+Preserve accepted/rejected context, decision, and rationale. Minor factual/link corrections and status
+metadata updates are allowed; never silently rewrite the historical choice. A changed choice requires
+a new ADR. On replacement, mark the old record Superseded, link both records, and append a dated
+replacement explanation without deleting the original context or decision. A proposal supersedes
+nothing until accepted.
 
-Preserve accepted and rejected records as historical decisions. Minor factual/link
-corrections and status metadata updates are allowed; do not silently rewrite the
-decision or its original rationale. A changed choice requires a new ADR. On replacement,
-set the old record to Superseded, link both records, and append a dated explanation
-without deleting the original context or decision.
+ADRs explain choices and may contain historical context, alternatives, and proposals; they stay outside
+current-only UI/logic/API contracts. An ADR does not replace those contracts or make a proposal current
+behavior. Update contracts alongside implementation and link relevant ADRs; engineering guidance links
+to ADRs for rationale instead of copying it.
 
-#### Relationship to other documentation
-
-- ADRs explain **why an approach was chosen**. They may contain alternatives, historical
-  context, and proposed choices; they remain outside the current-only UI/logic trees.
-- `specs/current/open-decisions.md` tracks **unresolved questions, bugs, implementation
-  work, and verification gaps**. When an item needs an architectural choice, link it
-  to a proposed ADR. Keep remaining implementation/verification work open even after
-  the decision is accepted; close the item only when that work is resolved.
-- UI, logic, and API specifications describe **what the implementation does now**. An ADR
-  does not replace those contracts or authorize presenting a proposal as current behavior.
-  Update affected contracts alongside implementation, linking relevant ADRs where useful
-  without embedding their history in current specs.
-- Engineering guidance describes **how to configure, operate, or troubleshoot** the
-  chosen mechanism and links to ADRs for rationale rather than duplicating it.
-
-Before completing ADR work, verify its identifier, status, decision ownership/dates,
-alternatives and consequences, related-spec links, and any reciprocal supersession links.
+Open architectural choices link to proposed ADRs. Keep implementation and verification work open until
+completed even when its ADR is accepted. Before completing ADR work, verify numbering,
+status/dates/ownership, alternatives, consequences, evidence, and reciprocal supersession links.

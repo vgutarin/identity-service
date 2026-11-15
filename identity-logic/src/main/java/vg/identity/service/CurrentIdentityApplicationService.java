@@ -13,14 +13,14 @@ import vg.unique.id.model.UniqueId;
  */
 @Service
 public class CurrentIdentityApplicationService {
-    private final CurrentUserService currentUserService;
+    private final CurrentPrincipalService currentPrincipalService;
     private final UniqueId embeddedApplicationUniqueId;
 
     public CurrentIdentityApplicationService(
-            CurrentUserService currentUserService,
+            CurrentPrincipalService currentPrincipalService,
             @Value("${vg.identity.embedded.application-unique-id:}") String embeddedApplicationUniqueId
     ) {
-        this.currentUserService = currentUserService;
+        this.currentPrincipalService = currentPrincipalService;
         this.embeddedApplicationUniqueId = parseEmbeddedApplicationUniqueId(embeddedApplicationUniqueId);
     }
 
@@ -32,7 +32,7 @@ public class CurrentIdentityApplicationService {
      * must go through here.
      */
     public IdentityInternalApplicationPrincipal requireApplicationPrincipal() {
-        var principal = currentUserService.findCurrentUserDetails();
+        var principal = currentPrincipalService.findCurrentPrincipal();
         if (principal instanceof IdentityInternalApplicationPrincipal applicationPrincipal) {
             return applicationPrincipal;
         }
@@ -45,7 +45,7 @@ public class CurrentIdentityApplicationService {
      * but non-application principal is always denied, even when an embedded application is configured.
      */
     public UniqueId requireApplicationUniqueId() {
-        var principal = currentUserService.findCurrentUserDetails();
+        var principal = currentPrincipalService.findCurrentPrincipal();
         if (principal instanceof IdentityInternalApplicationPrincipal applicationPrincipal) {
             return applicationPrincipal.getUniqueId();
         }

@@ -110,9 +110,9 @@ public class IdentityUserChannelService {
         if (attachedUser != null && !attachedUser.equals(user)) {
             log.error(
                     "User channel is attached to another user: channelUniqueId={}, requestedUserUniqueId={}, attachedUserUniqueId={}",
-                    channelEntity.getUniqueId(),
-                    user.getUniqueId(),
-                    attachedUser.getUniqueId()
+                    Optional.ofNullable(channelEntity.getUniqueId()).map(UniqueId::new).orElse(null),
+                    Optional.ofNullable(user.getUniqueId()).map(UniqueId::new).orElse(null),
+                    Optional.ofNullable(attachedUser.getUniqueId()).map(UniqueId::new).orElse(null)
             );
             throw new IllegalStateException("User channel is attached to another user");
         }
@@ -164,7 +164,8 @@ public class IdentityUserChannelService {
 
         channel.setPayload(toJson(telegramUser.withPhoneNumber(phoneNumber)));
         identityChannelRepository.save(channel);
-        log.info("Telegram phone number was updated for user with id: {}", channel.getIdentityUser().getUniqueId());
+        log.info("Telegram phone number was updated for user with id: {}",
+                Optional.ofNullable(channel.getIdentityUser().getUniqueId()).map(UniqueId::new).orElse(null));
         return true;
     }
 
@@ -199,8 +200,8 @@ public class IdentityUserChannelService {
                 }
                 log.error(
                         "Telegram channel is attached to another user: requestedUserUniqueId={}, attachedUserUniqueId={}",
-                        user.getUniqueId(),
-                        attachedUser.getUniqueId()
+                        Optional.ofNullable(user.getUniqueId()).map(UniqueId::new).orElse(null),
+                        Optional.ofNullable(attachedUser.getUniqueId()).map(UniqueId::new).orElse(null)
                 );
                 return TelegramBindResult.CHANNEL_ATTACHED_TO_ANOTHER_USER;
             }

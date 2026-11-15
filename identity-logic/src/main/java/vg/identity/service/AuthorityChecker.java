@@ -18,7 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AuthorityChecker {
 
-    private final CurrentUserService userService;
+    private final CurrentPrincipalService currentPrincipalService;
 
     // AuthorityChecker is invoked by @PreAuthorize expressions on service methods.
     // Use repositories directly to avoid calling secured services from inside authorization checks,
@@ -30,8 +30,8 @@ public class AuthorityChecker {
     @Deprecated
     public boolean hasResourceAuthority(long resourceUniqueId, String permission) {
 
-        var currentUserDetails = userService.findCurrentUserDetails();
-        if (currentUserDetails == null) {
+        var currentPrincipal = currentPrincipalService.findCurrentPrincipal();
+        if (currentPrincipal == null) {
             return false;
         }
 
@@ -40,7 +40,7 @@ public class AuthorityChecker {
         );
 
         var normalizedPermission = IdentityUserAuthorityService.resourceAuthorityName(resourceUniqueId, permission);
-        return currentUserDetails.getAuthorities()
+        return currentPrincipal.getAuthorities()
                 .stream()
                 .anyMatch(grantedAuthority ->
                         normalizedRole.equals(grantedAuthority.getAuthority()) || normalizedPermission.equals(grantedAuthority.getAuthority())
@@ -53,30 +53,30 @@ public class AuthorityChecker {
      * Global owners can do anything.
      *
      * @param permission permission to check
-     * @return true if the current user has global authority
+     * @return true if the current principal has global authority
      */
     public boolean hasAuthority(String permission) {
 
-        var currentUserDetails = userService.findCurrentUserDetails();
-        if (currentUserDetails == null) {
+        var currentPrincipal = currentPrincipalService.findCurrentPrincipal();
+        if (currentPrincipal == null) {
             return false;
         }
 
-        return userService.hasRole(IdentityInternalUserSystemRole.OWNER.name());
+        return currentPrincipalService.hasRole(IdentityInternalUserSystemRole.OWNER.name());
     }
 
 
     /**
      * Scope authority check.
      * Hierarchical authority check.
-     * If the current user has authority within the given access scope resource, return true.
-     * If the current user has authority within the parent access scope resource, return true.
-     * If the current user has global authority, return true.
+     * If the current principal has authority within the given access scope resource, return true.
+     * If the current principal has authority within the parent access scope resource, return true.
+     * If the current principal has global authority, return true.
      * Otherwise, return false.
      *
      * @param accessScopeResourceUniqueId access scope resource unique id
      * @param permission permission to check
-     * @return true if the current user has authority withing the given access scope resource
+     * @return true if the current principal has authority withing the given access scope resource
      */
     public boolean hasAuthority(UniqueId accessScopeResourceUniqueId, String permission) {
 
@@ -84,8 +84,8 @@ public class AuthorityChecker {
             return true;
         }
 
-        var currentUserUniqueId = userService.findCurrentUserUniqueId();
-        if (currentUserUniqueId == null) {
+        var currentPrincipalUniqueId = currentPrincipalService.findCurrentPrincipalUniqueId();
+        if (currentPrincipalUniqueId == null) {
             return false;
         }
 
@@ -95,20 +95,20 @@ public class AuthorityChecker {
         if (pathToWorkspace.isEmpty()) {
             log.error(
                     "Could not find workspace for accessScopeResourceUniqueId {}. Permission {}",
-                    accessScopeResourceUniqueId.getLongValue(),
+                    accessScopeResourceUniqueId,
                     permission
             );
             return false;
         }
 
-        return roleAssignmentRepository.hasPermission(currentUserUniqueId.getLongValue(), pathToWorkspace, permission);
+        return roleAssignmentRepository.hasPermission(currentPrincipalUniqueId.getLongValue(), pathToWorkspace, permission);
     }
 
     /**
      * Allows an application principal to access only the application it authenticated as.
      */
     public boolean isAuthenticatedApplication(UniqueId applicationUniqueId) {
-        return userService.findCurrentUserDetails() instanceof IdentityInternalApplicationPrincipal principal
+        return currentPrincipalService.findCurrentPrincipal() instanceof IdentityInternalApplicationPrincipal principal
                 && principal.getUniqueId().equals(applicationUniqueId);
     }
 

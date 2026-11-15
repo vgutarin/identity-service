@@ -1,4 +1,4 @@
-package vg.identity.service;
+package vg.identity.audit;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;

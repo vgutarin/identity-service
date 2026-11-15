@@ -2,10 +2,14 @@ package vg.identity.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import vg.identity.audit.TelegramAuthenticationAuditor;
 import vg.identity.entity.IdentityUserEntity;
+import vg.identity.model.IdentityApplicationMessageRequest;
+import vg.identity.model.IdentityApplicationMessage;
+import vg.identity.model.IdentityMessageSubmission;
 import vg.identity.model.IdentityApplicationPrincipal;
-import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.IdentityApplicationTelegramPhone;
+import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.TelegramAuthenticationRequest;
 import vg.identity.model.TelegramUserPrincipal;
 import vg.unique.id.model.UniqueId;
@@ -29,6 +33,17 @@ public class IdentityApplicationApiService implements IdentityApplicationApi {
     private final IdentityApplicationClaimService claimService;
     private final TelegramAuthenticationAuditor auditor;
     private final IdentityUserChannelService identityUserChannelService;
+    private final IdentityMessageService messageService;
+
+    @Override
+    public IdentityMessageSubmission submitMessage(UniqueId userUniqueId, IdentityApplicationMessageRequest request) {
+        return messageService.submit(currentIdentityApplicationService.requireApplicationUniqueId(), userUniqueId, request);
+    }
+
+    @Override
+    public Optional<IdentityApplicationMessage> findMessage(UniqueId messageUniqueId) {
+        return messageService.find(currentIdentityApplicationService.requireApplicationUniqueId(), messageUniqueId);
+    }
 
     @Override
     public IdentityApplicationPrincipal me() {

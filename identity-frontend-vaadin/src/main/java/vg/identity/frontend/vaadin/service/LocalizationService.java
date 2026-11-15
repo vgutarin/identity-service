@@ -89,6 +89,10 @@ public class LocalizationService implements I18NProvider {
         return getTranslation(key, currentLocale());
     }
 
+    public String i18n(String key, Object... parameters) {
+        return getTranslation(key, currentLocale(), parameters);
+    }
+
     public Locale getCurrentLocale() {
         return currentLocale();
     }

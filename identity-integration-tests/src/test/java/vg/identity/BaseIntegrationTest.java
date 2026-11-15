@@ -11,6 +11,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import vg.identity.entity.IdentityApiKeyEntity;
 import vg.identity.entity.IdentityApplicationEntity;
 import vg.identity.entity.IdentityPrincipalEntity;
@@ -29,6 +30,7 @@ import vg.identity.repository.IdentityWorkspaceRepository;
 import vg.identity.repository.IdentityWorkspaceScopeClaimDictionaryRepository;
 import vg.identity.app.IdentityApplication;
 import vg.identity.service.EncryptionService;
+import vg.identity.service.IdentityCommandWorker;
 import vg.test.containers.starters.Mysql8ContainerStarter;
 import vg.unique.id.service.UniqueIdService;
 
@@ -47,6 +49,10 @@ import static vg.test.TestHelper.nextString;
 public abstract class BaseIntegrationTest implements Mysql8ContainerStarter {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final TestApiKey TEST_API_KEY = TestApiKey.create();
+
+    // Cached Spring contexts share the database; none may consume another test's queued commands.
+    @MockitoBean
+    protected IdentityCommandWorker scheduledWorker;
 
     @Autowired
     protected IdentityApiKeyRepository apiKeyRepository;

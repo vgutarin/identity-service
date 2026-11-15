@@ -2,79 +2,110 @@
 
 ## Purpose and actors
 
-The authenticated Vaadin application lets `OWNER` users administer workspaces, their applications and API
-keys, workspace roles and members, role templates, and user permissions. Route access is enforced by
-Vaadin's Spring Security integration and view access checking.
+The authenticated Vaadin UI lets OWNER users manage workspaces, applications, API keys, roles, members,
+role templates, claims, and user permissions. Vaadin route security complements domain authorization.
 
 ## Routes and entry conditions
 
 | Route | Purpose |
 | --- | --- |
-| `/` and `/about` | Application shell and About view. |
-| `/admin/workspaces` | List and create workspaces. |
-| `/admin/workspaces/:workspaceId` | Edit one workspace and switch between its applications, roles, and users. |
+| `/`, `/about` | Application shell and About. |
+| `/admin/workspaces` | List/create workspaces. |
+| `/admin/workspaces/:workspaceId` | Edit workspace; applications, roles, and users tabs. |
+| `/admin/applications/:applicationId` | Read-only application details, member list, and message history. |
 | `/admin/users` | User overview. |
 | `/admin/users-channels` | User-channel overview. |
-| `/admin/user-permissions` | Inspect and change a user's permissions. |
-| `/admin/role-templates` | Manage reusable role templates. |
-| `/admin/application-claims` | Manage application-user claim values. |
+| `/admin/user-permissions` | Inspect/change user permissions. |
+| `/admin/role-templates` | Manage role templates. |
+| `/admin/application-claims` | Manage application-user claims. |
 
 ## Interactions and outcomes
 
-- Workspace management creates, edits, and deletes workspaces. Its detail screen links back to the workspace
-  list and provides applications, roles, and user tabs for the selected workspace.
-- Application management supports Telegram-bot applications, editing, deletion, and API-key management.
-  A newly generated API-key secret is shown in the issuance dialog so it can be copied; later listings show
-  metadata and allow revocation instead of re-showing the secret.
-  Saving a bot queues webhook setup; the save notification confirms persistence and scheduling, rather than
-  successful setup at Telegram. Replacing a bot can fail synchronously during previous-webhook cleanup,
-  according to [Identity administration](../logic/identity-administration.md).
-- The Applications grid has a localized, text-labelled **Webhook** column, with supplementary colors.
-  Opening the Applications tab or clicking **Refresh webhooks** starts one background batch for its
-  Telegram bots. Results appear individually as they arrive; rendering uses the cached results only.
-  Non-Telegram applications show **Not applicable**. Inspection shows **Loading**; failures (including
-  missing public URL or a full worker queue) show **Unknown**, with toggling disabled.
-  A successful inspection shows **Yes**, **No**, or **Yes, incorrect URL**, based on Telegram's actual URL.
-  This does not indicate secret correctness or delivery health.
-- The webhook indicator is directly clickable, without confirmation, when support and the public URL are
-  configured and the caller has `app.update` permission. **No** registers Identity's expected webhook,
-  retrieving and storing a validated Telegram ID first if it is missing. Either **Yes** state removes the
-  current webhook when the bot already has a stored validated ID; otherwise removal is disabled.
-  Tooltips describe that action, including removal of an incorrect URL. The row shows **Updating** while
-  its action runs. Duplicate actions and refresh submissions are disabled while their work is pending.
-  A toggle re-queries Telegram and shows success only after confirming the requested outcome. Failures
-  show a generic localized message and **Unknown**, never sensitive remote details, and do not retry.
-  Subsequent toggles use the application version returned with the confirmed status, including after
-  bot-ID backfill, without requiring a page refresh. When a successful toggle changes the application
-  version, the affected application is reloaded in the background and replaces its grid row, so opening
-  Edit uses its current data and version. Obsolete callbacks cannot replace rows in another workspace.
-- These operations run outside the UI/session lock. Temporary one-second UI polling delivers results
-  while work is pending in the active Applications tab; it never initiates Telegram queries. The previous
-  polling interval is restored on completion, tab deactivation, or detach (a pre-existing faster interval
-  is retained). Refreshes, workspace/bot changes, toggles, and navigation discard obsolete results and
-  stop obsolete batches before their next query; an already-started remote mutation may still complete.
-  Removing a webhook is remote-only: bot saves, pending setup commands, and startup re-registration
-  may restore it. There is no persistent disable switch or periodic Telegram refresh.
-- Role and permission screens create, edit, and delete roles, toggle role permissions, and grant or remove
-  user permissions. User membership is managed from the workspace user tab.
-- Successful writes display localized success notifications; service failures are displayed through the
-  shared localized error handling.
+Workspace detail links back to the list. Its tabs manage applications, roles, and member channels.
+Application dialogs create/edit/delete Telegram bots and manage API keys. Issuance displays the key
+secret once for copying; later lists show metadata/revocation. Bot save confirms persistence and queued
+setup, not Telegram registration. Previous-webhook cleanup can fail the save synchronously.
+
+### Webhook controls
+
+Opening Applications or selecting **Refresh webhooks** starts one background batch; results appear
+individually. Rendering uses cached results. The localized **Webhook** column uses text plus color:
+
+| State | Interaction |
+| --- | --- |
+| **Not applicable** | Non-Telegram application. |
+| **Loading** / **Updating** | Work pending; duplicate action/refresh submissions disabled. |
+| **Unknown** | Inspection/action failed (including missing public URL or full queue); toggle disabled. |
+| **No** | Click to enable; a missing bot ID is validated/stored first. |
+| **Yes** / **Yes, incorrect URL** | Click to remove when a validated bot ID exists. |
+
+Clicks require configured webhook support/public URL and `app.update`. Tooltips explain the action,
+including removal of an incorrect URL; no confirmation dialog is shown. Success requires re-querying
+Telegram. Failure shows a generic localized error and **Unknown**, without remote details or retry.
+Inspection reflects URL agreement only, not secret validity or delivery health.
+
+Version changes from bot-ID backfill update the row and subsequent actions/Edit without a page reload.
+Refreshes, workspace/bot changes, navigation, and toggles discard obsolete results; started remote work
+can still finish. While the tab has pending work, temporary UI polling delivers results, restoring the
+previous interval afterward. It does not query Telegram periodically.
+
+Removal has no persistent disable switch: saves, pending SET commands, or startup registration can
+restore it. [Administration logic](../logic/identity-administration.md) owns version/permission checks,
+remote consistency, and lifecycle cleanup; [engineering notes](../engineering/engineering-notes.md#background-administration-inspection-and-toggle)
+own executor and callback mechanics.
+
+Other writes show localized success notifications or shared localized errors. Role screens manage
+roles/permissions; workspace Users manages membership.
+
+### Application details
+
+Application names in the workspace grid link to the OWNER-only details page. The header shows name,
+ID, URI, and creation/update dates; configuration payloads and credentials are excluded. Back navigation
+returns to the owning workspace's Applications tab. Invalid/missing applications show a localized
+unavailable state with navigation to Workspaces.
+
+Members is the default tab (`?tab=members`); Messages uses `?tab=messages`. Only permitted tabs appear:
+Members requires `app.read`, Messages `app.message.read`. Permissions are checked on activation/refresh;
+hidden tabs do not load data, and unauthorized/invalid requested tabs fall back to the first permitted tab.
+OWNER retains the existing permission bypass. No permitted tabs produces a localized access message.
+Permission changes insert/remove only affected tabs. Refresh and paging retain tab components and
+selection when permissions are unchanged. Selecting a tab replaces the current URL through Vaadin's
+History API, retaining the application path and other query parameters without navigating again.
+
+Members shows name, user ID, and first/last authentication. Messages shows message/recipient IDs,
+localized status/failure reason, and timestamps, with Previous/Next paging (50 rows) and newest-first
+ordering. Both have manual refresh, empty states, and sanitized load errors; there is no automatic polling.
+Message history includes every submission source and survives recipient membership removal.
+
+The members grid shows an Actions column only with `app.message.send` for the selected application.
+Its envelope icon has a localized Send Message tooltip and accessible label. Opening it rechecks SEND
+and shows the recipient, a required multiline text field, Cancel, and Send. Message-history READ is
+independent and is not required to submit. Cancel/Escape closes without submitting; outside clicks do
+not discard a draft. Send validates the [plain-text content contract](../api/identity-application-api.md#application-messages)
+without trimming or interpreting markup, then calls the permission-gated administration service with
+the selected application/member and a generated UUID key. Send is disabled while submitting; success
+closes the dialog and confirms submission for asynchronous delivery, without claiming delivery success.
+Validation, permission, unavailable-recipient, and unexpected failures show localized safe feedback and
+retain the draft. An explicit retry of unchanged content reuses its key; editing content uses a new key.
+Refreshing rechecks column visibility; the service rechecks SEND at submission, including for an open dialog.
+
+All new labels, browser/shell titles, paging counts, states, and feedback support Ukrainian and English.
+Dates/numbers use the selected locale with existing timezone behavior. The locale picker reloads the
+same route/tab; identifiers, application names, URI values, and URL parameters are not translated.
 
 ## Presentation and platform constraints
 
-The application shell provides the common navigation. Views use the Vaadin 25.2 component model and the
-same localization provider as the public authentication flow. The UI is a server-side Vaadin application;
-its route authorization is not a substitute for the domain service authorization rules.
+The shell provides navigation; views use Vaadin 25.2 and the shared localization provider.
 
 ## Related contracts and evidence
 
-The authoritative domain rules are in [Identity administration](../logic/identity-administration.md).
-
-- `identity-frontend-vaadin/src/main/java/vg/identity/frontend/vaadin/MainView.java`
-- `identity-frontend-vaadin/src/main/java/vg/identity/frontend/vaadin/admin/IdentityWorkspaces.java`
-- `identity-frontend-vaadin/src/main/java/vg/identity/frontend/vaadin/admin/IdentityWorkspaceDetails.java`
-- `identity-frontend-vaadin/src/main/java/vg/identity/frontend/vaadin/admin/IdentityWorkspaceApplicationsTab.java`
-- `identity-frontend-vaadin/src/main/java/vg/identity/frontend/vaadin/admin/TelegramWebhookIndicators.java`
-- `identity-frontend-vaadin/src/test/java/vg/identity/frontend/vaadin/admin/TelegramWebhookIndicatorsTest.java`
-- `identity-frontend-vaadin/src/test/java/vg/identity/frontend/vaadin/admin/TelegramWebhookIndicatorsUnitTest.java`
-- `identity-frontend-vaadin/src/main/java/vg/identity/frontend/vaadin/config/SecurityConfiguration.java`
+- [Administration domain](../logic/identity-administration.md).
+- [Workspace detail](../../../identity-frontend-vaadin/src/main/java/vg/identity/frontend/vaadin/admin/IdentityWorkspaceDetails.java),
+  [applications tab](../../../identity-frontend-vaadin/src/main/java/vg/identity/frontend/vaadin/admin/IdentityWorkspaceApplicationsTab.java),
+  [webhook indicators](../../../identity-frontend-vaadin/src/main/java/vg/identity/frontend/vaadin/admin/TelegramWebhookIndicators.java).
+- [Indicator tests](../../../identity-frontend-vaadin/src/test/java/vg/identity/frontend/vaadin/admin/TelegramWebhookIndicatorsTest.java)
+  and [route security](../../../identity-frontend-vaadin/src/main/java/vg/identity/frontend/vaadin/config/SecurityConfiguration.java).
+- [Application details](../../../identity-frontend-vaadin/src/main/java/vg/identity/frontend/vaadin/admin/IdentityApplicationDetails.java),
+  [isolated view tests](../../../identity-frontend-vaadin/src/test/java/vg/identity/frontend/vaadin/admin/IdentityApplicationDetailsUnitTest.java),
+  [message dialog tests](../../../identity-frontend-vaadin/src/test/java/vg/identity/frontend/vaadin/admin/IdentityApplicationMessageDialogTest.java),
+  and [navigation/localization tests](../../../identity-frontend-vaadin/src/test/java/vg/identity/frontend/vaadin/admin/IdentityApplicationDetailsTest.java).

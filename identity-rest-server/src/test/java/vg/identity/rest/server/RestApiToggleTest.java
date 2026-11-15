@@ -7,6 +7,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.SecurityFilterChain;
 import vg.identity.rest.server.controller.IdentityApplicationController;
+import vg.identity.rest.server.controller.IdentityRestControllerAdvice;
 import vg.identity.rest.server.security.ApiKeyAuthenticationFilter;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,6 +41,7 @@ class RestApiToggleTest {
         runner.run(context -> {
             assertThat(context).hasNotFailed();
             assertThat(context).doesNotHaveBean(IdentityApplicationController.class);
+            assertThat(context).doesNotHaveBean(IdentityRestControllerAdvice.class);
             assertThat(context).doesNotHaveBean(ApiKeyAuthenticationFilter.class);
             assertThat(context).doesNotHaveBean(SecurityFilterChain.class);
             assertThat(context.getBean(IdentityRestApiProperties.class).isEnabled()).isFalse();
@@ -51,6 +53,7 @@ class RestApiToggleTest {
         runner.withPropertyValues("identity.rest.api.enabled=false").run(context -> {
             assertThat(context).hasNotFailed();
             assertThat(context).doesNotHaveBean(IdentityApplicationController.class);
+            assertThat(context).doesNotHaveBean(IdentityRestControllerAdvice.class);
             assertThat(context).doesNotHaveBean(ApiKeyAuthenticationFilter.class);
             assertThat(context).doesNotHaveBean(SecurityFilterChain.class);
         });

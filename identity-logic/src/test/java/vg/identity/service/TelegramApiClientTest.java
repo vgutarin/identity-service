@@ -27,6 +27,21 @@ class TelegramApiClientTest {
     }
 
     @Test
+    void sendMessage_whenTelegramAcknowledgesMessage_postsPlainTextAndMapsAcknowledgement() {
+        server.expect(requestTo("https://api.telegram.org/bot123456%3Atoken/sendMessage"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content().string("{\"chat_id\":42,\"text\":\"<b>Hello</b> 🙂\"}"))
+                .andRespond(withSuccess("{\"ok\":true,\"result\":{\"message_id\":7,\"chat\":{\"id\":42}}}", MediaType.APPLICATION_JSON));
+
+        var response = client.sendMessage("123456:token", 42L, "<b>Hello</b> 🙂");
+
+        assertThat(response.ok()).isTrue();
+        assertThat(response.result().messageId()).isEqualTo(7L);
+        server.verify();
+    }
+
+    @Test
     void getMe_whenTelegramReturnsUser_mapsResponse() {
         server.expect(requestTo("https://api.telegram.org/bot123456%3Atoken/getMe"))
                 .andRespond(withSuccess("""

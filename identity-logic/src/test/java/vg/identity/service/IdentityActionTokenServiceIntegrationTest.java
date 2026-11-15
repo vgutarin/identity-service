@@ -8,8 +8,8 @@ import vg.identity.BaseIntegrationTest;
 import vg.identity.IdentityActionTokenProperties;
 import vg.identity.model.EmailMessage;
 import vg.identity.model.IdentityActionType;
-import vg.identity.model.IdentityCommandStatus;
-import vg.identity.model.IdentityCommandType;
+import vg.identity.model.command.IdentityCommandStatus;
+import vg.identity.model.command.IdentityCommandType;
 import vg.identity.model.principal.IdentityInternalPrincipalType;
 
 import java.time.Duration;

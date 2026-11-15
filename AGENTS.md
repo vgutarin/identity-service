@@ -58,6 +58,12 @@
 - Prefer `UniqueId` over `long` for the identifier of any `Identifiable` instance whenever a `UniqueId` is already
   available or can be carried across the boundary. Convert to `long` only at persistence, repository, or third-party
   boundaries that require the primitive value.
+- Represent fixed sets of entity values with Java enums. Persist entity enum fields explicitly with
+  `@Enumerated(EnumType.ORDINAL)` and numeric database columns; keep the entity mapping and schema aligned.
+- Treat persisted enum names and ordinals as immutable contracts. Never rename, remove, reorder, or reuse
+  existing constants; retain retired constants and append new values only at the end. New enums, appended
+  values, and entity enum mappings require the contract and persistence tests specified in
+  [Persisted enum contracts](TESTING.md#persisted-enum-contracts), added or updated in the same change.
 - Keep package declarations, imports, filesystem paths, and Spring metadata aligned after Java package changes.
 
 ## Frontend (`identity-frontend-vaadin`)

@@ -1,8 +1,11 @@
 package vg.identity.service;
 
+import vg.identity.model.IdentityApplicationMessageRequest;
+import vg.identity.model.IdentityApplicationMessage;
+import vg.identity.model.IdentityMessageSubmission;
 import vg.identity.model.IdentityApplicationPrincipal;
-import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.IdentityApplicationTelegramPhone;
+import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.TelegramAuthenticationRequest;
 import vg.unique.id.model.UniqueId;
 
@@ -37,4 +40,10 @@ public interface IdentityApplicationApi {
 
     /** Revokes only the current application's access to the user's Telegram-shared phone number. */
     void revokeTelegramPhone(UniqueId userUniqueId);
+
+    /** Records and queues typed plain-text content; reuse the request's required key for submission retries. */
+    IdentityMessageSubmission submitMessage(UniqueId userUniqueId, IdentityApplicationMessageRequest request);
+
+    /** Returns a message owned by the calling application, regardless of current recipient membership. */
+    Optional<IdentityApplicationMessage> findMessage(UniqueId messageUniqueId);
 }

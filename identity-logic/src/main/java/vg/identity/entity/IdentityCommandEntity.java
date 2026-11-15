@@ -19,8 +19,8 @@ import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import vg.identity.model.IdentityCommandStatus;
-import vg.identity.model.IdentityCommandType;
+import vg.identity.model.command.IdentityCommandStatus;
+import vg.identity.model.command.IdentityCommandType;
 
 import java.time.Instant;
 import java.util.Objects;

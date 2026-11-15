@@ -16,6 +16,7 @@ import com.vaadin.flow.component.sidenav.SideNavItem;
 import com.vaadin.flow.router.AfterNavigationEvent;
 import com.vaadin.flow.router.AfterNavigationObserver;
 import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -79,7 +80,7 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
                                     VaadinIcon.SIGN_OUT.create(),
                                     click -> this.authContext.logout()
                             );
-                            var loggedUser = new Span("Welcome " + user.getUsername());
+                            var loggedUser = new Span(localization.i18n("shell.welcome", user.getUsername()));
                             loggedUser.addClassName("logged-user");
                             var userActions = new HorizontalLayout(loggedUser, logout);
                             userActions.addClassName("user-actions");
@@ -160,6 +161,9 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
     }
 
     private String getCurrentPageTitle() {
+        if (getContent() instanceof HasDynamicTitle dynamicTitle) {
+            return dynamicTitle.getPageTitle();
+        }
         return getPageTitle(getContent().getClass());
     }
 
@@ -172,6 +176,7 @@ public class MainView extends AppLayout implements AfterNavigationObserver {
     }
 
     private String getPageTitle(Class<?> c) {
-        return localization.i18n(c.getAnnotation(PageTitle.class).value());
+        var title = c.getAnnotation(PageTitle.class);
+        return title == null ? "" : localization.i18n(title.value());
     }
 }

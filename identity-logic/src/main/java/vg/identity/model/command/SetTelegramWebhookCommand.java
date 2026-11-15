@@ -1,4 +1,4 @@
-package vg.identity.model;
+package vg.identity.model.command;
 
 import lombok.Builder;
 import vg.unique.id.model.UniqueId;

@@ -1,6 +1,7 @@
 package vg.identity.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -13,12 +14,12 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class CurrentUserServiceImpl implements CurrentUserService {
+public class CurrentPrincipalService {
 
     private final IdentityUserService userService;
 
-    @Override
-    public UserDetails findCurrentUserDetails() {
+    /** Returns the current principal as Spring user details, or null when it cannot be resolved. */
+    public UserDetails findCurrentPrincipal() {
         return getCurrentAuthentication()
                 .map(Authentication::getPrincipal)
                 .filter(UserDetails.class::isInstance)
@@ -26,21 +27,28 @@ public class CurrentUserServiceImpl implements CurrentUserService {
                 .orElse(null);
     }
 
-    @Override
-    public UniqueId findCurrentUserUniqueId() {
-        var currentUserDetails = findCurrentUserDetails();
-        if (null == currentUserDetails) {
+    public UniqueId findCurrentPrincipalUniqueId() {
+        var currentPrincipal = findCurrentPrincipal();
+        if (null == currentPrincipal) {
             return null;
         }
 
-        if (currentUserDetails instanceof Identifiable identifiable) {
+        if (currentPrincipal instanceof Identifiable identifiable) {
             return identifiable.getUniqueId();
         }
 
-        return userService.findUniqueIdByUsername(currentUserDetails.getUsername());
+        return userService.findUniqueIdByUsername(currentPrincipal.getUsername());
     }
 
-    @Override
+    /** Returns the resolved current principal identifier, or denies access when it is absent. */
+    public UniqueId requirePrincipalUniqueId() {
+        var uniqueId = findCurrentPrincipalUniqueId();
+        if (uniqueId == null) {
+            throw new AccessDeniedException("An authenticated principal identifier is required");
+        }
+        return uniqueId;
+    }
+
     public boolean hasRole(String role) {
         return getCurrentAuthentication()
                 .map(authentication -> {

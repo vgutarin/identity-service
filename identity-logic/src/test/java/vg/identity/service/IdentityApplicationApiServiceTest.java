@@ -1,11 +1,14 @@
 package vg.identity.service;
 
+import vg.identity.model.IdentityApplicationMessageRequest;
+import vg.identity.model.MessageContent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
+import vg.identity.audit.TelegramAuthenticationAuditor;
 import vg.identity.entity.IdentityUserEntity;
 import vg.identity.model.IdentityApplication;
 import vg.identity.model.IdentityApplicationTelegramPhone;
@@ -53,6 +56,9 @@ class IdentityApplicationApiServiceTest {
     @Mock
     private IdentityUserChannelService identityUserChannelService;
 
+    @Mock
+    private IdentityMessageService messagingService;
+
     private IdentityApplicationApiService service;
 
     @BeforeEach
@@ -66,8 +72,47 @@ class IdentityApplicationApiServiceTest {
                 applicationUserService,
                 claimService,
                 auditor,
-                identityUserChannelService
+                identityUserChannelService,
+                messagingService
         );
+    }
+
+    @Test
+    void submitMessage_whenKeyIsOmitted_returnsSubmissionFromCurrentApplicationScope() {
+        var applicationId = new UniqueId(42L);
+        var userId = new UniqueId(84L);
+        var request = IdentityApplicationMessageRequest.builder().content(MessageContent.builder().text("hello").build()).idempotencyKey(java.util.UUID.randomUUID()).build();
+        when(currentApplicationService.requireApplicationUniqueId()).thenReturn(applicationId);
+
+        var message = vg.identity.model.IdentityApplicationMessage.builder().messageUniqueId(new UniqueId(100L)).build();
+        var submission = vg.identity.model.IdentityMessageSubmission.builder().message(message).replayed(true).build();
+        when(messagingService.submit(applicationId, userId, request)).thenReturn(submission);
+
+        assertThat(service.submitMessage(userId, request)).isSameAs(submission);
+    }
+
+    @Test
+    void submitMessage_whenKeyIsProvided_preservesKeyAndSubmissionMetadata() {
+        var applicationId = new UniqueId(42L);
+        var userId = new UniqueId(84L);
+        var key = java.util.UUID.randomUUID();
+        var request = IdentityApplicationMessageRequest.builder().content(MessageContent.builder().text("hello").build()).idempotencyKey(key).build();
+        var submission = vg.identity.model.IdentityMessageSubmission.builder()
+                .message(vg.identity.model.IdentityApplicationMessage.builder().messageUniqueId(new UniqueId(100L)).build())
+                .replayed(false).build();
+        when(currentApplicationService.requireApplicationUniqueId()).thenReturn(applicationId);
+        when(messagingService.submit(applicationId, userId, request)).thenReturn(submission);
+
+        assertThat(service.submitMessage(userId, request)).isSameAs(submission);
+    }
+
+    @Test
+    void submitMessage_whenApplicationAuthenticationIsMissing_throwsAccessDeniedException() {
+        when(currentApplicationService.requireApplicationUniqueId()).thenThrow(new AccessDeniedException("denied"));
+        assertThatThrownBy(() -> service.submitMessage(new UniqueId(84L),
+                IdentityApplicationMessageRequest.builder().content(MessageContent.builder().text("hello").build()).idempotencyKey(java.util.UUID.randomUUID()).build()))
+                .isInstanceOf(AccessDeniedException.class);
+        verifyNoInteractions(messagingService);
     }
 
     @Test

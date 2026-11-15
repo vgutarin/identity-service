@@ -15,6 +15,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
+import com.vaadin.flow.router.RouterLink;
 import vg.identity.frontend.vaadin.service.LocalizationService;
 import vg.identity.frontend.vaadin.service.TelegramWebhookUiTasks;
 import vg.identity.frontend.vaadin.ui.Dialogs;
@@ -116,7 +117,10 @@ class IdentityWorkspaceApplicationsTab extends VerticalLayout {
         grid.setSizeFull();
         grid.setEmptyStateText(localization.i18n("No applications found"));
 
-        grid.addColumn(IdentityApplication::getName)
+        grid.addComponentColumn(application -> new RouterLink(application.getName(), IdentityApplicationDetails.class,
+                        IdentityApplicationDetails.routeParameters(application)))
+                .setComparator(IdentityApplication::getName)
+                .setKey("name")
                 .setHeader(localization.i18n("Name"))
                 .setSortable(true)
                 .setAutoWidth(true);

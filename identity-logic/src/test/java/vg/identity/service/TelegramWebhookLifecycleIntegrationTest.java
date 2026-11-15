@@ -11,8 +11,8 @@ import org.springframework.web.client.HttpClientErrorException;
 import tools.jackson.databind.ObjectMapper;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.model.IdentityApplication;
-import vg.identity.model.IdentityCommandStatus;
-import vg.identity.model.SetTelegramWebhookCommand;
+import vg.identity.model.command.IdentityCommandStatus;
+import vg.identity.model.command.SetTelegramWebhookCommand;
 import vg.identity.model.access.Permission;
 import vg.identity.model.application.TelegramBot;
 import vg.unique.id.model.UniqueId;
@@ -37,6 +37,7 @@ class TelegramWebhookLifecycleIntegrationTest extends BaseIntegrationTest {
     @Autowired private IdentityCommandService commandService;
     @Autowired private EmailService emailService;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private IdentityMessageCommandProcessor messageProcessor;
     @MockitoBean private TelegramApiClient telegramApiClient;
 
     @Test
@@ -243,7 +244,7 @@ class TelegramWebhookLifecycleIntegrationTest extends BaseIntegrationTest {
     }
 
     private IdentityCommandWorker worker() {
-        return new IdentityCommandWorker(commandService, emailService, objectMapper, registrationService);
+        return new IdentityCommandWorker(commandService, emailService, objectMapper, registrationService, messageProcessor);
     }
 
     private static TelegramBot bot(String token) {

@@ -22,6 +22,14 @@ public class TelegramBotLookupService {
     private final EncryptionService encryptionService;
     private final ObjectMapper objectMapper;
 
+    /** Messaging uses only applications configured as Telegram bots. */
+    @Transactional(readOnly = true, noRollbackFor = IllegalArgumentException.class)
+    TelegramBot findMessagingBot(UniqueId applicationUniqueId) {
+        return applicationRepository.findById(applicationUniqueId.getLongValue())
+                .filter(application -> TelegramUriBuilder.isBotUri(application.getPrincipal().getName()))
+                .map(this::readBot).orElse(null);
+    }
+
     /** Strict lookup used when the calling application must exist. */
     @Transactional(readOnly = true)
     TelegramBot getTelegramBot(UniqueId applicationUniqueId) {

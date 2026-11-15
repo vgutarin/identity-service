@@ -1,13 +1,25 @@
 package vg.identity.rest.server.controller;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.json.JsonMapper;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.springframework.http.HttpStatus;
+import vg.identity.model.IdentityApplicationMessage;
+import vg.identity.model.IdentityApplicationMessageRequest;
+import vg.identity.model.MessageContent;
 import vg.identity.model.IdentityApplicationPrincipal;
-import vg.identity.model.IdentityApplicationUserPrincipal;
 import vg.identity.model.IdentityApplicationTelegramPhone;
+import vg.identity.model.IdentityApplicationUserPrincipal;
+import vg.identity.model.IdentityMessageSubmission;
 import vg.identity.model.TelegramAuthenticationRequest;
 import vg.identity.service.IdentityApplicationApiService;
 import vg.unique.id.model.UniqueId;
@@ -17,9 +29,74 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class IdentityApplicationControllerTest {
+    @Mock
+    private IdentityApplicationApiService messagingApi;
+    private IdentityApplicationController messagingController;
+
+    @BeforeEach
+    void messagingController() {
+        messagingController = new IdentityApplicationController(messagingApi);
+        var request = new MockHttpServletRequest();
+        request.setContextPath("/identity");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+    }
+
+    @AfterEach
+    void clearRequestContext() {
+        RequestContextHolder.resetRequestAttributes();
+    }
+
+    @Test
+    void submitMessage_whenSubmissionIsNew_returnsAcceptedReceiptAndLocation() {
+        var userId = new UniqueId(84L);
+        var request = IdentityApplicationMessageRequest.builder().content(MessageContent.builder().text("hello").build()).idempotencyKey(java.util.UUID.randomUUID()).build();
+        var message = IdentityApplicationMessage.builder().messageUniqueId(new UniqueId(100L)).build();
+        when(messagingApi.submitMessage(userId, request)).thenReturn(IdentityMessageSubmission.builder().message(message).build());
+        var response = messagingController.submitMessage(userId.toString(), request);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(response.getBody()).isEqualTo(message);
+        assertThat(response.getHeaders().getLocation().getPath()).isEqualTo("/identity/api/v1/applications/me/messages/" + message.messageUniqueId());
+    }
+
+    @Test
+    void submitMessage_whenUserIdentifierIsMalformed_throwsWithoutDelegating() {
+        var request = IdentityApplicationMessageRequest.builder().content(MessageContent.builder().text("hello").build()).idempotencyKey(java.util.UUID.randomUUID()).build();
+        assertThatThrownBy(() -> messagingController.submitMessage("!invalid!", request))
+                .isInstanceOf(IllegalArgumentException.class);
+        Mockito.verifyNoInteractions(messagingApi);
+    }
+
+    @Test
+    void submitMessage_whenRequestContainsReplayedKey_returnsOkReceipt() {
+        var userId = new UniqueId(84L);
+        var key = java.util.UUID.randomUUID();
+        var request = IdentityApplicationMessageRequest.builder().content(MessageContent.builder().text("hello").build()).idempotencyKey(key).build();
+        var message = IdentityApplicationMessage.builder().messageUniqueId(new UniqueId(100L)).build();
+        when(messagingApi.submitMessage(userId, request)).thenReturn(
+                IdentityMessageSubmission.builder().message(message).replayed(true).build());
+        assertThat(messagingController.submitMessage(userId.toString(), request).getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void findMessage_whenMessageIsOwnedOrMissing_returnsMatchingResponse() {
+        var id = new UniqueId(100L);
+        var message = IdentityApplicationMessage.builder().messageUniqueId(id).build();
+        when(messagingApi.findMessage(id)).thenReturn(Optional.of(message), Optional.empty());
+        assertThat(messagingController.findMessage(id.toString()).getBody()).isEqualTo(message);
+        assertThat(messagingController.findMessage(id.toString()).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void findMessage_whenMessageIdentifierIsMalformed_throwsWithoutDelegating() {
+        assertThatThrownBy(() -> messagingController.findMessage("!invalid!"))
+                .isInstanceOf(IllegalArgumentException.class);
+        Mockito.verifyNoInteractions(messagingApi);
+    }
 
     @Test
     void me_delegatesToEmbeddedApi() {

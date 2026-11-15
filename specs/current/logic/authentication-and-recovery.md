@@ -2,70 +2,57 @@
 
 ## Responsibility and language
 
-This capability authenticates local users, validates Telegram Mini App data, and completes one-time email
-actions. An **action token** is a single-use, time-limited opaque key for email confirmation, Telegram
-binding, or password reset. **Consent** is the recorded permission to retain personal data for a user.
+Authenticate local/Telegram users and complete one-time email actions. An **action token** is a
+single-use, expiring opaque key for email confirmation, Telegram binding, or password reset.
+**Consent** records a user's permission to retain personal data.
 
 ## Commands and queries
 
-- Email confirmation inspects a confirmation action, requires consent when it has not already been recorded,
-  optionally provisions a new user from submitted credentials, verifies the email channel, and consumes the
-  action. It may offer a Telegram-binding link when a configured bot is available.
-- Password recovery accepts an email address but produces a neutral outcome. It issues a reset action only
-  for a verified email channel attached to a user and applies both a client-key rate limit and a per-channel
-  request cooldown. Resetting validates the token under a lock, enforces the password policy, changes the
-  password, and consumes the token. A weak password leaves the token usable.
-- Telegram login verifies the raw WebApp `initData` against the configured bot and its authentication-date
-  lifetime. A known bound Telegram user is authenticated; an unknown user receives only a greeting. Action
-  links can confirm an email or bind Telegram after consent, and may require credentials to provision a
-  previously unknown identity.
-- The application API has a separate Telegram flow: without explicit consent it returns a provisional
-  principal and does not persist a user; with consent it resolves or creates an established user. Its exact
-  request and response contract is authoritative in [Application API](../api/identity-application-api.md).
-- A Telegram bot may receive a self-shared phone contact. Identity accepts it only for a private-chat update
-  whose sender Telegram id equals the contact's Telegram user id and which resolves to an established,
-  consented user. It normalizes the number, updates the encrypted Telegram-channel payload, and sets only
-  that bot application's Telegram-phone flag (ordinal `0`) in its compact `f` application-user metadata set.
-  This contact is not independently phone-verified.
+- Email confirmation requires missing consent, optionally provisions credentials for a new user,
+  verifies the email channel, and consumes its action. A configured bot can supply a Telegram-binding link.
+  Invitations use this flow for initial password setup.
+- Password recovery returns a neutral outcome. It issues reset mail only for a verified email attached
+  to a user, subject to per-client rate limiting and per-channel cooldown. Reset locks/validates the token,
+  enforces `PasswordPolicy` (minimum length 10, lowercase, uppercase, and digit), changes the password,
+  and consumes the token. Weak passwords leave it usable.
+- Telegram login verifies WebApp `initData` HMAC-SHA256 signature in constant time and `auth_date`
+  lifetime against the configured bot.
+  Bound users authenticate; unknown users receive a greeting. Email/binding actions can require consent
+  and provisioning credentials.
+- Application Telegram authentication is separately consent-gated; see the
+  [API contract](../api/identity-application-api.md#consent-gate-data-safety).
+- Phone sharing accepts only private-chat self-contacts whose sender ID matches the contact user ID,
+  resolving to an established consented Telegram user. It normalizes to E.164, updates the encrypted
+  global channel phone, and enables disclosure only for that bot's application membership.
+  The value is contact data, not independent phone verification.
 
 ## Invariants and consistency
 
-- Raw action secrets and Telegram init data are untrusted inputs. Action-token lookup validates the opaque
-  secret, action type, and expiry; state-changing processing locks the token before consumption.
-- Invalid, expired, tampered, used, or wrong-type actions produce a neutral failure rather than exposing
-  account or token state.
-- Authentication flows record consent only when a flow successfully establishes or confirms the relevant
-  identity. They must not create a user when the application API request lacks consent.
-- A Telegram contact update for an unknown, provisional, malformed, third-party, or unconsented identity has
-  no state change. Webhook authentication uses the application's currently stored Telegram bot ID; changing
-  bots invalidates the previous bot's secret, while token rotation on the same bot retains it. Configurations
-  without a stored bot ID cannot authenticate webhook updates. Repeated valid deliveries are safe because
-  they replace the same global phone value and retain the same application-user metadata flag.
-  Do not persist Telegram update IDs solely for this flow.
-  Introduce persistent delivery deduplication before adding any non-idempotent webhook side effect, such as a
-  notification, distinct audit event, counter, or workflow transition.
-- Webhook processing resolves bot configuration through the shared `TelegramBotLookupService`. Missing
-  applications and malformed bot payloads are ignored without marking the caller's transaction rollback-only.
-  The nullable bot lookup returns null only for an absent application; the strict getter throws for absence,
-  and both lookup methods reject malformed payloads.
-- Issuing confirmation and recovery actions enqueues an identity command for mail delivery; delivery is
-  processed asynchronously by the command worker.
+- Validate action secret, type, and expiry; lock before state-changing consumption. Invalid, expired,
+  tampered, used, or wrong-type actions produce neutral failures without exposing account/token state.
+  Opaque secrets are hashed and verified in constant time.
+- Record consent only when a flow successfully establishes/confirms identity. Application authentication
+  without consent creates no user. Email actions enqueue delivery in the existing command queue.
+- Invalid/unknown/provisional/unconsented or third-party contacts change nothing. Webhook authentication
+  binds the application and current stored bot ID. Bot replacement invalidates the old secret;
+  same-bot token rotation retains it. Bots without stored IDs cannot authenticate updates.
+- Repeated valid contacts replace the same phone/disclosure flag; update IDs are not persisted.
+  **Limitation:** replaying an old valid contact after revocation can re-enable disclosure. Track the
+  [unresolved revocation boundary](../open-decisions.md#telegram-phone-disclosure-replay) before relying
+  on revocation to reject delayed/replayed updates.
+- Bot lookup and webhook failure handling follow
+  [engineering notes](../engineering/engineering-notes.md#telegram-bot-webhooks).
 
-## Interactions
+## Interactions and evidence
 
-Public browser interactions are in [Authentication UI](../ui/authentication.md). The Vaadin security
-configuration establishes browser sessions after local, reset, or Telegram authentication. The REST security
-chain protects the application API with an application API key, separately from browser session security.
+[Runtime notes](../engineering/engineering-notes.md#authentication-runtime) cover per-instance throttling
+and session invalidation. REST API-key security is separate from browser sessions.
 
-## Evidence
-
-- `identity-logic/src/main/java/vg/identity/service/IdentityActionTokenService.java`
-- `identity-logic/src/main/java/vg/identity/service/IdentityActionTokenProcessorService.java`
-- `identity-logic/src/main/java/vg/identity/service/TelegramLoginService.java`
-- `identity-logic/src/main/java/vg/identity/service/TelegramAuthenticationService.java`
-- `identity-logic/src/main/java/vg/identity/service/TelegramBotLookupService.java`
-- `identity-logic/src/test/java/vg/identity/service/IdentityActionTokenProcessorServiceIntegrationTest.java`
-- `identity-logic/src/test/java/vg/identity/service/TelegramLoginServiceTest.java`
-- `identity-logic/src/test/java/vg/identity/service/TelegramBotLookupIntegrationTest.java`
-- `identity-logic/src/test/java/vg/identity/service/TelegramBotLookupServiceTest.java`
-- `identity-frontend-vaadin/src/test/java/vg/identity/frontend/vaadin/auth/PasswordResetViewTest.java`
+- [Action issuance](../../../identity-logic/src/main/java/vg/identity/service/IdentityActionTokenService.java)
+  and [processing](../../../identity-logic/src/main/java/vg/identity/service/IdentityActionTokenProcessorService.java).
+- [Telegram login](../../../identity-logic/src/main/java/vg/identity/service/TelegramLoginService.java),
+  [proof validation](../../../identity-logic/src/main/java/vg/identity/service/TelegramAuthenticationService.java),
+  [phone acceptance](../../../identity-logic/src/main/java/vg/identity/service/TelegramPhoneWebhookService.java).
+- [Action integration tests](../../../identity-logic/src/test/java/vg/identity/service/IdentityActionTokenProcessorServiceIntegrationTest.java),
+  [login tests](../../../identity-logic/src/test/java/vg/identity/service/TelegramLoginServiceTest.java),
+  [bot lookup integration](../../../identity-logic/src/test/java/vg/identity/service/TelegramBotLookupIntegrationTest.java).

@@ -21,8 +21,10 @@ import vg.identity.repository.IdentityPermissionRepository;
 import vg.identity.repository.IdentityUserResourcePermissionRepository;
 import vg.identity.repository.IdentityUserSystemRoleRepository;
 import vg.unique.id.jpa.UniqueIdEntity;
+import vg.unique.id.model.UniqueId;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -108,8 +110,8 @@ public class IdentityUserAuthorityService {
 
         log.info(
                 "Assigned resource authority: principalUniqueId={}, resourceUniqueId={}, permission={}",
-                id.getPrincipalUniqueId(),
-                id.getResourceUniqueId(),
+                user.getUniqueId(),
+                new UniqueId(resourceUniqueId),
                 permissionName
         );
     }
@@ -122,8 +124,8 @@ public class IdentityUserAuthorityService {
         if (permissionEntity.isEmpty()) {
             log.warn(
                     "Cannot revoke resource authority because permission does not exist: principalUniqueId={}, resourceUniqueId={}, permission={}",
-                    user.getUniqueId().getLongValue(),
-                    resource.getUniqueId(),
+                    user.getUniqueId(),
+                    Optional.ofNullable(resource.getUniqueId()).map(UniqueId::new).orElse(null),
                     permissionName
             );
             return;
@@ -140,8 +142,8 @@ public class IdentityUserAuthorityService {
 
         log.info(
                 "Revoked resource authority: principalUniqueId={}, resourceUniqueId={}, permission={}",
-                id.getPrincipalUniqueId(),
-                id.getResourceUniqueId(),
+                user.getUniqueId(),
+                Optional.ofNullable(id.getResourceUniqueId()).map(UniqueId::new).orElse(null),
                 permissionName
         );
     }

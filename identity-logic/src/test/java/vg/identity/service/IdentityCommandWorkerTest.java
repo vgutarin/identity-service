@@ -5,15 +5,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import tools.jackson.databind.ObjectMapper;
 import vg.identity.model.EmailMessage;
-import vg.identity.model.IdentityCommand;
-import vg.identity.model.IdentityCommandStatus;
-import vg.identity.model.IdentityCommandType;
-import vg.identity.model.SetTelegramWebhookCommand;
+import vg.identity.model.command.IdentityCommand;
+import vg.identity.model.command.IdentityCommandStatus;
+import vg.identity.model.command.IdentityCommandType;
+import vg.identity.model.command.SetTelegramWebhookCommand;
 import vg.unique.id.model.UniqueId;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,11 +35,12 @@ class IdentityCommandWorkerTest {
     private ObjectMapper objectMapper;
     @Mock
     private TelegramWebhookRegistrationService registrationService;
+    @Mock private IdentityMessageCommandProcessor messageProcessor;
     private IdentityCommandWorker worker;
 
     @BeforeEach
     void setUp() {
-        worker = new IdentityCommandWorker(commandService, emailService, objectMapper, registrationService);
+        worker = new IdentityCommandWorker(commandService, emailService, objectMapper, registrationService, messageProcessor);
     }
 
     @Test
@@ -152,6 +156,37 @@ class IdentityCommandWorkerTest {
         var error = org.mockito.ArgumentCaptor.forClass(Exception.class);
         verify(commandService).fail(org.mockito.ArgumentMatchers.eq(command), error.capture());
         assertThat(error.getValue()).hasMessage("Cannot set Telegram webhook for command 7").hasNoCause();
+        verify(commandService, never()).complete(command);
+    }
+
+    @Test
+    void processNextQueuedCommand_whenCommandIsAnApplicationMessage_delegatesAndCompletesCommand() {
+        var command = IdentityCommand.builder().id(9L).commandStatus(IdentityCommandStatus.RUNNING)
+                .commandType(IdentityCommandType.SEND_APPLICATION_MESSAGE).payload("message-id").build();
+        when(commandService.startNextQueuedCommand()).thenReturn(command).thenReturn(null);
+        worker.processNextQueuedCommand();
+        verify(messageProcessor).process(command);
+        verify(commandService).complete(command);
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void processNextQueuedCommand_whenProcessorThrowsSanitizedException_failsCommandWithoutRetry(CapturedOutput output) {
+        var command = IdentityCommand.builder().id(9L).commandStatus(IdentityCommandStatus.RUNNING)
+                .commandType(IdentityCommandType.SEND_APPLICATION_MESSAGE).payload("message-id").build();
+        when(commandService.startNextQueuedCommand()).thenReturn(command);
+        var attempts = new AtomicInteger();
+        org.mockito.Mockito.doAnswer(call -> {
+            attempts.incrementAndGet();
+            throw new IllegalStateException("Cannot process application message command 9");
+        }).when(messageProcessor).process(command);
+        worker.processNextQueuedCommand();
+        var error = org.mockito.ArgumentCaptor.forClass(Exception.class);
+        verify(commandService).fail(org.mockito.ArgumentMatchers.eq(command), error.capture());
+        assertThat(error.getValue()).hasMessage("Cannot process application message command 9").hasNoCause();
+        assertThat(output).contains("Cannot process application message command 9")
+                .doesNotContain("private persistence details", "SECRET", "private-message", "private cause");
+        assertThat(attempts.get()).isEqualTo(1);
         verify(commandService, never()).complete(command);
     }
 

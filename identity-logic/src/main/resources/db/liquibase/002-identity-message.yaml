@@ -1,0 +1,62 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-identity-message
+      author: vg
+      changes:
+        - createTable:
+            tableName: identity_message
+            columns:
+              - column:
+                  name: unique_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_identity_message
+                    nullable: false
+              - column:
+                  name: version
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: application_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_unique_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: idempotency_key
+                  type: BINARY(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content
+                  type: MEDIUMBLOB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: SMALLINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: failure_code
+                  type: SMALLINT
+              - column:
+                  name: created_at
+                  type: DATETIME(6)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: DATETIME(6)
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: identity_message
+            columnNames: application_unique_id, idempotency_key
+            constraintName: unq_identity_message_application_key

@@ -12,7 +12,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import vg.identity.BaseIntegrationTest;
 import vg.identity.entity.IdentityApplicationEntity;
-import vg.identity.model.SetTelegramWebhookCommand;
+import vg.identity.model.command.SetTelegramWebhookCommand;
 import vg.identity.model.access.Permission;
 import vg.identity.model.application.TelegramWebhookState;
 import vg.identity.rest.TelegramWebhookEndpoint;

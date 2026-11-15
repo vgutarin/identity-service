@@ -1,4 +1,4 @@
-package vg.identity.model;
+package vg.identity.model.command;
 
 public enum IdentityCommandStatus {
     QUEUED,

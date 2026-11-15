@@ -2,188 +2,274 @@
 
 ## Build and module layout
 
-The Gradle wrapper builds Java 21 sources. The root project aggregates these modules:
+The wrapper builds Java 21 sources. Run Gradle from the repository root.
 
 | Module | Responsibility |
 | --- | --- |
-| `identity-api` | Public Java models and the `IdentityApplicationApi` interface. |
-| `identity-logic` | Spring domain services, JPA entities/repositories, Liquibase migrations, encryption, and scheduled command processing. |
-| `identity-rest-server` | Optional API-key-protected HTTP controller and security filter chain. |
-| `identity-rest-client` | Typed HTTP client and its Spring configuration. |
-| `identity-rest-app` | Standalone Spring Boot REST deployment; enables the REST API. |
-| `identity-frontend-vaadin` | Spring Boot Vaadin deployment and browser UI; the REST API is disabled by default. |
-| `identity-integration-tests` | End-to-end embedded-versus-HTTP conformance tests. |
-
-Use the wrapper from the repository root. Target a module while iterating, for example:
+| `identity-api` | Public Java models and `IdentityApplicationApi`. |
+| `identity-logic` | Domain services, JPA/Liquibase, encryption, and command processing. |
+| `identity-rest-server` | Optional REST controllers and API-key security. |
+| `identity-rest-client` | Typed HTTP client and configuration. |
+| `identity-rest-app` | Standalone REST deployment, API enabled. |
+| `identity-frontend-vaadin` | Vaadin deployment, REST disabled by default. |
+| `identity-integration-tests` | Embedded/HTTP conformance and integration tests. |
 
 ```sh
 ./gradlew :identity-logic:test --tests vg.identity.service.IdentityUserServiceTest
-./gradlew :identity-rest-server:test
-./gradlew :identity-frontend-vaadin:test
+./gradlew :identity-logic:test
+./gradlew test
 ```
 
-`identity-logic` and `identity-integration-tests` integration bases start a MySQL 8 test container. Their
-tests therefore require a usable Docker-compatible container runtime. Browser-facing Vaadin tests use the
-module's test configuration and should be run through that module's Gradle task.
-Vaadin tests with different Spring mock sets create separate application contexts. Give each distinct
-context its own named H2 in-memory database: reusing the default database across these contexts can make
-the second Liquibase initialization fail with `databasechangelog already exists`, even without parallel
-execution. Webhook browserless tests use `fe-webhook-test`; authentication view tests use `fe-view-test`.
-The logic integration base replaces the scheduled command worker with a mock so background processing
-cannot race queue assertions or repository cleanup. Worker lifecycle tests construct and invoke a real
-worker explicitly, retaining command dispatch/persistence coverage without an autonomous scheduler.
+`identity-logic` and `identity-integration-tests` use MySQL 8 Testcontainers and require Docker.
+Vaadin tests use the frontend module's test configuration. Distinct Spring mock sets need distinct H2
+database names, otherwise repeated Liquibase initialization can fail with `databasechangelog already
+exists`; webhook tests use `fe-webhook-test`, authentication views `fe-view-test`.
+Application-details browserless tests use a separate `fe-application-details-test` database.
+
+All cached integration contexts sharing a database mock the scheduled command worker, preventing races
+with queue assertions and cleanup. Lifecycle tests invoke a real worker explicitly.
+`ApplicationMessagingIntegrationTest` lives in `vg.identity.service` to access the package-private core
+for fault injection while covering public HTTP/embedded entry points.
 
 ## Runtime entry points and persistence
 
-- `vg.identity.app.IdentityApplication` is the REST application entry point and sets
-  `identity.rest.api.enabled=true` in its application properties.
-- `vg.identity.frontend.vaadin.FrontendApplication` is the Vaadin entry point. Its default properties keep
-  the REST API disabled; deployments may enable it with `identity.rest.api.enabled=true`.
-- Liquibase migrations are owned by `identity-logic` in
-  `identity-logic/src/main/resources/db/liquibase/`. The application modules load them through their
-  classpath changelog.
-- Runtime encryption configuration is supplied through `identity.encryption.*`; production secrets belong
-  in the deployment's secret source, not versioned properties. Test properties contain isolated test
-  configuration only.
+- REST entry: `vg.identity.app.IdentityApplication`; Vaadin entry:
+  `vg.identity.frontend.vaadin.FrontendApplication`. See [configuration](configuration.md) for activation.
+- `identity-logic/src/main/resources/db/liquibase/` owns the schema, loaded from the application classpath.
+- Encryption uses AES-256/GCM with a versioned keyring; retain old keys while their ciphertext exists.
+  Blind indexes use a separate HMAC-SHA256 key for equality lookup. Passwords use Argon2; opaque API/action
+  keys store SHA-256 secret hashes. Supply production secrets through deployment configuration.
+- `CurrentPrincipalService` is a concrete Spring service. `findCurrentPrincipal()` returns authenticated
+  Spring `UserDetails` or null. `findCurrentPrincipalUniqueId()` uses `Identifiable.getUniqueId()` or
+  username lookup through `IdentityUserService`; `requirePrincipalUniqueId()` rejects only null.
+  `hasRole()` uses authentication authorities and role normalization. It adds no principal-type or
+  anonymous-token restriction. `AuthorityChecker` owns permissions; `CurrentIdentityApplicationService`
+  owns application selection and embedded fallback.
+- REST advice applies only to `vg.identity.rest.server.controller`. It handles invalid JSON/arguments
+  and messaging failures with the [API's sanitized responses](../api/identity-application-api.md#surface),
+  before servlet error dispatch can enter browser security.
+- `MainView` resolves `HasDynamicTitle` before its localized `@PageTitle` fallback. Application details
+  supplies a dynamic title; parameterized translations use `LocalizationService.i18n(key, arguments)`.
+  Message enums have explicit Ukrainian/English UI labels; the API/database enum contracts are unchanged.
+- Application details uses `History.replaceState` with a typed `Location` for tab URLs. It keeps query
+  parameters from navigation and replaces only `tab`, without a navigation callback. Tab permissions are
+  rechecked on refresh, but only changed membership causes insertion/removal; unchanged tabs stay attached.
+
+Evidence: [principal tests](../../../identity-logic/src/test/java/vg/identity/service/CurrentPrincipalServiceTest.java),
+[advice tests](../../../identity-rest-server/src/test/java/vg/identity/rest/server/controller/IdentityRestControllerAdviceTest.java),
+[REST activation tests](../../../identity-rest-server/src/test/java/vg/identity/rest/server/RestApiToggleTest.java).
+
+### Authentication runtime
+
+Password-recovery client rate limits and the frontend `SessionRegistry` are per-instance/in-memory;
+horizontal scaling multiplies the effective client allowance and limits session invalidation to local
+registered sessions. Per-email cooldown is database-backed. Reset consumes its token under a lock;
+the Vaadin reset view expires other registered sessions and attempts automatic sign-in. Invitations
+use confirmation actions for initial credentials. Deliver action links over HTTPS.
+
+Email wording lives in `identity-logic/src/main/resources/templates/email/`: bilingual Ukrainian/English
+templates with a `<!-- subject: ... -->` header and `${webUrl}` link placeholder. Confirmation also has
+a Telegram variant using `${telegramUrl}`; password reset is web-only. The default action-link builder
+returns host-relative links; the Vaadin override uses `identity.service.public-url` for absolute links.
+Mail delivery uses the optional `JavaMailSender`; `EmailService` also validates email-shaped usernames.
 
 ## Scheduled work and audit routing
 
-- `IdentityCommandWorker` polls queued identity commands every five seconds by default. Email confirmation
-  and password-reset flows enqueue mail commands rather than sending mail in the request transaction.
-  Telegram-bot creation and updates enqueue `SET_TELEGRAM_WEBHOOK` commands in the same transaction as
-  the application write. `SEND_EMAIL` retains ordinal `0`; webhook setup uses appended ordinal `1`.
-  Failed commands remain `FAILED`, without automatic retry; enqueue a new command or save the bot
-  configuration again to retry webhook setup. Resetting a failed command to `QUEUED` is insufficient while
-  the worker's in-memory command cursor has passed its ID.
-- `ApiAuthenticationAuditor` periodically flushes API-authentication success counters. The
-  `vg.identity.security.audit` logger is the audit output; its sink and retention are deployment concerns.
+### Command queue and message storage
+
+`IdentityCommandWorker` uses the configured fixed delay (default in [configuration](configuration.md)).
+Commands move `QUEUED → RUNNING → COMPLETED | FAILED` with optimistic version checks; processing and
+completion/failure are separate transactions. There is no automatic retry of already-started work.
+Claiming first selects the oldest visible `QUEUED` command with `id > cursor`. Only when none exists,
+it searches with `id > cursor - 100`. After flushing the claim, the in-memory cursor becomes the selected
+ID, including when fallback moves it backward. Both searches exclude `RUNNING`, `FAILED`, and `COMPLETED`.
+
+This is a best-effort late-commit mitigation: gaps of 1–99 behind the current cursor are eligible;
+exactly 100 and larger are excluded from that poll. IDs are shared by all command types and rolled-back
+inserts consume IDs too. Sustained newer work can prevent fallback; accepted messages can therefore
+remain `QUEUED` indefinitely and require manual investigation. A process restart resets the cursor,
+without making already-started commands eligible. Resetting a command to `QUEUED` does not reset the
+cursor and is not a supported delivery-retry mechanism.
+
+The project owner accepts this residual risk to avoid additional queue-index maintenance.
+[Unit tests](../../../identity-logic/src/test/java/vg/identity/service/IdentityCommandServiceTest.java)
+and [MySQL integration tests](../../../identity-integration-tests/src/test/java/vg/identity/service/ApplicationMessagingIntegrationTest.java)
+cover the exclusive boundary, fallback priority, claim rollback, and exclusion of already-started work.
+
+Queue models (`IdentityCommand`, status/type enums, both payload models) live in
+`vg.identity.model.command`; `EmailMessage` lives in `vg.identity.model`, services in `vg.identity.service`.
+Payload JSON contains no Java type/package discriminator. Command type ordinals:
+
+| Type | Ordinal | Payload |
+| --- | ---: | --- |
+| `SEND_EMAIL` | 0 | `EmailMessage`. |
+| `SET_TELEGRAM_WEBHOOK` | 1 | `SetTelegramWebhookCommand`: only `applicationUniqueId`. |
+| `SEND_APPLICATION_MESSAGE` | 2 | `SendApplicationMessageCommand`: only `messageUniqueId`. |
+
+Command status ordinals: `QUEUED=0`, `RUNNING=1`, `COMPLETED=2`, `FAILED=3`.
+[Type](../../../identity-logic/src/test/java/vg/identity/model/command/IdentityCommandTypeTest.java) and
+[status tests](../../../identity-logic/src/test/java/vg/identity/model/command/IdentityCommandStatusTest.java)
+freeze those contracts. Follow [persisted enum rules](../../../TESTING.md#persisted-enum-contracts).
+
+`identity_message.content` is immutable, non-null `MEDIUMBLOB`.
+`MessageContentConverter` serializes `MessageContent` to `{"t":"..."}` and encrypts it; hydration decrypts
+and deserializes. Malformed/null stored JSON fails with sanitized diagnostics, without a plaintext-bearing
+cause. Converter null inputs remain null for schema/entity nullability enforcement.
+Telegram receives the literal Java text in its provider `text` field.
+Outbound messaging uses the configured token and recipient chat ID, without checking `telegramBotId`
+or calling `getMe`. Webhook authentication continues to require a positive stored bot ID.
+
+Message `status` and nullable `failure_code` use ordinal `SMALLINT` mappings:
+
+| Enum | Name/ordinal contract |
+| --- | --- |
+| Status | `QUEUED=0`, `SENDING=1`, `SENT=2`, `FAILED=3`, `UNKNOWN=4`. |
+| Failure code | `DELIVERY_UNAVAILABLE=0`, `PROVIDER_REJECTED=1`, `INTERNAL_ERROR=2`, `DELIVERY_UNKNOWN=3`. |
+
+Public JSON uses enum names. [Status](../../../identity-api/src/test/java/vg/identity/model/IdentityMessageStatusTest.java),
+[failure-code](../../../identity-api/src/test/java/vg/identity/model/IdentityMessageFailureCodeTest.java),
+and [persistence tests](../../../identity-logic/src/test/java/vg/identity/repository/IdentityMessageRepositoryIntegrationTest.java)
+cover compatibility, numeric storage, null failure codes, and absence of route metadata.
+
+`IdentityMessageSubmissionRepository.insertOrGet` requires the caller's transaction (`MANDATORY`).
+It flushes pending JPA writes, then uses MySQL `INSERT ... ON DUPLICATE KEY UPDATE` with a no-op duplicate
+assignment and the existing application/key unique constraint. The following `SELECT ... FOR UPDATE`
+projects scalar columns from a now-existing row, bypassing stale JPA entities and repeatable-read
+snapshots. Comparing the winning ID with the generated candidate ID distinguishes creation from replay;
+affected-row counts are not used. There is no independent submission transaction or isolation override.
+
+Native insertion explicitly calls `MessageContentConverter`, stores UUIDs as 16 bytes and enum ordinals,
+initializes version zero, and uses the injected UTC clock with microsecond precision for both timestamps.
+Duplicate submissions preserve every column, including ciphertext, version, and timestamps. The native
+read uses typed scalars and the same converter to produce an unmanaged `IdentityMessageSnapshot`;
+it never clears the persistence context. [Persistence tests](../../../identity-logic/src/test/java/vg/identity/repository/IdentityMessageRepositoryIntegrationTest.java)
+cover encryption, JPA compatibility, replay immutability, and shared commit/rollback.
+[Messaging integration tests](../../../identity-integration-tests/src/test/java/vg/identity/service/ApplicationMessagingIntegrationTest.java)
+coordinate different-application inserts and stale-snapshot/entity replays under MySQL repeatable read.
+The flow avoids the reproduced missing-key gap-lock cycle; unrelated database deadlocks remain possible.
+
+The package-private `IdentityMessageService` remains a transactional Spring bean. Calls must cross bean
+boundaries for class-based proxy interception: submit message/command together, commit preparation
+before HTTP, then record the message outcome; the worker finalizes the command separately.
+[Application messaging](../logic/application-messaging.md#lifecycle-and-consistency) owns delivery,
+idempotency, and interrupted-state rules; [ADR-0003](../decisions/0003-message-and-command-outcome-transactions.md)
+records the transaction choice.
+
+### Audit and diagnostic logs
+
+All audit emitters use `vg.identity.security.audit`; its sink, tamper resistance, and retention are
+deployment concerns. Route it to the required durable/append-only sink.
+
+Log internal `UniqueId` values using their canonical string representation, including identifiers
+loaded as `Long` from entities. SLF4J formats `UniqueId` arguments through `toString()`; convert numeric
+entity IDs before passing them to a logger. Absent IDs remain null. Queue command IDs and Telegram
+provider IDs retain their numeric representation.
+
+| Emitter | Package | Events |
+| --- | --- | --- |
+| `TelegramAuthenticationAuditor` | `vg.identity.audit` | Immediate provisioning/authentication events, identified by `userUniqueId`. |
+| `IdentityMessageSubmissionAuditor` | `vg.identity.audit` | `event=message.user.submit` only after transaction commit, including replays/enclosing transactions. |
+| `ApiAuthenticationAuditor` | `vg.identity.rest.server.audit` | Immediate failures and periodically aggregated authentication successes. |
+
+Message audit outcomes are `CREATED`/`REPLAYED`; fields are `actorUserUniqueId`, `applicationUniqueId`,
+`userUniqueId`, and `messageUniqueId`. The actor field holds the resolved principal ID, including an
+application ID. Rollback emits no acceptance event. Events exclude text, idempotency keys, contact data,
+credentials, and exception details.
+
+API failures include sanitized reason (`missing_header`, `multiple_headers`, `invalid_key`), method,
+path, remote address, and available key UUID only. Success counts group by application/method/path
+with window bounds; excess distinct keys use an overflow bucket. Bounds/flush settings are in
+[configuration](configuration.md#rest-api-server). Raw keys and Telegram init/profile payloads are excluded.
+
+`IdentityMessageService` logs rejections, unavailable routes, invalid transitions, and skipped channels
+at WARN with fixed reason codes/internal IDs. This includes missing consent or verification. DEBUG adds
+replays, duplicate-attempt skips, route selection, and outcomes; enable
+`logging.level.vg.identity.service.IdentityMessageService=DEBUG`. Logs exclude text, keys, raw chat/contact
+values, credentials, and exception details. Transactional diagnostics do not prove commit.
+
+Phone-normalization logs contain reason/error codes and input shape (leading `+`, digit count, letters,
+formatting characters), never raw/parsed numbers or parsing exceptions. Missing/blank input produces
+no normalizer log; no default country is inferred.
 
 ## Telegram bot webhooks
 
-See the [Telegram configuration reference](configuration.md#telegram) for property defaults and validation. When
-webhook support is enabled with a public URL and valid secret, creating or updating a Telegram-bot application
-queues setup of Telegram's sole webhook at `${identity.service.public-url}/api/v1/telegram/webhooks/{applicationUniqueId}`.
-`{applicationUniqueId}` is Identity's textual external identifier, not its numeric database primary key.
-Identity derives a distinct Telegram webhook secret with
-`HMAC-SHA256(masterSecret, "{applicationUniqueId}:{telegramBotId}")`, encoded as unpadded URL-safe Base64, and
-validates Telegram's `X-Telegram-Bot-Api-Secret-Token` header before processing an update. The shared public
-URI builder also uses `identity.service.public-url` for browser action links; keep the webhook secret in the
-deployment secret source and never version it.
+With webhook support and a public URL configured, bot creation/update queues setup of
+`${identity.service.public-url}/api/v1/telegram/webhooks/{applicationUniqueId}`. Use textual `UniqueId`,
+not the numeric key. The public URL must include any externally visible servlet prefix.
 
-The webhook endpoint acknowledges all input with `204`; invalid input is deliberately not distinguishable to
-the sender. Operators must configure an externally reachable HTTPS base URL before relying on Telegram phone
-sharing.
+The header secret is unpadded URL-safe Base64 of
+`HMAC-SHA256(masterSecret, "{applicationUniqueId}:{telegramBotId}")`. `getMe` validates the stored bot ID;
+its result overwrites any supplied ID. Bot replacement invalidates the former secret after commit,
+including under the previous master secret; same-bot token rotation retains it. Telegram sends the
+derived value in `X-Telegram-Bot-Api-Secret-Token`. The master secret remains in deployment configuration.
+Phone sharing requires an externally reachable HTTPS webhook URL.
 
-The API-key filter's Telegram-webhook exemption uses the request path relative to the servlet context.
-For `server.servlet.context-path=/identity`, requests to
-`/identity/api/v1/telegram/webhooks/{applicationUniqueId}` reach Telegram-secret validation without an
-application API key; application endpoints and lookalike webhook paths still require an API key. Configure
-`identity.service.public-url` with the externally visible prefix so webhook registration uses the correct
-public URL. Context-path routing is covered by
-[`ApiKeyAuthenticationFilterTest`](../../../identity-rest-server/src/test/java/vg/identity/rest/server/security/ApiKeyAuthenticationFilterTest.java)
-and
-[`TelegramWebhookContextPathIntegrationTest`](../../../identity-integration-tests/src/test/java/vg/identity/rest/TelegramWebhookContextPathIntegrationTest.java).
+The webhook bypasses API-key authentication using the context-relative path. Decodable updates receive
+neutral `204` for invalid IDs, secrets, or content; unreadable JSON receives the shared sanitized `400`.
+[Context-path tests](../../../identity-integration-tests/src/test/java/vg/identity/rest/TelegramWebhookContextPathIntegrationTest.java)
+cover prefixed deployments. Phone acceptance/disclosure rules belong to
+[authentication](../logic/authentication-and-recovery.md).
 
-Phone-normalization rejection logs contain only a reason code and input-shape diagnostics: whether the
-first non-whitespace character is `+`, the digit count, whether letters are present, and whether formatting
-characters (whitespace, parentheses, hyphens, or dots) are present. Parsing failures use libphonenumber's
-error type; parsed-but-rejected numbers use its possible-number failure reason or `INVALID_NUMBER` when
-the length is plausible. Neither raw input, parsed phone objects, nor parsing exceptions are logged.
-Missing or blank inputs are rejected without a normalizer log. These diagnostics do not change validation
-or cause Identity to infer a default country. Coverage is in
-[`PhoneNumberNormalizerTest`](../../../identity-logic/src/test/java/vg/identity/service/PhoneNumberNormalizerTest.java)
-and
-[`TelegramPhoneWebhookServiceIntegrationTest`](../../../identity-logic/src/test/java/vg/identity/service/TelegramPhoneWebhookServiceIntegrationTest.java).
+`TelegramBotLookupService` shares read-only decoding and lookup by application ID or case-insensitive
+bot username (also returning the public bot URI). Absence returns null only from the nullable lookup;
+strict lookup rejects absence, and malformed payloads fail with sanitized errors. It has no administration/
+webhook-registration dependency. Webhook phone handling ignores bad/absent configuration without
+marking its caller's transaction rollback-only.
 
-`TelegramBot.telegramBotId` is validated through `getMe` and stored alongside the token in the encrypted
-application payload. Supplied bot IDs are overwritten by the validated ID. Ingress derives its expected
-secret using that application's currently stored bot ID; a bot replacement invalidates the previous bot's
-secret immediately after commit, including secrets derived from the previous master secret.
+SET commands use current stored credentials/configuration, skip deleted/non-Telegram applications and
+missing bot IDs, and fail if registration/public URL is unavailable. Pending commands may configure a
+replacement bot repeatedly. No credential snapshot is queued. Failed setup needs a new command or bot save.
 
-`TelegramBotLookupService` centralizes stored bot deserialization and lookups by application `UniqueId`
-or case-insensitive bot username. Username lookup also returns the stored public bot URI for login and
-action links. Authentication and phone handling use this read-only service directly; administration and
-webhook registration reuse its decoder for application entities they already loaded, without an extra
-query. The lookup has no dependency on application administration or webhook registration, avoiding a
-service cycle. Backfill persistence remains owned by webhook registration. Parsing failures expose only
-a stable error message, not a cause containing decrypted payload fragments.
-
-The SET command contains only `applicationUniqueId` and configures that application's current bot. The
-worker loads the stored bot ID and token, public URL, active secret, and maximum connections when executing.
-It skips deleted applications, non-Telegram applications, and bots without a stored ID. Queued commands
-created before a bot replacement also configure the current bot; multiple pending commands may repeat
-the same webhook setup. Setup fails if webhook registration is disabled or the public URL is unavailable.
-Telegram errors are sanitized before the worker logs or persists them.
-
-Changing the token on the same bot skips deletion. Replacing the bot synchronously deletes the previous
-webhook before saving the new configuration; deletion `401` is non-blocking, while other failures abort the
-update. A bot without a stored ID has no Identity-owned webhook, so deletion and old-token lookup
-are skipped on both bot replacement and application deletion. Successful external deletion cannot roll back
-if the database transaction subsequently fails; retry the application update to recover. No token snapshots
-are stored in command payloads.
+Same-bot token rotation skips deletion. Different-bot replacement synchronously deletes the previous
+webhook before saving; deletion `401` is non-blocking, other failures abort. Missing bot IDs skip old-token
+lookup/deletion on replacement or application deletion. Successful external deletion cannot roll back
+with a failed database write; retry the application update to recover. Telegram errors are sanitized.
 
 ### Background administration inspection and toggle
 
-`TelegramWebhookRegistrationService` owns inspection and manual changes as well as lifecycle registration.
-`TelegramApiClient.getWebhookInfo` uses the existing Telegram transport configuration; `TelegramService`
-validates the response and exposes only its URL to the registration service. The URL must match the generated
-Identity URL exactly (including any external context prefix). That observation establishes neither the
-configured webhook secret nor successful delivery. Inspection does not log or display returned URLs.
-Successful webhook registration logs Identity's configured callback URI at INFO; bot tokens, webhook
-secrets and raw remote errors remain excluded from logs and UI messages. Service failures have sanitized
-stable messages without a remote-error cause.
+[Administration logic](../logic/identity-administration.md) defines inspection, version checks, backfill,
+and confirmation. [Administration UI](../ui/administration.md) defines visible states and interactions.
 
-The frontend's Spring-managed `telegramWebhookExecutor` has two workers and a bounded queue of 100.
-Its abort rejection policy is non-blocking and never executes rejected work on the submitting UI thread.
-`TelegramWebhookUiTasks` captures the submitting caller's security context for domain authorization and
-restores/clears the worker context after execution. One refresh task queries bots sequentially and publishes
-each result; individual explicit toggles are separate tasks. Telegram calls never hold the Vaadin UI/session
-lock. Callbacks capture the UI at submission and enter it through `UI.accessLater` with safe detach handlers.
-A successful toggle that changes the application version also reloads that application on the worker.
-Its callback replaces the cached application and grid row without starting another webhook inspection;
-the same generation and operation checks discard obsolete model reloads.
+The frontend `telegramWebhookExecutor` has two workers, queue capacity 100, and non-blocking abort
+rejection. Tasks propagate/restore the caller's security context. Refresh batches query sequentially;
+explicit toggles run separately. Telegram calls run outside the UI/session lock; callbacks use
+`UI.accessLater` with detach handling. Cached results and generation/operation IDs reject stale callbacks;
+obsolete batches stop before their next call. Already-started mutations can still complete remotely.
 
-The UI uses cached states and refresh-generation/per-application operation identifiers to reject stale
-callbacks. Obsolete refresh batches stop before their next call; queued obsolete toggles do not start,
-while an already-started mutation can complete remotely. Temporary one-second polling is active only
-while this tab has pending work, restoring the previous interval on completion, deactivation or detach
-(retaining any pre-existing faster polling). Polling delivers callbacks and is not a Telegram refresh timer.
-
-Manual deletion does not drop pending updates and treats Telegram `401` as failure; lifecycle cleanup
-continues ignoring `401` for revoked old credentials. A toggle requires the displayed application version
-to match before acting and confirms its outcome with another inspection. It is not automatically retried.
-Manual enabling commits a retrieved bot ID before registering the webhook, because Telegram may start
-delivering updates immediately. Registration failure leaves the validated ID stored for an explicit retry.
-Deletion is remote-only, with no schema change or persistent disable flag: existing bot saves, queued
-commands and startup re-registration may restore the webhook.
-
-Coverage: [`TelegramWebhookAdministrationIntegrationTest`](../../../identity-logic/src/test/java/vg/identity/service/TelegramWebhookAdministrationIntegrationTest.java),
-[`TelegramWebhookIndicatorsTest`](../../../identity-frontend-vaadin/src/test/java/vg/identity/frontend/vaadin/admin/TelegramWebhookIndicatorsTest.java),
-and [`TelegramWebhookUiTasksIntegrationTest`](../../../identity-frontend-vaadin/src/test/java/vg/identity/frontend/vaadin/service/TelegramWebhookUiTasksIntegrationTest.java).
+Pending work temporarily enables one-second UI polling, retaining any faster existing interval and
+restoring it on completion/deactivation/detach. Polling delivers callbacks only. A toggle that changes
+the application version reloads/replaces its row in the background under the same stale-result checks.
+Registration logs the configured callback URI at INFO; inspections do not expose remote URLs or secrets.
 
 ### Emergency webhook-secret rotation
 
-During an emergency rotation, configure the old value as the optional previous secret. While it is present, Identity
-accepts headers derived from either secret. Identity rejects a misconfigured value rather than trimming and changing
-key material.
+1. Set the previous master secret as `identity.telegram.webhook.previous-secret` and configure the new
+   active secret. Both must satisfy [validation](configuration.md#telegram); values are not trimmed.
+2. Set `identity.telegram.webhook.reregister-on-startup=true` for the rollout with webhook/public URL
+   configured. Startup re-registers every stored Telegram bot using the active derived secret, backfilling
+   validated bot IDs before registration. The operation is idempotent, retains no rotation state, and
+   fails when registration is unavailable.
+3. After successful registration, return the startup option to `false`. Keep the previous secret for
+   the grace period, then remove it.
 
-Set the startup re-registration option to `true` for one rollout while the webhook feature and public URL are
-configured. After the application is ready, it re-applies Telegram's webhook configuration for
-every stored Telegram-bot application using the active secret. The operation is idempotent and keeps no
-database rotation state, so an operator may repeat the rollout after a failed attempt. It fails rather than
-silently skipping the operation when webhook registration is unavailable. Turn the startup option back off
-after successful re-registration, retain the previous secret for the selected grace period, then remove it.
+The previous-secret setting accepts prior master secrets only with bot-bound derivation; it does not
+accept application-only derivation. Such webhooks require explicit re-registration.
+[Lifecycle tests](../../../identity-logic/src/test/java/vg/identity/service/TelegramWebhookLifecycleIntegrationTest.java)
+cover registration transactions and rotation; [administration integration tests](../../../identity-logic/src/test/java/vg/identity/service/TelegramWebhookAdministrationIntegrationTest.java)
+cover inspection/toggling.
 
-Bulk re-registration also resolves missing bot IDs with `getMe` and persists them in the encrypted payload
-before applying the bot-bound secret. Bots without a stored ID cannot authenticate webhook deliveries.
-Deployments upgrading from application-only secret derivation must explicitly re-register existing bot
-webhooks; the previous-master-secret setting does not enable acceptance of the old derivation format.
+## Verification references
 
-Lifecycle and transaction behavior are covered by
-[`TelegramWebhookLifecycleIntegrationTest`](../../../identity-logic/src/test/java/vg/identity/service/TelegramWebhookLifecycleIntegrationTest.java).
+- [Compact content converter](../../../identity-logic/src/main/java/vg/identity/entity/MessageContentConverter.java)
+  and [converter tests](../../../identity-logic/src/test/java/vg/identity/entity/MessageContentConverterTest.java);
+  [message schema](../../../identity-logic/src/main/resources/db/liquibase/002-identity-message.yaml)
+  and [client JSON integration](../../../identity-integration-tests/src/test/java/vg/identity/rest/IdentityApplicationMessageClientIntegrationTest.java).
+- [Phone normalization](../../../identity-logic/src/test/java/vg/identity/service/PhoneNumberNormalizerTest.java)
+  and [webhook phone integration](../../../identity-logic/src/test/java/vg/identity/service/TelegramPhoneWebhookServiceIntegrationTest.java).
+- [Webhook UI task integration](../../../identity-frontend-vaadin/src/test/java/vg/identity/frontend/vaadin/service/TelegramWebhookUiTasksIntegrationTest.java)
+  covers context propagation, detached/stale callbacks, and row reloads.
 
 ## Related contracts
 
-See [Identity administration](../logic/identity-administration.md),
-[Authentication and recovery](../logic/authentication-and-recovery.md), and the
-[Application API](../api/identity-application-api.md).
+[Configuration](configuration.md), [administration](../logic/identity-administration.md),
+[authentication](../logic/authentication-and-recovery.md), and [Application API](../api/identity-application-api.md).

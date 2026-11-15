@@ -1,3 +1,8 @@
+- messaging
+  - can we sent also our internal messages? Not app only? SEND_APPLICATION_MESSAGE ???
+  - what about more complicated then just text structures? (http links, html)
+    - do we need some validations? Like do not allow js...
+  - we need some rate limit for apps. Let`s say 1K messages per hour. Must be configurable using UI and displaying the current usage.
 - add Permission manage service
 - on application creation assign default permissions
 - add WorkspaceUser relation

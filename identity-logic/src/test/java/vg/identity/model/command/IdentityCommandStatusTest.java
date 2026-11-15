@@ -1,4 +1,4 @@
-package vg.identity.model;
+package vg.identity.model.command;
 
 import org.junit.jupiter.api.Test;
 

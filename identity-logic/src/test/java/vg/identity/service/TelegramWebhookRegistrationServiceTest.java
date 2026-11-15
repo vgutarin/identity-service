@@ -4,13 +4,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
 import tools.jackson.databind.ObjectMapper;
 import vg.identity.entity.IdentityApplicationEntity;
 import vg.identity.entity.IdentityPrincipalEntity;
-import vg.identity.model.SetTelegramWebhookCommand;
 import vg.identity.model.application.TelegramBot;
+import vg.identity.model.command.SetTelegramWebhookCommand;
 import vg.identity.repository.IdentityApplicationRepository;
 import vg.unique.id.model.UniqueId;
 
@@ -19,7 +19,10 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TelegramWebhookRegistrationServiceTest {
